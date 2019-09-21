@@ -16,7 +16,7 @@
 APIClient library
 =================
 
-**Module name:** :mod:`pennylane.api_client`
+**Module name:** :mod:`pennylane_ionq.api_client`
 
 .. currentmodule:: pennylane.api_client
 
