@@ -102,7 +102,7 @@ class DewdropDevice(Device):
 
     def reset(self):
         """Reset the device"""
-        self.circuit = {"qubits": wires, "circuit": []}
+        self.circuit = {"qubits": self.wires, "circuit": []}
 
     @property
     def operations(self):
