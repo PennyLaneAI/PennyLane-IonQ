@@ -18,7 +18,7 @@ APIClient library
 
 **Module name:** :mod:`pennylane_ionq.api_client`
 
-.. currentmodule:: pennylane.api_client
+.. currentmodule:: pennylane_ionq.api_client
 
 
 This module provides a thin client that communicates with the IonQ Platform API over the HTTP
