@@ -42,6 +42,7 @@ Code details
 ~~~~~~~~~~~~
 """
 import itertools
+import functools
 
 # we always import NumPy directly
 import numpy as np
