@@ -46,6 +46,7 @@ Classes
 import urllib
 import json
 import warnings
+import os
 
 import dateutil.parser
 
@@ -115,7 +116,7 @@ class APIClient:
     def __init__(self, **kwargs):
         self.AUTHENTICATION_TOKEN = os.getenv("IONQ_API_KEY") or kwargs.get("api_key", None)
         self.HEADERS = {"User-Agent": self.USER_AGENT}
-        self.DEBUG = self._config["debug"]
+        self.DEBUG = False
 
         if self.AUTHENTICATION_TOKEN:
             self.set_authorization_header(self.AUTHENTICATION_TOKEN)
