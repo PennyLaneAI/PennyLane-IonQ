@@ -102,67 +102,29 @@ class JobExecutionError(Exception):
 
 class APIClient:
     """
-    An object that allows the user to connect to the Xanadu Platform API.
+    An object that allows the user to connect to the IonQ Platform API.
+
+    Keyword Args:
+        api_key (str): IonQ cloud platform API key
     """
 
     USER_AGENT = "pennylane-ionq-api-client/0.1"
-
-    ALLOWED_HOSTNAMES = ["api.ionq.co/v0"]
-
-    DEFAULT_HOSTNAME = "api.ionq.co/v0"
+    HOSTNAME = "api.ionq.co/v0"
+    BASE_URL = "https://{}".format(HOSTNAME)
 
     def __init__(self, **kwargs):
-        """
-        Initialize the API client with various parameters.
-        """
-        self._config = {"hostname": self.DEFAULT_HOSTNAME,
-                        "use_ssl": True,
-                        "authentication_token": "fake_token",
-                        "debug": True} #self.get_configuration_from_config()
-
-        # Override any values that are explicitly passed when initializing client
-        self._config.update(kwargs)
-
-        if self._config["hostname"] is None:
-            raise ValueError("hostname parameter is missing")
-
-        if self._config["hostname"] not in self.ALLOWED_HOSTNAMES:
-            raise ValueError("hostname parameter not in allowed list")
-
-        self.USE_SSL = self._config["use_ssl"]
-        if not self.USE_SSL:
-            warnings.warn("Connecting insecurely to API server", UserWarning)
-
-        self.HOSTNAME = self._config["hostname"]
-        self.BASE_URL = "{}://{}".format("https" if self.USE_SSL else "http", self.HOSTNAME)
-        self.AUTHENTICATION_TOKEN = self._config["authentication_token"]
+        self.AUTHENTICATION_TOKEN = os.getenv("IONQ_API_KEY") or kwargs.get("api_key", None)
         self.HEADERS = {"User-Agent": self.USER_AGENT}
         self.DEBUG = self._config["debug"]
 
         if self.AUTHENTICATION_TOKEN:
             self.set_authorization_header(self.AUTHENTICATION_TOKEN)
+        else:
+            raise PermissionError("API key must be provided")
 
         if self.DEBUG:
             self.errors = []
             self.responses = []
-
-    def get_configuration_from_config(self):
-        """
-        Retrieve configuration from environment variables or config file based on PennyLane
-        configuration.
-        """
-        return configuration.Configuration().api
-
-    def authenticate(self, username, password):
-        """
-        Retrieve an authentication token from the server via username
-        and password authentication and calls set_authorization_header.
-
-        Args:
-            username (str): a user name
-            password (str): password
-        """
-        raise NotImplementedError()
 
     def set_authorization_header(self, authentication_token):
         """
