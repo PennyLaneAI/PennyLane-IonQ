@@ -41,8 +41,6 @@ Classes
    Field
    Job
 """
-
-
 import urllib
 import json
 import warnings
@@ -73,8 +71,6 @@ class MethodNotSupportedException(TypeError):
     particular Resource.
     """
 
-    pass
-
 
 class ObjectAlreadyCreatedException(TypeError):
     """
@@ -82,23 +78,17 @@ class ObjectAlreadyCreatedException(TypeError):
     is attempting to create it again.
     """
 
-    pass
-
 
 class JobNotQueuedError(Exception):
     """
     Raised when a job is not successfully queued for whatever reason.
     """
 
-    pass
-
 
 class JobExecutionError(Exception):
     """
     Raised when job execution failed and a job result does not exist.
     """
-
-    pass
 
 
 class APIClient:
@@ -115,8 +105,16 @@ class APIClient:
 
     def __init__(self, **kwargs):
         self.AUTHENTICATION_TOKEN = os.getenv("IONQ_API_KEY") or kwargs.get("api_key", None)
-        self.HEADERS = {"User-Agent": self.USER_AGENT}
         self.DEBUG = False
+
+        if "IONQ_DEBUG" in os.environ:
+            # if provided, get debug mode from environment variable
+            self.DEBUG = json.loads(os.getenv("IONQ_DEBUG").lower())
+
+        # keyword argument overwrites IONQ_DEBUG environment variable
+        self.DEBUG = kwargs.get("debug", self.DEBUG)
+
+        self.HEADERS = {"User-Agent": self.USER_AGENT}
 
         if self.AUTHENTICATION_TOKEN:
             self.set_authorization_header(self.AUTHENTICATION_TOKEN)
