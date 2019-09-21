@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#!/usr/bin/env python3
 
 import sys
 import os
@@ -28,33 +27,23 @@ requirements = ["pennylane"]
 
 info = {
     # 'name' is the name that will be used by pip for installation
-    "name": "Plugin-Name",
+    "name": "PennyLane-IonQ",
     "version": version,
     "maintainer": "Xanadu Inc.",
-    "maintainer_email": "name@xanadu.ai",
+    "maintainer_email": "software@xanadu.ai",
     "url": "http://xanadu.ai",
     "license": "Apache License 2.0",
     "packages": [
-        # The name of the folder containing the plugin.
-        # This is the name that will be used when importing
-        # the plugin in Python.
-        "plugin_name"
+        "pennylane_ionq"
     ],
     "entry_points": {
         "pennylane.plugins": [
-            # List the short name of each device provided by
-            # the plugin, as well as the path to the Device class
-            # it corresponds to in the plugin. This allows
-            # the device to be imported automatically via the
-            # `pennylane.device` device loader.
-            "pluginname.devicename = plugin_name:DeviceClass"
+            "ionq.dewdrop = pennylane_ionq:DewdropDevice"
         ]
     },
-    # Place a one line description here. This will be shown by pip
-    "description": "Plugin description",
+    "description": "PennyLane plugin for IonQ",
     "long_description": open("README.rst").read(),
-    # The name of the folder containing the plugin
-    "provides": ["plugin_name"],
+    "provides": ["pennylane_ionq"],
     "install_requires": requirements,
 }
 
