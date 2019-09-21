@@ -56,8 +56,9 @@ class DewdropDevice(Device):
 
     Args:
         wires (int): the number of modes to initialize the device in
-        shots (int): Number of circuit evaluations/random samples used
-            to estimate expectation values of observables.
+        target (str): the target device, either ``"simulator"`` or ``'qpu'``
+        shots (int): number of circuit evaluations/random samples used
+            to estimate expectation values of observables
     """
     name = 'IonQ Dewdrop PennyLane plugin'
     pennylane_requires = '>=0.5.0'
@@ -67,7 +68,7 @@ class DewdropDevice(Device):
     short_name = 'ionq.dewdrop'
     _operation_map = {}
 
-    def __init__(self, wires, *, shots=0, additional_option=2):
+    def __init__(self, wires, *, backend="simulator", shots=1024):
         super().__init__(wires, shots)
         self.additional_option = hbar
         self.prog = None
