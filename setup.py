@@ -16,7 +16,7 @@ import sys
 import os
 from setuptools import setup
 
-with open("plugin_name/_version.py") as f:
+with open("pennylane_ionq/_version.py") as f:
     version = f.readlines()[-1].split()[-1].strip("\"'")
 
 # Put pip installation requirements here.

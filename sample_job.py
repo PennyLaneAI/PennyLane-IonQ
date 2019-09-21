@@ -1,4 +1,5 @@
 from pennylane_ionq.api_client import *
+from time import sleep
 
 sample_circuit =   {
                         "qubits": 4,
@@ -47,10 +48,17 @@ bell_circuit = \
     }
 
 
-sample_job = {"lang": "json",
+sample_job = {"lang": "json", "target":"qpu",
               "body": sample_circuit}
 
 job = Job()
 job.manager.create(**sample_job)
+print(job.data.value)
+
+while not job.is_complete:
+  sleep(0.01)
+  print(job.status.value)
+  job.reload()
+
 job.manager.get(job.id.value)
-print(job.data)
+print(job.data.value["histogram"])
