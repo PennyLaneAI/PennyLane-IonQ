@@ -93,14 +93,16 @@ class DewdropDevice(Device):
         "ZZ": "zz",
     }
 
+    observables = {"PauliX", "PauliY", "PauliZ", "Identity", "Hadamard"}
+
     def __init__(self, wires, *, backend="simulator", shots=1024):
         super().__init__(wires, shots)
         self.additional_option = hbar
-        self.circuit = {"qubits": wires, "circuit": []}
+        self.reset()
 
     def reset(self):
         """Reset the device"""
-        pass
+        self.circuit = {"qubits": wires, "circuit": []}
 
     @property
     def operations(self):
