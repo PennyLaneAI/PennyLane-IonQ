@@ -103,6 +103,9 @@ class JobExecutionError(Exception):
 class APIClient:
     """
     An object that allows the user to connect to the IonQ Platform API.
+
+    Keyword Args:
+        api_key (str): IonQ cloud platform API key
     """
 
     USER_AGENT = "pennylane-ionq-api-client/0.1"
@@ -110,12 +113,6 @@ class APIClient:
     BASE_URL = "https://{}".format(HOSTNAME)
 
     def __init__(self, **kwargs):
-        """
-        Initialize the API client with various parameters.
-
-        Keyword Args:
-            api_key (str): IonQ cloud platform API key
-        """
         self.AUTHENTICATION_TOKEN = os.getenv("IONQ_API_KEY") or kwargs.get("api_key", None)
         self.HEADERS = {"User-Agent": self.USER_AGENT}
         self.DEBUG = self._config["debug"]
