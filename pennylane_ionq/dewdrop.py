@@ -41,7 +41,6 @@ Classes
 Code details
 ~~~~~~~~~~~~
 """
-import abc
 import itertools
 
 # we always import NumPy directly
@@ -52,23 +51,20 @@ from pennylane import Device
 from ._version import __version__
 
 
-class FrameworkDevice(Device):
-    r"""Abstract Framework device for PennyLane.
+class DewdropDevice(Device):
+    r"""Abstract Framework device for IonQ Dewdrop.
 
     Args:
         wires (int): the number of modes to initialize the device in
         shots (int): Number of circuit evaluations/random samples used
             to estimate expectation values of observables.
-            For simulator devices, 0 means the exact EV is returned.
-        additional_option (float): as many additional arguments can be
-            added as needed
     """
-    name = 'Target Framework Simulator PennyLane plugin'
-    pennylane_requires = '>=0.4.0'
+    name = 'IonQ Dewdrop PennyLane plugin'
+    pennylane_requires = '>=0.5.0'
     version = __version__
-    author = 'John Smith'
+    author = 'XanaduAI'
 
-    short_name = 'framework'
+    short_name = 'ionq.dewdrop'
     _operation_map = {}
 
     def __init__(self, wires, *, shots=0, additional_option=2):

@@ -1,14 +1,7 @@
-PennyLane Plugin Template
-#########################
+PennyLane IonQ Plugin
+#####################
 
-This template repository provides the boilerplate and file structure required to easily create your
-own PennyLane plugin.
-
-See the `PennyLane Developer API documentation <https://pennylane.readthedocs.io/en/latest/API/overview.html>`_
-for more details on developing a PennyLane plugin.
-
-`Target framework <https://targetframework.readthedocs.io>`_ is a full-stack Python library
-for doing things.
+`IonQ Dewdrop <https://dewdrop.ionq.co>`_ is a trapped ion simulator and hardware cloud platform.
 
 `PennyLane <https://pennylane.readthedocs.io>`_ is a machine learning library for optimization
 and automatic differentiation of hybrid quantum-classical computations.
@@ -29,11 +22,11 @@ Features
 Installation
 ============
 
-Plugin Name requires both PennyLane and Target framework. It can be installed via ``pip``:
+PennyLane-IonQ requires PennyLane. It can be installed via ``pip``:
 
 .. code-block:: bash
 
-    $ python -m pip install plugin-name
+    $ python -m pip install pennylane-ionq
 
 
 Getting started

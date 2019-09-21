@@ -12,10 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-Plugin overview
-===============
+PennyLane IonQ overview
+=======================
 """
-from .device1 import Device1
-from .device2 import Device2
+from .dewdrop import DewdropDevice
 from .ops import S, T, CCNOT, CPHASE, CSWAP, ISWAP, PSWAP
 from ._version import __version__

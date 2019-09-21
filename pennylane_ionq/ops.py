@@ -15,26 +15,17 @@
 Custom operations
 =================
 
-**Module name:** :mod:`pennylane_forest.ops`
+**Module name:** :mod:`pennylane_ionq.ops`
 
-.. currentmodule:: pennylane_forest.ops
+.. currentmodule:: pennylane_ionq.ops
 
-Sometimes the Target Framework may accept more operations
-than available by core PennyLane. The plugin can define
-these operations such that PennyLane can understand/apply them,
-and even differentiate them.
+This module contains some additional IonQ qubit operations.
 
-This module contains some example PennyLane qubit operations.
-
-The user would import them via
+They can be imported via
 
 .. code-block:: python
 
-    from plugin_name.ops import S, T, CCNOT
-
-To see more details about defining custom PennyLane operations,
-including more advanced cases such as defining gradient rules,
-see https://pennylane.readthedocs.io/en/latest/API/overview.html
+    from pennylane_ionq.ops import S, T, CCNOT
 
 Operations
 ----------
