@@ -50,7 +50,6 @@ import warnings
 import dateutil.parser
 
 import requests
-from strawberryfields import configuration
 
 
 def join_path(base_path, path):
@@ -108,15 +107,18 @@ class APIClient:
 
     USER_AGENT = "pennylane-ionq-api-client/0.1"
 
-    ALLOWED_HOSTNAMES = ["api.ionq.co"]
+    ALLOWED_HOSTNAMES = ["api.ionq.co/v0"]
 
-    DEFAULT_HOSTNAME = "api.ionq.co"
+    DEFAULT_HOSTNAME = "api.ionq.co/v0"
 
     def __init__(self, **kwargs):
         """
         Initialize the API client with various parameters.
         """
-        self._config = self.get_configuration_from_config()
+        self._config = {"hostname": self.DEFAULT_HOSTNAME,
+                        "use_ssl": True,
+                        "authentication_token": "fake_token",
+                        "debug": True} #self.get_configuration_from_config()
 
         # Override any values that are explicitly passed when initializing client
         self._config.update(kwargs)
@@ -170,7 +172,7 @@ class APIClient:
         Args:
             authentication_token (str): an authentication token used to access the API
         """
-        self.HEADERS["Authorization"] = authentication_token
+        self.HEADERS["Authorization"] = "apiKey {}".format(authentication_token)
 
     def join_path(self, path):
         """
