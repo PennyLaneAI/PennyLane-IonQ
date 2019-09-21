@@ -43,12 +43,14 @@ Code details
 """
 import itertools
 import functools
+from time import sleep
 
 # we always import NumPy directly
 import numpy as np
 
 from pennylane import Device
 
+from .api_client import Job
 from ._version import __version__
 
 
@@ -95,14 +97,16 @@ class DewdropDevice(Device):
 
     observables = {"PauliX", "PauliY", "PauliZ", "Identity", "Hadamard"}
 
-    def __init__(self, wires, *, backend="simulator", shots=1024):
+    def __init__(self, wires, *, target="simulator", shots=1024):
         super().__init__(wires, shots)
-        self.additional_option = hbar
+        self.target = target
         self.reset()
 
     def reset(self):
         """Reset the device"""
-        self.circuit = {"qubits": self.wires, "circuit": []}
+        self.prob = {}
+        self.circuit = {"qubits": self.num_wires, "circuit": []}
+        self.job = {"lang": "json", "body": self.circuit, "target": self.target}
 
     @property
     def operations(self):
@@ -125,25 +129,35 @@ class DewdropDevice(Device):
 
         self.circuit["circuit"].append(gate)
 
-    def expval(self, observable, wires, par):
-        if self.shots == 0:
-            # exact expectation value
-            eigvals = self.eigvals(observable, wires, par)
-            prob = np.fromiter(self.probabilities(wires=wires).values(), dtype=np.float64)
-            return (eigvals @ prob).real
+    def post_apply(self):
+        for e in self.obs_queue:
+            # Add unitaries prior to measurement if the expectation
+            # depending on the observable to be measured
+            self.rotate_basis(e.name, e.wires, e.parameters)
 
-        # estimate the ev
-        return np.mean(self.sample(observable, wires, par))
+    def pre_measure(self):
+        job = Job()
+
+        # send job for exection
+        job.manager.create(**self.job)
+
+        # retrieve results
+        while not job.is_complete:
+            sleep(0.01)
+            job.reload()
+
+        job.manager.get(job.id.value)
+
+        histogram = job.data.value["histogram"]
+        self.prob = np.array([histogram.get(str(k), 0) for k in range(2**self.num_wires)])
+
+    def expval(self, observable, wires, par):
+        eigvals = self.eigvals(observable, wires, par)
+        return (eigvals @ self.prob).real
 
     def var(self, observable, wires, par):
-        if self.shots == 0:
-            # exact variance value
-            eigvals = self.eigvals(observable, wires, par)
-            prob = np.fromiter(self.probabilities(wires=wires).values(), dtype=np.float64)
-            return (eigvals ** 2) @ prob - (eigvals @ prob).real ** 2
-
-        # estimate the variance
-        return np.var(self.sample(observable, wires, par))
+        eigvals = self.eigvals(observable, wires, par)
+        return (eigvals ** 2) @ self.prob - (eigvals @ self.prob).real ** 2
 
     def rotate_basis(self, observable, wires, par):
         """Rotates the specified wires such that they
@@ -167,25 +181,6 @@ class DewdropDevice(Device):
         elif observable == "Hadamard":
             # H = Ry(-pi/4)^.Z.Ry(-pi/4)
             self.apply("RY", wires, [-np.pi / 4])
-
-        elif observable == "Hermitian":
-            # For arbitrary Hermitian matrix H, let U be the unitary matrix
-            # that diagonalises it, and w_i be the eigenvalues.
-            Hmat = par[0]
-            Hkey = tuple(Hmat.flatten().tolist())
-
-            if Hkey in self._eigs:
-                # retrieve eigenvectors
-                U = self._eigs[Hkey]["eigvec"]
-            else:
-                # store the eigenvalues corresponding to H
-                # in a dictionary, so that they do not need to
-                # be calculated later
-                w, U = np.linalg.eigh(Hmat)
-                self._eigs[Hkey] = {"eigval": w, "eigvec": U}
-
-            # Perform a change of basis before measuring by applying U^ to the circuit
-            self.apply("QubitUnitary", wires, [U.conj().T])
 
     def eigvals(self, observable, wires, par):
         """Determine the eigenvalues of observable(s).

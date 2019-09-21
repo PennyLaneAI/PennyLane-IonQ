@@ -444,7 +444,7 @@ class Job(Resource):
         """
         Returns True if the job status is "COMPLETE". Case insensitive. Returns False otherwise.
         """
-        return self.status.value and self.status.value.upper() == "COMPLETE"
+        return self.status.value and self.status.value.upper() == "COMPLETED"
 
     @property
     def is_failed(self):
