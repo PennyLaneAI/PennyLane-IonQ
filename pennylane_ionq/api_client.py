@@ -134,7 +134,7 @@ class APIClient:
         Args:
             authentication_token (str): an authentication token used to access the API
         """
-        self.HEADERS["Authorization"] = authentication_token
+        self.HEADERS["Authorization"] = "apiKey {}".format(authentication_token)
 
     def join_path(self, path):
         """
