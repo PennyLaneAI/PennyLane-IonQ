@@ -67,14 +67,36 @@ class DewdropDevice(Device):
     author = 'XanaduAI'
 
     short_name = 'ionq.dewdrop'
-    _operation_map = {}
+    _operation_map = {
+        # native PennyLane operations also native to IonQ
+        "PauliX": "x",
+        "PauliY": "y",
+        "PauliZ": "z",
+        "Hadamard": "h",
+        "CNOT": "cnot",
+        "SWAP": "swap",
+        "RX": "rx",
+        "RY": "ry",
+        "RZ": "rz",
+        # operations not natively implemented in IonQ but provided in gates.py
+        # "Rot": Rot,
+        # "BasisState": BasisState,
+        # additional operations not native to PennyLane but present in IonQ
+        "S": "s",
+        "Sdg": "si",
+        "T": "t",
+        "Tdg": "ti",
+        "V": "v",
+        "Vdg": "vi",
+        "XX": "xx",
+        "YY": "YY",
+        "ZZ": "zz",
+    }
 
     def __init__(self, wires, *, backend="simulator", shots=1024):
         super().__init__(wires, shots)
         self.additional_option = hbar
-        self.prog = None
-        self.state = None
-        self.samples = None
+        self.circuit = {"qubits": wires, "circuit": []}
 
     def reset(self):
         """Reset the device"""
@@ -89,11 +111,17 @@ class DewdropDevice(Device):
         """
         return set(self._operation_map.keys())
 
-    # ==========================================================
-    # The following methods below provide common calculations
-    # and patterns required for qubit PennyLane plugin devices.
-    # Feel free to keep and modify any provided methods below,
-    # or delete them as you see fit.
+    def apply(self, operation, wires, par):
+        op_name = self._operation_map[operation]
+        gate = {"gate": op_name, "target": wires[0]}
+
+        if len(wires) == 2:
+            gate["control"] = wires[1]
+
+        if par:
+            gate["rotation"] = par[0]
+
+        self.circuit["circuit"].append(gate)
 
     def expval(self, observable, wires, par):
         if self.shots == 0:
