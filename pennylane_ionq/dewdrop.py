@@ -93,6 +93,7 @@ class DewdropDevice(Device):
         "ZZ": "zz",
     }
 
+    operations = set(_operation_map.keys())
     observables = {"PauliX", "PauliY", "PauliZ", "Identity", "Hadamard"}
 
     def __init__(self, wires, *, backend="simulator", shots=1024):
@@ -103,15 +104,6 @@ class DewdropDevice(Device):
     def reset(self):
         """Reset the device"""
         self.circuit = {"qubits": self.wires, "circuit": []}
-
-    @property
-    def operations(self):
-        """Get the supported set of operations.
-
-        Returns:
-            set[str]: the set of PennyLane operation names the device supports
-        """
-        return set(self._operation_map.keys())
 
     def apply(self, operation, wires, par):
         op_name = self._operation_map[operation]
