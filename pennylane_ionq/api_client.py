@@ -122,6 +122,8 @@ class APIClient:
 
         if self.AUTHENTICATION_TOKEN:
             self.set_authorization_header(self.AUTHENTICATION_TOKEN)
+        else:
+            raise PermissionError("API key must be provided")
 
         if self.DEBUG:
             self.errors = []
