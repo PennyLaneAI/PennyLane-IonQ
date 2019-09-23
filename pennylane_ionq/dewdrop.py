@@ -55,9 +55,9 @@ class DewdropDevice(Device):
         shots (int): number of circuit evaluations/random samples used
             to estimate expectation values of observables
     """
-    pennylane_requires = '>=0.5.0'
+    pennylane_requires = ">=0.5.0"
     version = __version__
-    author = 'XanaduAI'
+    author = "XanaduAI"
 
     _operation_map = {
         # native PennyLane operations also native to IonQ
@@ -191,7 +191,7 @@ class DewdropDevice(Device):
         job.manager.get(job.id.value)
 
         histogram = job.data.value["histogram"]
-        self.prob = np.zeros([2**self.num_wires])
+        self.prob = np.zeros([2 ** self.num_wires])
         self.prob[np.array([int(i) for i in histogram.keys()])] = list(histogram.values())
 
     def expval(self, observable, wires, par):
@@ -295,7 +295,9 @@ class DewdropDevice(Device):
             # observable is of the form Z^{\otimes a}\otimes A \otimes Z^{\otimes b}
             eigvals = np.array([1])
 
-            for k, g in itertools.groupby(zip(observable, wires, par), lambda x: x[0] in {"Identity", "Hermitian"}):
+            for k, g in itertools.groupby(
+                zip(observable, wires, par), lambda x: x[0] in {"Identity", "Hermitian"}
+            ):
                 if k:
                     op = list(g)[0]
                     if op[0] == "Identity":
@@ -337,8 +339,8 @@ class SimulatorDevice(DewdropDevice):
         shots (int): number of circuit evaluations/random samples used
             to estimate expectation values of observables
     """
-    name = 'IonQ Simulator PennyLane plugin'
-    short_name = 'ionq.simulator'
+    name = "IonQ Simulator PennyLane plugin"
+    short_name = "ionq.simulator"
 
     def __init__(self, wires, *, shots=1024):
         super().__init__(wires=wires, target="simulator", shots=shots)
@@ -352,8 +354,8 @@ class QPUDevice(DewdropDevice):
         shots (int): number of circuit evaluations/random samples used
             to estimate expectation values of observables
     """
-    name = 'IonQ QPU PennyLane plugin'
-    short_name = 'ionq.qpu'
+    name = "IonQ QPU PennyLane plugin"
+    short_name = "ionq.qpu"
 
     def __init__(self, wires, *, shots=1024):
         super().__init__(wires=wires, target="qpu", shots=shots)
