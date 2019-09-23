@@ -5,36 +5,31 @@ PennyLane Target Framework Plugin
 :Date: |today|
 
 
-This PennyLane plugin allows the Target Framework simulators/hardware to be used as PennyLane devices.
+This PennyLane plugin allows IonQ simulators/hardware to be used as PennyLane devices.
 
 
-`Target framework <https://targetframework.readthedocs.io>`_ is a full-stack Python library
-for doing things.
+`IonQ Dewdrop <https://dewdrop.ionq.co>`_ is a trapped ion simulator and hardware cloud platform.
 
 `PennyLane <https://pennylane.readthedocs.io>`_ is a machine learning library for optimization
 and automatic differentiation of hybrid quantum-classical computations.
 
 
-
 Features
 ========
 
-* List the features provided by the plugin here. This can include:
+* Provides two IonQ devices, ``ionq.simulator`` and ``ionq.qpu``, for accessing the
+  IonQ cloud platform and running QML algorithms on the provider simulators and trapped-ion QPUs
 
-* The devices made available to PennyLane, as well as any special features of the devices
+* Supports most PennyLane qubit operations and observables
 
-* The core PennyLane operations and observables supported
+* Provides additional IonQ-specific quantum operations, including ``S``, ``T``, ``V``,
+  ``CCNOT``, and the Ising coupling gates ``XX``, ``YY``, ``ZZ``.
 
-* Any additional operations and observables provided by the plugin
-
-
-To get started with the PennyLane Strawberry Fields plugin, follow the :ref:`installation steps <installation>`, then see the :ref:`usage <usage>` page.
+To get started with the PennyLane IonQ plugin, follow the :ref:`installation steps <installation>`, then see the :ref:`usage <usage>` page.
 
 
 Authors
 =======
-
-John Smith.
 
 If you are doing research using PennyLane, please cite our papers:
 
@@ -59,16 +54,6 @@ Contents
    installing
    usage
 
-
-.. rst-class:: contents local topic
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Tutorials (external links)
-
-   Photon redirection <https://pennylane.readthedocs.io/en/latest/tutorials/plugins_hybrid.html>
-   Notebook downloads <https://pennylane.readthedocs.io/en/latest/tutorials/notebooks.html>
-
 .. rst-class:: contents local topic
 
 .. toctree::
@@ -76,6 +61,5 @@ Contents
    :caption: Code details
 
    code/ops
-   code/framework_device
-   code/device1
-   code/device2
+   code/dewdrop
+   code/api_client

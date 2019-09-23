@@ -1,4 +1,4 @@
-.. automodule:: plugin_name.framework_device
+.. automodule:: pennylane_ionq.dewdrop
    :members:
    :private-members:
    :special-members:

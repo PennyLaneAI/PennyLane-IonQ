@@ -15,6 +15,6 @@
 PennyLane IonQ overview
 =======================
 """
-from .dewdrop import DewdropDevice
-from .ops import S, T, CCNOT, CPHASE, CSWAP, ISWAP, PSWAP
+from .dewdrop import SimulatorDevice, QPUDevice
+from .ops import S, Sdg, T, Tdg, CCNOT, V, Vdg, XX, YY, ZZ
 from ._version import __version__

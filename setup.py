@@ -23,7 +23,7 @@ with open("pennylane_ionq/_version.py") as f:
 # Requirements should be as minimal as possible.
 # Avoid pinning, and use minimum version numbers
 # only where required.
-requirements = ["pennylane"]
+requirements = ["pennylane", "numpy", "python-dateutil", "requests"]
 
 info = {
     # 'name' is the name that will be used by pip for installation
@@ -38,7 +38,8 @@ info = {
     ],
     "entry_points": {
         "pennylane.plugins": [
-            "ionq.dewdrop = pennylane_ionq:DewdropDevice"
+            "ionq.simulator = pennylane_ionq:SimulatorDevice",
+            "ionq.qpu = pennylane_ionq:QPUDevice"
         ]
     },
     "description": "PennyLane plugin for IonQ",

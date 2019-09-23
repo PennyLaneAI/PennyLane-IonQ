@@ -14,7 +14,7 @@
 import numpy as np
 import pytest
 
-from pennylane_ionq import DewdropDevice
+from pennylane_ionq import SimulatorDevice, QPUDevice
 
 
 np.random.seed(42)
@@ -48,7 +48,7 @@ analytic_devices = []
 # List of all devices that do *not* support analytic expectation
 # value computation. This generally includes hardware devices
 # and hardware simulators.
-hw_devices = [DewdropDevice]
+hw_devices = [SimulatorDevice]
 
 # List of all device shortnames
 shortnames = [d.short_name for d in analytic_devices + hw_devices]
@@ -73,11 +73,12 @@ def tol(shots):
 
 @pytest.fixture
 def init_state(scope="session"):
-    """Fixture to create an n-qubit initial state"""
+    """Fixture to create an n-qubit initial basis state"""
     def _init_state(n):
-        state = np.random.random([2 ** n]) + np.random.random([2 ** n]) * 1j
-        state /= np.linalg.norm(state)
-        return state
+        state = np.random.randint(0, 2, [n])
+        ket = np.zeros([2**n])
+        ket[np.ravel_multi_index(state, [2] * n)] = 1
+        return state, ket
 
     return _init_state
 
