@@ -66,21 +66,20 @@ All devices support all PennyLane `operations and observables <https://pennylane
 - ``PhaseShift``
 - ``Hermitian``
 
-In addition, the plugin provides the following framework-specific operations for PennyLane. These are all importable from :mod:`pennylane_ionq.ops <.ops>`.
+In addition, the plugin provides the following framework-specific operations for PennyLane. These are all importable from ``pennylane_ionq.ops``.
 
 These operations include:
 
-.. autosummary::
-    pennylane_ionq.ops.S
-    pennylane_ionq.ops.Sdg
-    pennylane_ionq.ops.T
-    pennylane_ionq.ops.Tdg
-    pennylane_ionq.ops.CCNOT
-    pennylane_ionq.ops.V
-    pennylane_ionq.ops.Vdg
-    pennylane_ionq.ops.XX
-    pennylane_ionq.ops.YY
-    pennylane_ionq.ops.ZZ
+- ``pennylane_ionq.ops.S``
+- ``pennylane_ionq.ops.Sdg``
+- ``pennylane_ionq.ops.T``
+- ``pennylane_ionq.ops.Tdg``
+- ``pennylane_ionq.ops.CCNOT``
+- ``pennylane_ionq.ops.V``
+- ``pennylane_ionq.ops.Vdg``
+- ``pennylane_ionq.ops.XX``
+- ``pennylane_ionq.ops.YY``
+- ``pennylane_ionq.ops.ZZ``
 
 Contributing
 ============
