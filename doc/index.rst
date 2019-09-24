@@ -1,12 +1,11 @@
-PennyLane Target Framework Plugin
-#################################
+PennyLane IonQ Plugin
+#####################
 
 :Release: |release|
 :Date: |today|
 
 
 This PennyLane plugin allows IonQ simulators/hardware to be used as PennyLane devices.
-
 
 `IonQ Dewdrop <https://dewdrop.ionq.co>`_ is a trapped ion simulator and hardware cloud platform.
 

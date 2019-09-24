@@ -20,7 +20,7 @@ You can instantiate these devices in PennyLane as follows:
 
 >>> import pennylane as qml
 >>> dev1 = qml.device('ionq.dewdrop', wires=2, shots=1024)
->>> dev1 = qml.device('ionq.simulator', wires=3, shots=8192)
+>>> dev2 = qml.device('ionq.simulator', wires=3, shots=8192)
 
 These devices can then be used just like other devices for the definition and evaluation of QNodes within PennyLane.
 
@@ -30,15 +30,15 @@ Supported operations
 
 All devices support all PennyLane `operations and observables <https://pennylane.readthedocs.io/en/latest/code/ops/qubit.html>`_, with the exception of:
 
-- ``QubitStateVector``
-- ``QubitUnitary``
-- ``CRX``
-- ``CRY``
-- ``CRZ``
-- ``CRot``
-- ``CSWAP``
-- ``PhaseShift``
-- ``Hermitian``
+- :class:`QubitStateVector`
+- :class:`QubitUnitary`
+- :class:`CRX`
+- :class:`CRY`
+- :class:`CRZ`
+- :class:`CRot`
+- :class:`CSWAP`
+- :class:`PhaseShift`
+- :class:`Hermitian`
 
 In addition, the plugin provides the following framework-specific operations for PennyLane. These are all importable from :mod:`pennylane_ionq.ops <.ops>`.
 
