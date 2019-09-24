@@ -19,7 +19,7 @@ IonQ device classes
 
 .. currentmodule:: pennylane_ionq.dewdrop
 
-This module contains the PennyLane Device classes for the IonQ
+This module contains the PennyLane :class:`Device` classes for the IonQ
 simulator and QPU.
 
 Classes
@@ -51,7 +51,7 @@ class DewdropDevice(Device):
 
     Args:
         wires (int): the number of modes to initialize the device in
-        target (str): the target device, either ``"simulator"`` or ``'qpu'``
+        target (str): the target device, either ``"simulator"`` or ``"qpu"``
         shots (int): number of circuit evaluations/random samples used
             to estimate expectation values of observables
     """
@@ -118,7 +118,10 @@ class DewdropDevice(Device):
                     "Operation {} cannot be used after other Operations have already been applied "
                     "on a {} device.".format(operation, self.short_name)
                 )
-            [self.apply("PauliX", [w], []) for w, p in enumerate(par[0]) if p == 1]
+            self._first_operation = False
+            for w, p in enumerate(par[0]):
+                if p == 1:
+                    self.apply("PauliX", [w], [])
             return
 
         self._first_operation = False
@@ -154,16 +157,16 @@ class DewdropDevice(Device):
             return
 
         op_name = self._operation_map[operation]
-        gate = {"gate": op_name, "target": wires[0]}
-
+        gate = {"gate": op_name}
         if len(wires) == 2:
             if operation in {"SWAP", "XX", "YY", "ZZ"}:
                 # these gates takes two targets
                 gate["targets"] = wires
-                del gate["target"]
             else:
                 gate["control"] = wires[0]
                 gate["target"] = wires[1]
+        else:
+            gate["target"] = wires[0]
 
         if par:
             gate["rotation"] = par[0]
@@ -205,7 +208,7 @@ class DewdropDevice(Device):
         return (eigvals ** 2) @ probs - (eigvals @ probs).real ** 2
 
     def probabilities(self, wires=None):
-        """Return the (marginal) probability of each computational basis
+        """Marginal probabilities of each computational basis
         state from the last run of the device.
 
         Args:
@@ -223,7 +226,7 @@ class DewdropDevice(Device):
         wires = wires or range(self.num_wires)
         wires = np.hstack(wires)
 
-        basis_states = itertools.product(range(2), repeat=len(wires))
+        #basis_states = itertools.product(range(2), repeat=len(wires))
         inactive_wires = list(set(range(self.num_wires)) - set(wires))
 
         prob = self.prob.reshape([2] * self.num_wires)
@@ -274,6 +277,9 @@ class DewdropDevice(Device):
         #     # Perform a change of basis before measuring by applying U^ to the circuit
         #     self.apply("QubitUnitary", wires, [U.conj().T])
 
+        elif observable not in ("Identity", "PauliZ"):  # no rotation necessary
+            raise ValueError("Unknown observable.")
+
     def eigvals(self, observable, wires, par):
         """Determine the eigenvalues of observable(s).
 
@@ -284,7 +290,7 @@ class DewdropDevice(Device):
             par (List[Any]): parameters of the observable(s)
 
         Returns:
-            array[float]: an array of size ``(len(wires),)`` containing the
+            array[float]: an array of shape ``(2 ** len(wires),)`` containing the
             eigenvalues of the observable
         """
         # observable should be Z^{\otimes n}
@@ -296,7 +302,7 @@ class DewdropDevice(Device):
             eigvals = np.array([1])
 
             for k, g in itertools.groupby(
-                zip(observable, wires, par), lambda x: x[0] in {"Identity", "Hermitian"}
+                    zip(observable, wires, par), lambda x: x[0] in {"Identity", "Hermitian"}
             ):
                 if k:
                     op = list(g)[0]

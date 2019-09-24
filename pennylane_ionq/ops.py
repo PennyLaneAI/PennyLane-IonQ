@@ -53,7 +53,7 @@ class S(Operation):
     r"""S(wires)
     S gate.
 
-    .. math:: S = \begin{bmatrix} 1 & 0 \\ 0 & i \end{bmatrix}
+    .. math:: S = T^2 = \begin{bmatrix} 1 & 0 \\ 0 & i \end{bmatrix}
 
     **Details:**
 
@@ -148,7 +148,7 @@ class CCNOT(Operation):
     * Number of parameters: 0
 
     Args:
-        wires (int): the subsystem the gate acts on
+        wires (Sequence[int]): the subsystems the gate acts on
     """
     num_params = 0
     num_wires = 3
@@ -223,7 +223,7 @@ class XX(Operation):
 
     Args:
         phi (float): rotation angle :math:`\phi`
-        wires (Sequence[int] or int): the wire the operation acts on
+        wires (Sequence[int]): the subsystems the operation acts on
     """
     num_params = 1
     num_wires = 2
@@ -251,7 +251,7 @@ class YY(Operation):
 
     Args:
         phi (float): rotation angle :math:`\phi`
-        wires (Sequence[int] or int): the wire the operation acts on
+        wires (Sequence[int]): the subsystems the operation acts on
     """
     num_params = 1
     num_wires = 2
@@ -279,7 +279,7 @@ class ZZ(Operation):
 
     Args:
         phi (float): rotation angle :math:`\phi`
-        wires (Sequence[int] or int): the wire the operation acts on
+        wires (Sequence[int]): the subsystems the operation acts on
     """
     num_params = 1
     num_wires = 2
