@@ -10,19 +10,37 @@ PennyLane-IonQ provides two devices for PennyLane:
 * :class:`ionq.qpu <~QPUDevice>`: provides an PennyLane device for the IonQ QPU hardware
 
 
-Using the devices
-=================
+Getting started
+===============
 
-Once PennyLane-IonQ is installed, the two IonQ devices
-can be accessed straight away in PennyLane.
+Once PennyLane-IonQ is installed, and your IonQ cloud API key is registered, the provided IonQ devices can be accessed straight away in PennyLane.
 
-You can instantiate these devices in PennyLane as follows:
+To register your API key, you can either:
 
->>> import pennylane as qml
->>> dev1 = qml.device('ionq.dewdrop', wires=2, shots=1024)
->>> dev2 = qml.device('ionq.simulator', wires=3, shots=8192)
+1. Recommended: add the following configuration to your PennyLane ``config.toml`` file:
 
-These devices can then be used just like other devices for the definition and evaluation of QNodes within PennyLane.
+   .. code-block:: toml
+
+   [ionq.global]
+   api_key = "your-key-here"
+
+2. Set the environment variable ``IONQ_API_KEY``
+
+3. Pass the ``api_key`` keyword argument directly when initializing the
+   PennyLane devices.
+
+You can instantiate these device for PennyLane as follows:
+
+.. code-block:: python
+
+    import pennylane as qml
+    dev1 = qml.device('ionq.dewdrop', wires=2, shots=1024)
+    dev2 = qml.device('ionq.simulator', wires=3, shots=8192)
+
+These devices can then be used just like other devices for the definition and evaluation of
+QNodes within PennyLane. For more details, see the
+`plugin usage guide <https://pennylane-ionq.readthedocs.io/en/latest/usage.html>`_ and refer
+to the PennyLane documentation.
 
 
 Supported operations

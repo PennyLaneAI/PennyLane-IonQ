@@ -10,6 +10,8 @@ This PennyLane plugin allows IonQ simulators/hardware to be used as PennyLane de
 and automatic differentiation of hybrid quantum-classical computations.
 
 
+
+
 Features
 ========
 
@@ -35,8 +37,21 @@ PennyLane-IonQ requires PennyLane. It can be installed via ``pip``:
 Getting started
 ===============
 
-Once PennyLane-IonQ is installed, the provided IonQ devices can be accessed straight
-away in PennyLane.
+Once PennyLane-IonQ is installed, and your IonQ cloud API key is registered, the provided IonQ devices can be accessed straight away in PennyLane.
+
+To register your API key, you can either:
+
+1. Recommended: add the following configuration to your PennyLane ``config.toml`` file:
+
+   .. code-block:: toml
+
+   [ionq.global]
+   api_key = "your-key-here"
+
+2. Set the environment variable ``IONQ_API_KEY``
+
+3. Pass the ``api_key`` keyword argument directly when initializing the
+   PennyLane devices.
 
 You can instantiate these device for PennyLane as follows:
 

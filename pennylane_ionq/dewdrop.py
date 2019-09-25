@@ -277,53 +277,79 @@ class DewdropDevice(Device):
         #     # Perform a change of basis before measuring by applying U^ to the circuit
         #     self.apply("QubitUnitary", wires, [U.conj().T])
 
-        elif observable not in ("Identity", "PauliZ"):  # no rotation necessary
-            raise ValueError("Unknown observable.")
-
     def eigvals(self, observable, wires, par):
         """Determine the eigenvalues of observable(s).
 
         Args:
             observable (str, List[str]): the name of an observable,
-                or a list of observables representing a tensor product.
+                or a list of observables representing a tensor product
             wires (List[int]): wires the observable(s) is measured on
             par (List[Any]): parameters of the observable(s)
 
         Returns:
-            array[float]: an array of shape ``(2 ** len(wires),)`` containing the
+            array[float]: an array of size ``(len(wires),)`` containing the
             eigenvalues of the observable
         """
+        # the standard observables all share a common eigenbasis {1, -1}
+        # with the Pauli-Z gate/computational basis measurement
+        standard_observables = {"PauliX", "PauliY", "PauliZ", "Hadamard"}
+
         # observable should be Z^{\otimes n}
-        eigvals = z_eigs(len(wires))
+        eigvals = pauli_eigs(len(wires))
 
         if isinstance(observable, list):
-            # determine the eigenvalues
-            # observable is of the form Z^{\otimes a}\otimes A \otimes Z^{\otimes b}
-            eigvals = np.array([1])
+            # tensor product of observables
 
-            for k, g in itertools.groupby(
-                    zip(observable, wires, par), lambda x: x[0] in {"Identity", "Hermitian"}
-            ):
-                if k:
-                    op = list(g)[0]
-                    if op[0] == "Identity":
-                        eigvals = np.kron(eigvals, np.array([1, 1]))
-                    # elif op[0] == "Hermitian":
-                    #     p = op[2]
-                    #     Hkey = tuple(p[0].flatten().tolist())
-                    #     eigvals = np.kron(eigvals, self._eigs[Hkey]["eigval"])
-                else:
-                    n = len([w for sublist in list(zip(*g))[1] for w in sublist])
-                    eigvals = np.kron(eigvals, z_eigs(n))
+            # check if there are any non-standard observables (such as Identity, Hadamard)
+            if set(observable) - standard_observables:
+                # Tensor product of observables contains a mixture
+                # of standard and non-standard observables
+                eigvals = np.array([1])
+
+                # group the observables into subgroups, depending on whether
+                # they are in the standard observables or not.
+                for k, g in itertools.groupby(
+                    zip(observable, wires, par), lambda x: x[0] in standard_observables
+                ):
+                    if k:
+                        # Subgroup g contains only standard observables.
+                        # Determine the size of the subgroup, by transposing
+                        # the list, flattening it, and determining the length.
+                        n = len([w for sublist in list(zip(*g))[1] for w in sublist])
+                        eigvals = np.kron(eigvals, pauli_eigs(n))
+                    else:
+                        # Subgroup g contains only non-standard observables.
+                        for ns_obs in g:
+                            # loop through all non-standard observables
+                            if ns_obs[0] == "Identity":
+                                # Identity observable has eigenvalues (1, 1)
+                                eigvals = np.kron(eigvals, np.array([1, 1]))
+
+                            # TODO: Uncomment the following when arbitrary hermitian
+                            # observables and arbitrary qubit unitaries are supported.
+                            # elif ns_obs[0] == "Hermitian":
+                            #     # Hermitian observable has pre-computed eigenvalues
+                            #     p = ns_obs[2]
+                            #     Hkey = tuple(p[0].flatten().tolist())
+                            #     eigvals = np.kron(eigvals, self._eigs[Hkey]["eigval"])
+
+
+        # TODO: Uncomment the following when arbitrary hermitian
+        # observables and arbitrary qubit unitaries are supported.
+        # elif observable == "Hermitian":
+        #     # single wire Hermitian observable
+        #     Hkey = tuple(par[0].flatten().tolist())
+        #     eigvals = self._eigs[Hkey]["eigval"]
 
         elif observable == "Identity":
+            # single wire identity observable
             eigvals = np.ones(2 ** len(wires))
 
         return eigvals
 
 
 @functools.lru_cache()
-def z_eigs(n):
+def pauli_eigs(n):
     r"""Returns the eigenvalues for :math:`Z^{\otimes n}`.
 
     Args:
@@ -334,7 +360,7 @@ def z_eigs(n):
     """
     if n == 1:
         return np.array([1, -1])
-    return np.concatenate([z_eigs(n - 1), -z_eigs(n - 1)])
+    return np.concatenate([pauli_eigs(n - 1), -pauli_eigs(n - 1)])
 
 
 class SimulatorDevice(DewdropDevice):
