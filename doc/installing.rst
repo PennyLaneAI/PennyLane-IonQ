@@ -15,7 +15,7 @@ PennyLane-IonQ requires the following libraries be installed:
 
 as well as the following Python packages:
 
-* `PennyLane <http://pennylane.readthedocs.io/>`_ >=0.4
+* `PennyLane <http://pennylane.readthedocs.io/>`_ >=0.5
 
 If you currently do not have Python 3 installed, we recommend `Anaconda for Python 3 <https://www.anaconda.com/download/>`_, a distributed version of Python packaged for scientific computation.
 

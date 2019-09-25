@@ -14,9 +14,9 @@ Features
 ========
 
 * Provides two IonQ devices, ``ionq.simulator`` and ``ionq.qpu``, for accessing the
-  IonQ cloud platform and running QML algorithms on the provider simulators and trapped-ion QPUs
+  IonQ cloud platform and running QML algorithms on the provider simulators and trapped-ion QPUs.
 
-* Supports most PennyLane qubit operations and observables
+* Supports most PennyLane qubit operations and observables.
 
 * Provides additional IonQ-specific quantum operations, including ``S``, ``T``, ``V``,
   ``CCNOT``, and the Ising coupling gates ``XX``, ``YY``, ``ZZ``.
@@ -44,7 +44,7 @@ You can instantiate these device for PennyLane as follows:
 
     import pennylane as qml
     dev1 = qml.device('ionq.dewdrop', wires=2, shots=1024)
-    dev1 = qml.device('ionq.simulator', wires=3, shots=8192)
+    dev2 = qml.device('ionq.simulator', wires=3, shots=8192)
 
 These devices can then be used just like other devices for the definition and evaluation of
 QNodes within PennyLane. For more details, see the
@@ -84,9 +84,9 @@ These operations include:
 Contributing
 ============
 
-We welcome contributions - simply fork the PennyLane-IonQ repository, and then make a
+We welcome contributions --- simply fork the PennyLane-IonQ repository, and then make a
 `pull request <https://help.github.com/articles/about-pull-requests/>`_ containing your contribution.
-All contributers to PennyLane-SF will be listed as authors on the releases.
+All contributers to PennyLane-IonQ will be listed as authors on the releases.
 
 We also encourage bug reports, suggestions for new features and enhancements, and even links to cool
 projects or applications built on PennyLane and IonQ.
@@ -105,8 +105,8 @@ If you are doing research using PennyLane, please cite our papers:
 Support
 =======
 
-- **Source Code:** https://github.com/XanaduAI/plugin-name
-- **Issue Tracker:** https://github.com/XanaduAI/plugin-namesf/issues
+- **Source Code:** https://github.com/XanaduAI/Pennylane-IonQ
+- **Issue Tracker:** https://github.com/XanaduAI/Pennylane-IonQ/issues
 
 If you are having issues, please let us know by posting the issue on our GitHub issue tracker.
 

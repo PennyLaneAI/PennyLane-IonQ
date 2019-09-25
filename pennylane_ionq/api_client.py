@@ -40,6 +40,19 @@ Classes
    ResourceManager
    Field
    Job
+   JobResult
+   JobCircuit
+
+Exceptions
+----------
+
+.. autosummary::
+   MethodNotSupportedException
+   ObjectAlreadyCreatedException
+   JobNotQueuedError
+   JobExecutionError
+
+----
 """
 import urllib
 import json
@@ -67,14 +80,14 @@ def join_path(base_path, path):
 
 class MethodNotSupportedException(TypeError):
     """
-    Exception to be raised when a ResourceManager method is not supported for a
+    Raised when a ResourceManager method is not supported for a
     particular Resource.
     """
 
 
 class ObjectAlreadyCreatedException(TypeError):
     """
-    Exception to be raised when an object has already been created but the user
+    Raised when an object has already been created but the user
     is attempting to create it again.
     """
 
@@ -93,7 +106,7 @@ class JobExecutionError(Exception):
 
 class APIClient:
     """
-    An object that allows the user to connect to the IonQ Platform API.
+    Allows the user to connect to the IonQ Platform API.
 
     Keyword Args:
         api_key (str): IonQ cloud platform API key
@@ -207,7 +220,7 @@ class APIClient:
 
 class ResourceManager:
     """
-    This class handles all interactions with APIClient by the resource.
+    Handles all interactions with APIClient by the Resource.
     """
 
     http_response_data = None
@@ -333,8 +346,7 @@ class ResourceManager:
 
 class Resource:
     """
-    A base class for an API resource. This class should be extended for each
-    resource endpoint.
+    Base class for an API resource. Should be extended for each resource endpoint.
     """
 
     SUPPORTED_METHODS = ()
@@ -367,7 +379,7 @@ class Resource:
 
 class Field:
     """
-    A helper class to classify and clean data returned by the API.
+    Classifies and cleans data returned by the API.
     """
 
     value = None
@@ -415,7 +427,7 @@ class Field:
 
 class Job(Resource):
     """
-    The API resource corresponding to jobs.
+    API resource corresponding to jobs.
     """
 
     SUPPORTED_METHODS = ("GET", "POST")
@@ -466,7 +478,7 @@ class Job(Resource):
 
 class JobResult(Resource):
     """
-    The API resource corresponding to the job result.
+    API resource corresponding to the job result.
     """
 
     SUPPORTED_METHODS = ("GET",)
@@ -487,7 +499,7 @@ class JobResult(Resource):
 
 class JobCircuit(Resource):
     """
-    The API resource corresponding to the job circuit.
+    API resource corresponding to the job circuit.
     """
 
     SUPPORTED_METHODS = ("GET",)
