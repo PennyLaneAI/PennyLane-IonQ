@@ -287,7 +287,7 @@ class DewdropDevice(Device):
             par (List[Any]): parameters of the observable(s)
 
         Returns:
-            array[float]: an array of size ``(len(wires),)`` containing the
+            array[float]: an array of size ``(2**len(wires),)`` containing the
             eigenvalues of the observable
         """
         # the standard observables all share a common eigenbasis {1, -1}
