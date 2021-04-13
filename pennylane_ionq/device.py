@@ -81,12 +81,9 @@ class IonQDevice(QubitDevice):
     # and therefore does not support the Hermitian observable.
     observables = {"PauliX", "PauliY", "PauliZ", "Hadamard", "Identity"}
 
-
     def __init__(self, wires, *, target="simulator", shots=1024, api_key=None):
         if shots is None:
-            raise ValueError(
-                "The ionq device does not support analytic expectation values"
-            )
+            raise ValueError("The ionq device does not support analytic expectation values")
 
         super().__init__(wires=wires, shots=shots)
         self.target = target
@@ -168,7 +165,7 @@ class IonQDevice(QubitDevice):
         wires = wires or self.wires
 
         if shot_range is None and bin_size is None:
-        	return self.marginal_prob(self.prob, wires)
+            return self.marginal_prob(self.prob, wires)
 
         return self.estimate_probability(wires=wires, shot_range=shot_range, bin_size=bin_size)
 
