@@ -77,6 +77,10 @@ class IonQDevice(QubitDevice):
         "ZZ": "zz",
     }
 
+    # Note: unlike QubitDevice, IonQ does not support QubitUnitary,
+    # and therefore does not support the Hermitian observable.
+    observables = {"PauliX", "PauliY", "PauliZ", "Hadamard", "Identity"}
+
 
     def __init__(self, wires, *, target="simulator", shots=1024, api_key=None):
         if shots is None:
