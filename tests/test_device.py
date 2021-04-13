@@ -36,7 +36,7 @@ class TestDeviceIntegration:
             qml.device("ionq.simulator")
 
         # a hardware device will not allow shots=None
-        with pytest.raises(qml.DeviceError, match="does not support analytic"):
+        with pytest.raises(ValueError, match="does not support analytic"):
             qml.device("ionq.simulator", wires=1, shots=None)
 
     @pytest.mark.parametrize("d", shortnames)
@@ -64,4 +64,4 @@ class TestDeviceIntegration:
         """Test that the probabilities function returns
         None if no job has yet been run."""
         dev = qml.device(d, wires=1, shots=1)
-        assert dev.probabilities() is None
+        assert dev.prob is None
