@@ -77,6 +77,10 @@ class IonQDevice(QubitDevice):
         "ZZ": "zz",
     }
 
+    # Note: unlike QubitDevice, IonQ does not support QubitUnitary,
+    # and therefore does not support the Hermitian observable.
+    observables = {"PauliX", "PauliY", "PauliZ", "Hadamard", "Identity"}
+
 
     def __init__(self, wires, *, target="simulator", shots=1024, api_key=None):
         if shots is None:
@@ -124,7 +128,7 @@ class IonQDevice(QubitDevice):
 
     def _apply_operation(self, operation):
         name = self._operation_map[operation.name]
-        wires = self.map_wires(operation.wires).tolist()
+        wires = operation.wires
         gate = {"gate": name}
         par = operation.parameters
 
@@ -159,6 +163,7 @@ class IonQDevice(QubitDevice):
         histogram = job.data.value["histogram"]
         self.prob = np.zeros([2 ** self.num_wires])
         self.prob[np.array([int(i) for i in histogram.keys()])] = list(histogram.values())
+        self.prob = self.prob.reshape([2, -1]).T.flatten()
 
     def probability(self, wires=None, shot_range=None, bin_size=None):
         wires = wires or self.wires
