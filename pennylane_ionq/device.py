@@ -160,6 +160,7 @@ class IonQDevice(QubitDevice):
         histogram = job.data.value["histogram"]
         self.prob = np.zeros([2 ** self.num_wires])
         self.prob[np.array([int(i) for i in histogram.keys()])] = list(histogram.values())
+        self.prob = self.prob.reshape(-1, 2).T.flatten()
 
     def probability(self, wires=None, shot_range=None, bin_size=None):
         wires = wires or self.wires
