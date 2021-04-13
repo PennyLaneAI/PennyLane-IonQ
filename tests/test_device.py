@@ -35,9 +35,9 @@ class TestDeviceIntegration:
         with pytest.raises(TypeError, match="missing 1 required positional argument"):
             qml.device("ionq.simulator")
 
-        # a hardware device will not allow shots=0
-        with pytest.raises(qml.DeviceError, match="specified number of shots needs to be at least 1"):
-            qml.device("ionq.simulator", wires=1, shots=0)
+        # a hardware device will not allow shots=None
+        with pytest.raises(qml.DeviceError, match="does not support analytic"):
+            qml.device("ionq.simulator", wires=1, shots=None)
 
     @pytest.mark.parametrize("d", shortnames)
     @pytest.mark.parametrize("shots", [8192])
@@ -59,8 +59,9 @@ class TestDeviceIntegration:
 
         assert np.allclose(circuit(a, b, c), np.cos(a) * np.sin(b), **tol)
 
-    def test_probability_no_results(self):
+    @pytest.mark.parametrize("d", shortnames)
+    def test_probability_no_results(self, d):
         """Test that the probabilities function returns
         None if no job has yet been run."""
-        dev = SimulatorDevice(wires=1, shots=1)
+        dev = qml.device(d, wires=1, shots=1)
         assert dev.probabilities() is None
