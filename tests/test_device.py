@@ -11,40 +11,53 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for any plugin- or framework-specific behaviour of the plugin devices"""
+"""Tests that plugin devices are accessible and integrate with PennyLane"""
+import numpy as np
+import pennylane as qml
 import pytest
 
-import numpy as np
-
-from pennylane_ionq.dewdrop import pauli_eigs
-from pennylane_ionq import SimulatorDevice
+from conftest import shortnames
 
 
-Z = np.diag([1, -1])
+class TestDeviceIntegration:
+    """Test the devices work correctly from the PennyLane frontend."""
 
+    @pytest.mark.parametrize("d", shortnames)
+    def test_load_device(self, d):
+        """Test that the QVM device loads correctly"""
+        dev = qml.device(d, wires=2, shots=1024)
+        assert dev.num_wires == 2
+        assert dev.shots == 1024
+        assert dev.short_name == d
 
-class TestZEigs:
-    r"""Test that eigenvalues of Z^{\otimes n} are correctly generated"""
+    def test_args(self):
+        """Test that the device requires correct arguments"""
+        with pytest.raises(TypeError, match="missing 1 required positional argument"):
+            qml.device("ionq.simulator")
 
-    def test_one(self):
-        """Test that eigs(Z) = [1, -1]"""
-        assert np.all(pauli_eigs(1) == np.array([1, -1]))
+        # a hardware device will not allow shots=0
+        with pytest.raises(qml.DeviceError, match="specified number of shots needs to be at least 1"):
+            qml.device("ionq.simulator", wires=1, shots=0)
 
-    @pytest.mark.parametrize("n", [2, 3, 6])
-    def test_multiple(self, n):
-        r"""Test that eigs(Z^{\otimes n}) is correct"""
-        res = pauli_eigs(n)
-        Zn = np.kron(Z, Z)
+    @pytest.mark.parametrize("d", shortnames)
+    @pytest.mark.parametrize("shots", [8192])
+    def test_one_qubit_circuit(self, shots, d, tol):
+        """Test that devices provide correct result for a simple circuit"""
+        dev = qml.device(d, wires=1, shots=shots)
 
-        for _ in range(n - 2):
-            Zn = np.kron(Zn, Z)
+        a = 0.543
+        b = 0.123
+        c = 0.987
 
-        expected = np.diag(Zn)
-        assert np.all(res == expected)
+        @qml.qnode(dev)
+        def circuit(x, y, z):
+            """Reference QNode"""
+            qml.BasisState(np.array([1]), wires=0)
+            qml.Hadamard(wires=0)
+            qml.Rot(x, y, z, wires=0)
+            return qml.expval(qml.PauliZ(0))
 
-
-class TestProbabilities:
-    """Tests for the probability function"""
+        assert np.allclose(circuit(a, b, c), np.cos(a) * np.sin(b), **tol)
 
     def test_probability_no_results(self):
         """Test that the probabilities function returns
