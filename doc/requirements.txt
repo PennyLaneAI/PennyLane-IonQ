@@ -1,3 +1,1 @@
-sphinxcontrib-bibtex
-pygments-github-lexers
-sphinx-rtd-theme
+sphinx-automodapi
