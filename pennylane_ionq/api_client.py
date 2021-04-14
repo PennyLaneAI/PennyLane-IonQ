@@ -227,7 +227,7 @@ class ResourceManager:
     http_response_status_code = None
     errors = None
 
-    def __init__(self, resource, client=None):
+    def __init__(self, resource, client=None, api_key=None):
         """
         Initialize the manager with resource and client instances. A client
         instance is used as a persistent HTTP communications object, and a
@@ -235,7 +235,7 @@ class ResourceManager:
         Job)
         """
         self.resource = resource
-        self.client = client or APIClient()
+        self.client = client or APIClient(api_key=api_key)
         self.errors = []
 
     def join_path(self, path):
@@ -353,14 +353,14 @@ class Resource:
     PATH = ""
     fields = ()
 
-    def __init__(self, client=None):
+    def __init__(self, client=None, api_key=None):
         """
         Initialize the Resource by populating attributes based on fields and setting a manager.
 
         Args:
             client (APIClient): An APIClient instance to use as a client.
         """
-        self.manager = ResourceManager(self, client=client)
+        self.manager = ResourceManager(self, client=client, api_key=api_key)
         for field in self.fields:
             setattr(self, field.name, field)
 
@@ -433,7 +433,7 @@ class Job(Resource):
     SUPPORTED_METHODS = ("GET", "POST")
     PATH = "jobs"
 
-    def __init__(self, client=None):
+    def __init__(self, client=None, api_key=None):
         """
         Initialize the Job resource with a set of pre-defined fields.
         """
@@ -449,7 +449,7 @@ class Job(Resource):
         self.result = None
         self.circuit = None
 
-        super().__init__(client=client)
+        super().__init__(client=client, api_key=api_key)
 
     @property
     def is_complete(self):
