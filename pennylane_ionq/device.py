@@ -157,6 +157,10 @@ class IonQDevice(QubitDevice):
 
         job.manager.get(job.id.value)
 
+        # The returned job histogram is of the form
+        # dict[str, float], and maps the computational basis
+        # state (as a base-10 integer string) to the probability
+        # as a floating point value between 0 and 1.
         self.histogram = job.data.value["histogram"]
 
     @property
