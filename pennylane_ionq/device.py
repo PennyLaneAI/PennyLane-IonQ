@@ -1,4 +1,4 @@
-# Copyright 2020 Xanadu Quantum Technologies Inc.
+# Copyright 2019-2021 Xanadu Quantum Technologies Inc.
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,8 +35,7 @@ class IonQDevice(QubitDevice):
             or iterable that contains unique labels for the subsystems as numbers (i.e., ``[-1, 0, 2]``)
             or strings (``['ancilla', 'q1', 'q2']``).
         shots (int, list[int]): Number of circuit evaluations/random samples used to estimate
-            expectation values of observables. If ``None``, the device calculates probability, expectation values,
-            and variances analytically. If an integer, it specifies the number of samples to estimate these quantities.
+            expectation values of observables.
             If a list of integers is passed, the circuit evaluations are batched over the list of shots.
         api_key (str): The IonQ API key. If not provided, the environment
             variable ``IONQ_API_KEY`` is used.
@@ -83,7 +82,7 @@ class IonQDevice(QubitDevice):
 
     def __init__(self, wires, *, target="simulator", shots=1024, api_key=None):
         if shots is None:
-            raise ValueError("The ionq device does not support analytic expectation values")
+            raise ValueError("The ionq device does not support analytic expectation values.")
 
         super().__init__(wires=wires, shots=shots)
         self.target = target
@@ -160,6 +159,10 @@ class IonQDevice(QubitDevice):
         histogram = job.data.value["histogram"]
         self.prob = np.zeros([2 ** self.num_wires])
         self.prob[np.array([int(i) for i in histogram.keys()])] = list(histogram.values())
+
+        # The IonQ API returns probabilities using little-endian ordering.
+        # Here, we rearrange the array to match the big-endian ordering
+        # expected by PennyLane.
         self.prob = self.prob.reshape(-1, 2).T.flatten()
 
     def probability(self, wires=None, shot_range=None, bin_size=None):
