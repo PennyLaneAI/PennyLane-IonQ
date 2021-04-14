@@ -124,9 +124,8 @@ class IonQDevice(QubitDevice):
         self._submit_job()
 
     def _apply_operation(self, operation):
-        name = self._operation_map[operation.name]
-        wires = self.map_wires(operation.wires).tolist()
-        gate = {"gate": name}
+        name = operation.name
+        gate = {"gate": self._operation_map[name]}
         par = operation.parameters
 
         if len(wires) == 2:
