@@ -129,6 +129,7 @@ class IonQDevice(QubitDevice):
         par = operation.parameters
 
         if len(wires) == 2:
+            print(name)
             if name in {"SWAP", "XX", "YY", "ZZ"}:
                 # these gates takes two targets
                 gate["targets"] = wires
@@ -140,6 +141,8 @@ class IonQDevice(QubitDevice):
 
         if par:
             gate["rotation"] = par[0]
+
+        print(gate)
 
         self.circuit["circuit"].append(gate)
 
