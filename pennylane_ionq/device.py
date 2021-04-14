@@ -125,6 +125,7 @@ class IonQDevice(QubitDevice):
 
     def _apply_operation(self, operation):
         name = operation.name
+        wires = self.map_wires(operation.wires).tolist()
         gate = {"gate": self._operation_map[name]}
         par = operation.parameters
 
