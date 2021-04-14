@@ -38,7 +38,7 @@ company offering access to quantum computing devices over the cloud.
 
 .. header-end-inclusion-marker-do-not-remove
 
-The plugin documentation can be found here: `PennyLane-IonQ <https://pennylane-ionq.readthedocs.io/en/latest/>`__.
+The plugin documentation can be found `here <https://pennylane-ionq.readthedocs.io/en/latest/>`__.
 
 Features
 ========
