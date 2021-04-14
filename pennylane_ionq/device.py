@@ -123,9 +123,9 @@ class IonQDevice(QubitDevice):
         self._submit_job()
 
     def _apply_operation(self, operation):
-        name = self._operation_map[operation.name]
-        wires = operation.wires
-        gate = {"gate": name}
+        name = operation.name
+        wires = self.map_wires(operation.wires).tolist()
+        gate = {"gate": self._operation_map[name]}
         par = operation.parameters
 
         if len(wires) == 2:
@@ -217,5 +217,5 @@ class QPUDevice(IonQDevice):
     name = "IonQ QPU PennyLane plugin"
     short_name = "ionq.qpu"
 
-    def __init__(self, wires, *, shots=1024):
+    def __init__(self, wires, *, shots=1024, api_key=None):
         super().__init__(wires=wires, target="qpu", shots=shots, api_key=api_key)
