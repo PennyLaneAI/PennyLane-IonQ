@@ -92,6 +92,7 @@ class IonQDevice(QubitDevice):
     def reset(self):
         """Reset the device"""
         self.prob = None
+        self.histogram = None
         self.circuit = {"qubits": self.num_wires, "circuit": []}
         self.job = {"lang": "json", "body": self.circuit, "target": self.target}
 
@@ -156,9 +157,9 @@ class IonQDevice(QubitDevice):
 
         job.manager.get(job.id.value)
 
-        histogram = job.data.value["histogram"]
+        self.histogram = job.data.value["histogram"]
         self.prob = np.zeros([2 ** self.num_wires])
-        self.prob[np.array([int(i) for i in histogram.keys()])] = list(histogram.values())
+        self.prob[np.array([int(i) for i in self.histogram.keys()])] = list(self.histogram.values())
 
         # The IonQ API returns probabilities using little-endian ordering.
         # Here, we rearrange the array to match the big-endian ordering
