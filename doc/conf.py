@@ -63,7 +63,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'PennyLane-IonQ'
-copyright = "Copyright 2020"
+copyright = "Copyright 2021"
 author = 'Xanadu Inc.'
 
 add_module_names = False
