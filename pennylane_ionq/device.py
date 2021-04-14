@@ -91,7 +91,7 @@ class IonQDevice(QubitDevice):
 
     def reset(self):
         """Reset the device"""
-        self.prob = None
+        self._prob_array = None
         self.histogram = None
         self.circuit = {"qubits": self.num_wires, "circuit": []}
         self.job = {"lang": "json", "body": self.circuit, "target": self.target}
@@ -158,13 +158,27 @@ class IonQDevice(QubitDevice):
         job.manager.get(job.id.value)
 
         self.histogram = job.data.value["histogram"]
-        self.prob = np.zeros([2 ** self.num_wires])
-        self.prob[np.array([int(i) for i in self.histogram.keys()])] = list(self.histogram.values())
 
-        # The IonQ API returns probabilities using little-endian ordering.
-        # Here, we rearrange the array to match the big-endian ordering
-        # expected by PennyLane.
-        self.prob = self.prob.reshape(-1, 2).T.flatten()
+    @property
+    def prob(self):
+        """array[float]: Probability of """
+        if self.histogram is None:
+            return None
+
+        if self._prob_array is None:
+            # The IonQ API returns basis states using little-endian ordering.
+            # Here, we rearrange the states to match the big-endian ordering
+            # expected by PennyLane.
+            basis_states = (
+                int(bin(int(k))[2:].rjust(self.num_wires, "0")[::-1], 2) for k in self.histogram
+            )
+            idx = np.fromiter(basis_states, dtype=np.int)
+
+            # convert the sparse probs into a probability array
+            self._prob_array = np.zeros([2 ** self.num_wires])
+            self._prob_array[idx] = np.fromiter(self.histogram.values(), np.float)
+
+        return self._prob_array
 
     def probability(self, wires=None, shot_range=None, bin_size=None):
         wires = wires or self.wires
