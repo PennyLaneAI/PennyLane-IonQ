@@ -123,13 +123,12 @@ class IonQDevice(QubitDevice):
         self._submit_job()
 
     def _apply_operation(self, operation):
-        name = self._operation_map[operation.name]
+        name = operation.name
         wires = self.map_wires(operation.wires).tolist()
-        gate = {"gate": name}
+        gate = {"gate": self._operation_map[name]}
         par = operation.parameters
 
         if len(wires) == 2:
-            print(name)
             if name in {"SWAP", "XX", "YY", "ZZ"}:
                 # these gates takes two targets
                 gate["targets"] = wires
@@ -141,8 +140,6 @@ class IonQDevice(QubitDevice):
 
         if par:
             gate["rotation"] = par[0]
-
-        print(gate)
 
         self.circuit["circuit"].append(gate)
 
