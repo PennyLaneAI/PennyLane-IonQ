@@ -161,7 +161,7 @@ class IonQDevice(QubitDevice):
 
     @property
     def prob(self):
-        """array[float]: Probability of """
+        """array[float]: array of computational basis state probabilities"""
         if self.histogram is None:
             return None
 
