@@ -163,7 +163,7 @@ class IonQDevice(QubitDevice):
         # The IonQ API returns probabilities using little-endian ordering.
         # Here, we rearrange the array to match the big-endian ordering
         # expected by PennyLane.
-        self.prob = self.prob.reshape(2, -1).T.flatten()
+        self.prob = self.prob.reshape(-1, 2).T.flatten()
 
     def probability(self, wires=None, shot_range=None, bin_size=None):
         wires = wires or self.wires
@@ -217,5 +217,5 @@ class QPUDevice(IonQDevice):
     name = "IonQ QPU PennyLane plugin"
     short_name = "ionq.qpu"
 
-    def __init__(self, wires, *, shots=1024):
+    def __init__(self, wires, *, shots=1024, api_key=None):
         super().__init__(wires=wires, target="qpu", shots=shots, api_key=api_key)

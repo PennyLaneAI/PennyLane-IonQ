@@ -62,15 +62,15 @@ class TestDeviceIntegration:
     @pytest.mark.parametrize("shots", [8192])
     def test_one_qubit_ordering(self, shots, tol):
         """Test that probabilities are returned with the correct qubit ordering"""
-        dev = qml.device("ionq.simulator", wires=3, shots=shots)
+        dev = qml.device("ionq.simulator", wires=2, shots=shots)
 
         @qml.qnode(dev)
         def circuit():
-            qml.PauliX(wires=2)
-            return qml.probs(wires=[0, 1, 2])
+            qml.PauliX(wires=1)
+            return qml.probs(wires=[0, 1])
 
         res = circuit()
-        assert np.allclose(res, np.array([0., 1., 0., 0., 0., 0., 0., 0.]), **tol)
+        assert np.allclose(res, np.array([0., 1., 0., 0.]), **tol)
 
     @pytest.mark.parametrize("d", shortnames)
     def test_prob_no_results(self, d):
