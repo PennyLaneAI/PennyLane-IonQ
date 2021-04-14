@@ -24,7 +24,7 @@ class TestDeviceIntegration:
 
     @pytest.mark.parametrize("d", shortnames)
     def test_load_device(self, d):
-        """Test that the QVM device loads correctly"""
+        """Test that the device loads correctly"""
         dev = qml.device(d, wires=2, shots=1024)
         assert dev.num_wires == 2
         assert dev.shots == 1024
@@ -35,7 +35,7 @@ class TestDeviceIntegration:
         with pytest.raises(TypeError, match="missing 1 required positional argument"):
             qml.device("ionq.simulator")
 
-        # a hardware device will not allow shots=None
+        # IonQ devices do not allow shots=None
         with pytest.raises(ValueError, match="does not support analytic"):
             qml.device("ionq.simulator", wires=1, shots=None)
 
@@ -60,8 +60,8 @@ class TestDeviceIntegration:
         assert np.allclose(circuit(a, b, c), np.cos(a) * np.sin(b), **tol)
 
     @pytest.mark.parametrize("d", shortnames)
-    def test_probability_no_results(self, d):
-        """Test that the probabilities function returns
+    def test_prob_no_results(self, d):
+        """Test that the prob attribute is
         None if no job has yet been run."""
         dev = qml.device(d, wires=1, shots=1)
         assert dev.prob is None
