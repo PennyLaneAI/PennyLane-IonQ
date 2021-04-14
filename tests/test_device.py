@@ -72,7 +72,7 @@ class TestDeviceIntegration:
             return qml.probs(wires=[0, 1, 2])
 
         res = circuit()
-        assert np.allclose(res, np.array([0. 1. 0. 0. 0. 0. 0. 0.]), **tol)
+        assert np.allclose(res, np.array([0., 1., 0., 0., 0., 0., 0., 0.]), **tol)
 
     @pytest.mark.parametrize("d", shortnames)
     def test_prob_no_results(self, d):
