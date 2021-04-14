@@ -91,7 +91,8 @@ class IonQDevice(QubitDevice):
 
     def reset(self):
         """Reset the device"""
-        self.prob = None
+        self._prob_array = None
+        self.histogram = None
         self.circuit = {"qubits": self.num_wires, "circuit": []}
         self.job = {"lang": "json", "body": self.circuit, "target": self.target}
 
@@ -156,14 +157,35 @@ class IonQDevice(QubitDevice):
 
         job.manager.get(job.id.value)
 
-        histogram = job.data.value["histogram"]
-        self.prob = np.zeros([2 ** self.num_wires])
-        self.prob[np.array([int(i) for i in histogram.keys()])] = list(histogram.values())
+        # The returned job histogram is of the form
+        # dict[str, float], and maps the computational basis
+        # state (as a base-10 integer string) to the probability
+        # as a floating point value between 0 and 1.
+        # e.g., {"0": 0.413, "9": 0.111, "17": 0.476}
+        self.histogram = job.data.value["histogram"]
 
-        # The IonQ API returns probabilities using little-endian ordering.
-        # Here, we rearrange the array to match the big-endian ordering
-        # expected by PennyLane.
-        self.prob = self.prob.reshape(-1, 2).T.flatten()
+    @property
+    def prob(self):
+        """None or array[float]: Array of computational basis state probabilities. If
+        no job has been submitted, returns ``None``.
+        """
+        if self.histogram is None:
+            return None
+
+        if self._prob_array is None:
+            # The IonQ API returns basis states using little-endian ordering.
+            # Here, we rearrange the states to match the big-endian ordering
+            # expected by PennyLane.
+            basis_states = (
+                int(bin(int(k))[2:].rjust(self.num_wires, "0")[::-1], 2) for k in self.histogram
+            )
+            idx = np.fromiter(basis_states, dtype=np.int)
+
+            # convert the sparse probs into a probability array
+            self._prob_array = np.zeros([2 ** self.num_wires])
+            self._prob_array[idx] = np.fromiter(self.histogram.values(), np.float)
+
+        return self._prob_array
 
     def probability(self, wires=None, shot_range=None, bin_size=None):
         wires = wires or self.wires
