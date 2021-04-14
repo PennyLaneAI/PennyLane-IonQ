@@ -163,7 +163,7 @@ class IonQDevice(QubitDevice):
         # The IonQ API returns probabilities using little-endian ordering.
         # Here, we rearrange the array to match the big-endian ordering
         # expected by PennyLane.
-        self.prob = self.prob.reshape(-1, 2).T.flatten()
+        self.prob = self.prob.reshape(2, -1).T.flatten()
 
     def probability(self, wires=None, shot_range=None, bin_size=None):
         wires = wires or self.wires

@@ -40,11 +40,10 @@ class TestDeviceIntegration:
         with pytest.raises(ValueError, match="does not support analytic"):
             qml.device(d, wires=1, shots=None)
 
-    @pytest.mark.parametrize("d", shortnames)
     @pytest.mark.parametrize("shots", [8192])
-    def test_one_qubit_circuit(self, shots, d, tol):
+    def test_one_qubit_circuit(self, shots, tol):
         """Test that devices provide correct result for a simple circuit"""
-        dev = qml.device(d, wires=1, shots=shots)
+        dev = qml.device("ionq.simulator", wires=1, shots=shots)
 
         a = 0.543
         b = 0.123
@@ -60,11 +59,10 @@ class TestDeviceIntegration:
 
         assert np.allclose(circuit(a, b, c), np.cos(a) * np.sin(b), **tol)
 
-    @pytest.mark.parametrize("d", shortnames)
     @pytest.mark.parametrize("shots", [8192])
-    def test_one_qubit_ordering(self, shots, d, tol):
+    def test_one_qubit_ordering(self, shots, tol):
         """Test that probabilities are returned with the correct qubit ordering"""
-        dev = qml.device(d, wires=3, shots=shots)
+        dev = qml.device("ionq.simulator", wires=3, shots=shots)
 
         @qml.qnode(dev)
         def circuit():
