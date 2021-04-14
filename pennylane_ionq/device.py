@@ -161,6 +161,7 @@ class IonQDevice(QubitDevice):
         # dict[str, float], and maps the computational basis
         # state (as a base-10 integer string) to the probability
         # as a floating point value between 0 and 1.
+        # e.g., {"0": 0.413, "9": 0.111, "17": 0.476}
         self.histogram = job.data.value["histogram"]
 
     @property
