@@ -30,14 +30,15 @@ class TestDeviceIntegration:
         assert dev.shots == 1024
         assert dev.short_name == d
 
-    def test_args(self):
+    @pytest.mark.parametrize("d", shortnames)
+    def test_args(self, d):
         """Test that the device requires correct arguments"""
         with pytest.raises(TypeError, match="missing 1 required positional argument"):
-            qml.device("ionq.simulator")
+            qml.device(d)
 
         # IonQ devices do not allow shots=None
         with pytest.raises(ValueError, match="does not support analytic"):
-            qml.device("ionq.simulator", wires=1, shots=None)
+            qml.device(d, wires=1, shots=None)
 
     @pytest.mark.parametrize("d", shortnames)
     @pytest.mark.parametrize("shots", [8192])
@@ -58,6 +59,20 @@ class TestDeviceIntegration:
             return qml.expval(qml.PauliZ(0))
 
         assert np.allclose(circuit(a, b, c), np.cos(a) * np.sin(b), **tol)
+
+    @pytest.mark.parametrize("d", shortnames)
+    @pytest.mark.parametrize("shots", [8192])
+    def test_one_qubit_ordering(self, shots, d, tol):
+        """Test that probabilities are returned with the correct qubit ordering"""
+        dev = qml.device(d, wires=3, shots=shots)
+
+        @qml.qnode(dev)
+        def circuit():
+            qml.PauliX(wires=2)
+            return qml.probs(wires=[0, 1, 2])
+
+        res = circuit()
+        assert np.allclose(res, np.array([0. 1. 0. 0. 0. 0. 0. 0.]), **tol)
 
     @pytest.mark.parametrize("d", shortnames)
     def test_prob_no_results(self, d):
