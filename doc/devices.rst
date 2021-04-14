@@ -5,15 +5,15 @@ The PennyLane-IonQ plugin provides the ability for PennyLane to access
 devices available via IonQ's online API.
 
 Currently, access is available to two remote devices: an ideal and
-a noisy ion-trap simulator.
+a noisy trapped-ion simulator.
 
 .. raw::html
     <section id="simulator">
 
-Ideal ion-trap simulator
+Ideal trapped-ion simulator
 ------------------------
 
-This device provides an ideal noiseless ion-trap simulation.
+This device provides an ideal noiseless trapped-ion simulation.
 Once the plugin has been installed, you can use this device
 directly in PennyLane by specifying ``"ionq.simulator"``:
 
@@ -25,20 +25,20 @@ directly in PennyLane by specifying ``"ionq.simulator"``:
     dev = qml.device("ionq.simulator", wires=2)
 
     @qml.qnode(dev)
-    def circuit(w, x, y, z):
+    def circuit(x, y, z):
         qml.RX(w, wires=0)
-        ops.R(x, y, wires=1)
-        ops.MS(z, wires=[0,1])
+        ops.YY(y, wires=[0,1])
+        ops.ZZ(z, wires=[0,1])
         return qml.expval(qml.PauliZ(0))
 
 .. raw::html
     </section>
     <section id="qpu">
 
-Trapped Ion QPU
+Trapped-Ion QPU
 ---------------
 
-This device provides access to IonQ's trapped ion QPU.
+This device provides access to IonQ's trapped-ion QPU.
 Once the plugin has been installed, you can use this device
 directly in PennyLane by specifying ``"ionq.qpu"``:
 
