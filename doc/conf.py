@@ -153,7 +153,7 @@ html_theme_options = {
     "download_button": "#19b37b",
 }
 
-edit_on_github_project = 'XanaduAI/pennylane-ionq'
+edit_on_github_project = 'PennyLaneAI/pennylane-ionq'
 edit_on_github_branch = 'master/doc'
 
 #============================================================
