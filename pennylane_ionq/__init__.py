@@ -16,5 +16,4 @@ PennyLane IonQ overview
 =======================
 """
 from .device import SimulatorDevice, QPUDevice
-from .ops import XX, YY, ZZ
 from ._version import __version__

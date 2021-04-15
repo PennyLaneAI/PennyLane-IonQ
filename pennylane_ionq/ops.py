@@ -21,12 +21,7 @@ class XX(Operation):
     r"""XX(phi, wires)
     The Ising XX gate.
 
-    .. math:: XX(\phi) = \frac{1}{\sqrt{2}}\begin{bmatrix}
-            1 & 0 & 0 & -ie^{i\phi} \\
-            0 & 1 & -i & 0\\
-            0 & -i & 1 & 0\\
-            -ie^{-i\phi} & 0 & 0 & 1
-        \end{bmatrix}.
+    .. math:: XX(\phi) = e^{-\frac{\phi}{2}\hat{X}\otimes\hat{X}}.
 
     **Details:**
 
@@ -49,12 +44,7 @@ class YY(Operation):
     r"""YY(phi, wires)
     The Ising YY gate.
 
-    .. math:: YY(\phi) = \begin{bmatrix}
-            \cos(\phi) & 0 & 0 & i\sin(\phi) \\
-            0 & \cos(\phi) & -i\sin(\phi) & 0\\
-            0 & -i\sin(\phi) & \cos(\phi) & 0\\
-            i\sin(\phi) & 0 & 0 & \cos(\phi)
-        \end{bmatrix}.
+    .. math:: YY(\phi) = e^{-\frac{\phi}{2}\hat{Y}\otimes\hat{Y}}.
 
     **Details:**
 
@@ -77,12 +67,7 @@ class ZZ(Operation):
     r"""ZZ(phi, wires)
     The Ising ZZ gate.
 
-    .. math:: ZZ(\phi) = \begin{bmatrix}
-            e^{i \phi/2} & 0 & 0 & 0 \\
-            0 & e^{-i \phi/2} & 0 & 0\\
-            0 & 0 & e^{-i \phi/2} & 0\\
-            0 & 0 & 0 & e^{i \phi/2}
-        \end{bmatrix}.
+    .. math:: ZZ(\phi) = e^{-\frac{\phi}{2}\hat{Z}\otimes\hat{Z}}.
 
     **Details:**
 

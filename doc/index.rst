@@ -1,64 +1,67 @@
-PennyLane IonQ Plugin
+PennyLane-IonQ Plugin
 #####################
 
 :Release: |release|
-:Date: |today|
+
+.. include:: ../README.rst
+  :start-after:	header-start-inclusion-marker-do-not-remove
+  :end-before: header-end-inclusion-marker-do-not-remove
 
 
-This PennyLane plugin allows IonQ simulators/hardware to be used as PennyLane devices.
+Once the PennyLane-IonQ plugin is installed, the two provided IonQ devices can be accessed
+straight away in PennyLane, without the need to import any additional packages.
 
-`IonQ Dewdrop <https://dewdrop.ionq.co>`_ is a trapped ion simulator and hardware cloud platform.
-
-`PennyLane <https://pennylane.readthedocs.io>`_ is a machine learning library for optimization
-and automatic differentiation of hybrid quantum-classical computations.
-
-
-Features
-========
-
-* Provides two IonQ devices, ``ionq.simulator`` and ``ionq.qpu``, for accessing the
-  IonQ cloud platform and running QML algorithms on the provider simulators and trapped-ion QPUs
-
-* Supports most PennyLane qubit operations and observables
-
-* Provides additional IonQ-specific quantum operations, including ``S``, ``T``, ``V``,
-  ``CCNOT``, and the Ising coupling gates ``XX``, ``YY``, ``ZZ``.
-
-To get started with the PennyLane IonQ plugin, follow the :ref:`installation steps <installation>`, then see the :ref:`usage <usage>` page.
-
-
-Authors
+Devices
 =======
 
-If you are doing research using PennyLane, please cite our papers:
+PennyLane-IonQ provides two IonQ devices for PennyLane:
 
-    Ville Bergholm, Josh Izaac, Maria Schuld, Christian Gogolin, and Nathan Killoran.
-    *PennyLane: Automatic differentiation of hybrid quantum-classical computations.* 2018.
-    `arXiv:1811.04968 <https://arxiv.org/abs/1811.04968>`_
+.. devicegalleryitem::
+    :name: 'ionq.simulator'
+    :description: Ideal noiseless trapped-ion simulator.
+    :link: devices.html#simulator
 
-    Maria Schuld, Ville Bergholm, Christian Gogolin, Josh Izaac, and Nathan Killoran.
-    *Evaluating analytic gradients on quantum hardware.* 2018.
-    `Phys. Rev. A 99, 032331 <https://journals.aps.org/pra/abstract/10.1103/PhysRevA.99.032331>`_
+.. devicegalleryitem::
+    :name: 'ionq.qpu'
+    :description: Trapped-ion QPU
+    :link: devices.html#qpu
 
+.. raw:: html
 
-Contents
-========
+    <div style='clear:both'></div>
+    </br>
 
-.. rst-class:: contents local topic
+Both devices support the same operations, including IonQ's
+custom :class:`.XX`, :class:`.YY`, and :class:`.ZZ` gates.
+
+Remote backend access
+=====================
+
+The user will need access credentials for the IonQ platform in order to
+use these remote devices. These credentials should be provided to PennyLane via a
+`configuration file or environment variable <https://pennylane.readthedocs.io/en/stable/introduction/configuration.html>`_.
+Specifically, the variable ``IONQ_API_KEY`` must contain a valid access key for IonQ's online platform.
+
 
 .. toctree::
    :maxdepth: 2
-   :caption: Getting started
+   :titlesonly:
+   :hidden:
 
-   installing
-   usage
+   installation
+   support
 
-.. rst-class:: contents local topic
+.. toctree::
+   :maxdepth: 2
+   :caption: Usage
+   :hidden:
+
+   devices
 
 .. toctree::
    :maxdepth: 1
-   :caption: Code details
+   :caption: API
+   :hidden:
 
+   code/__init__
    code/ops
-   code/dewdrop
-   code/api_client

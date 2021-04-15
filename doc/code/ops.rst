@@ -1,4 +1,10 @@
-.. automodule:: pennylane_ionq.ops
-   :members:
-   :private-members:
-   :special-members:
+pennylane_ionq.ops
+==================
+
+.. currentmodule:: pennylane_ionq.ops
+
+.. automodapi:: pennylane_ionq.ops
+    :no-heading:
+    :include-all-objects:
+    :skip: Operation
+    :no-inheritance-diagram:
