@@ -482,7 +482,6 @@ class JobResult(Resource):
     """
 
     SUPPORTED_METHODS = ("GET",)
-    PATH = "v0.1/jobs/{job_id}/data"
 
     def __init__(self, job_id, client=None):
         """
@@ -493,7 +492,6 @@ class JobResult(Resource):
         """
         self.fields = (Field("result", json.loads),)
 
-        self.PATH = self.PATH.format(job_id=job_id)
         super().__init__(client=client)
 
 
@@ -503,7 +501,6 @@ class JobCircuit(Resource):
     """
 
     SUPPORTED_METHODS = ("GET",)
-    PATH = "v0.1/jobs/{job_id}/circuit"
 
     def __init__(self, job_id, client=None):
         """
@@ -514,5 +511,4 @@ class JobCircuit(Resource):
         """
         self.fields = (Field("circuit"),)
 
-        self.PATH = self.PATH.format(job_id=job_id)
         super().__init__(client=client)
