@@ -113,7 +113,7 @@ class APIClient:
     """
 
     USER_AGENT = "pennylane-ionq-api-client/0.1"
-    HOSTNAME = "api.ionq.co/v0"
+    HOSTNAME = "api.ionq.co/v0.1"
     BASE_URL = "https://{}".format(HOSTNAME)
 
     def __init__(self, **kwargs):
@@ -482,7 +482,7 @@ class JobResult(Resource):
     """
 
     SUPPORTED_METHODS = ("GET",)
-    PATH = "v0/jobs/{job_id}/data"
+    PATH = "v0.1/jobs/{job_id}/data"
 
     def __init__(self, job_id, client=None):
         """
@@ -503,7 +503,7 @@ class JobCircuit(Resource):
     """
 
     SUPPORTED_METHODS = ("GET",)
-    PATH = "v0/jobs/{job_id}/circuit"
+    PATH = "v0.1/jobs/{job_id}/circuit"
 
     def __init__(self, job_id, client=None):
         """
