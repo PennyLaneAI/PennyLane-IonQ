@@ -113,7 +113,7 @@ class APIClient:
     """
 
     USER_AGENT = "pennylane-ionq-api-client/0.1"
-    HOSTNAME = "api.ionq.co/v0"
+    HOSTNAME = "api.ionq.co/v0.1"
     BASE_URL = "https://{}".format(HOSTNAME)
 
     def __init__(self, **kwargs):
@@ -482,7 +482,6 @@ class JobResult(Resource):
     """
 
     SUPPORTED_METHODS = ("GET",)
-    PATH = "v0/jobs/{job_id}/data"
 
     def __init__(self, job_id, client=None):
         """
@@ -491,9 +490,9 @@ class JobResult(Resource):
         Args:
             job_id (int): The ID of the Job object corresponding to the JobResult object.
         """
+        self.id = job_id
         self.fields = (Field("result", json.loads),)
 
-        self.PATH = self.PATH.format(job_id=job_id)
         super().__init__(client=client)
 
 
@@ -503,7 +502,6 @@ class JobCircuit(Resource):
     """
 
     SUPPORTED_METHODS = ("GET",)
-    PATH = "v0/jobs/{job_id}/circuit"
 
     def __init__(self, job_id, client=None):
         """
@@ -512,7 +510,7 @@ class JobCircuit(Resource):
         Args:
             job_id (int): The ID of the Job object corresponding to the JobResult object.
         """
+        self.id = job_id
         self.fields = (Field("circuit"),)
 
-        self.PATH = self.PATH.format(job_id=job_id)
         super().__init__(client=client)

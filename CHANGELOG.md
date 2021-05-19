@@ -1,17 +1,15 @@
-# Release 0.16.0-dev
-
-### New features
+# Release 0.15.1
 
 ### Improvements
 
-### Breaking changes
-
-### Bug fixes
+* The IonQ plugin now uses the v0.1 endpoint for the IonQ API.
+  [(#24)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/24)
 
 ### Contributors
 
 This release contains contributions from (in alphabetical order):
 
+Nathan Killoran
 
 # Release 0.15.0
 
