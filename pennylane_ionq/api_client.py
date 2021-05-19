@@ -483,13 +483,14 @@ class JobResult(Resource):
 
     SUPPORTED_METHODS = ("GET",)
 
-    def __init__(self, client=None):
+    def __init__(self, job_id, client=None):
         """
         Initialize the JobResult resource with a pre-defined field.
 
         Args:
             job_id (int): The ID of the Job object corresponding to the JobResult object.
         """
+        self.id = job_id
         self.fields = (Field("result", json.loads),)
 
         super().__init__(client=client)
@@ -509,6 +510,7 @@ class JobCircuit(Resource):
         Args:
             job_id (int): The ID of the Job object corresponding to the JobResult object.
         """
+        self.id = job_id
         self.fields = (Field("circuit"),)
 
         super().__init__(client=client)
