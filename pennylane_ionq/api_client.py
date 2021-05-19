@@ -483,7 +483,7 @@ class JobResult(Resource):
 
     SUPPORTED_METHODS = ("GET",)
 
-    def __init__(self, job_id, client=None):
+    def __init__(self, client=None):
         """
         Initialize the JobResult resource with a pre-defined field.
 
