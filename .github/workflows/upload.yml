@@ -25,8 +25,11 @@ jobs:
           pip install wheel pytest pytest-cov pytest-mock --upgrade
 
       - name: Run tests
+        env:
+          IONQ_API_KEY: ${{ secrets.IONQ_API_KEY }}
         run: |
           python -m pytest tests --tb=native
+          pl-device-test --device=ionq.simulator --tb=short --skip-ops --shots=10000
 
       - name: Publish
         uses: pypa/gh-action-pypi-publish@master
