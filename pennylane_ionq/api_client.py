@@ -502,7 +502,7 @@ class JobCircuit(Resource):
 
     SUPPORTED_METHODS = ("GET",)
 
-    def __init__(self, job_id, client=None):
+    def __init__(self, client=None):
         """
         Initialize the JobCircuit resource with a pre-defined field.
 
