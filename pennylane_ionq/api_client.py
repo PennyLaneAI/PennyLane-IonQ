@@ -129,7 +129,7 @@ class APIClient:
 
         self.HEADERS = {"User-Agent": self.USER_AGENT}
 
-        # Ten minute timout on requests.
+        # Ten minute timeout on requests.
         self.TIMEOUT_SECONDS = 60 * 10
 
         if self.AUTHENTICATION_TOKEN:
