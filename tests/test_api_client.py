@@ -113,6 +113,7 @@ class TestAPIClient:
         client = api_client.APIClient(authentication_token="")
         assert client.BASE_URL.startswith("https://")
         assert client.HEADERS["User-Agent"] == client.USER_AGENT
+        assert client.TIMEOUT_SECONDS == 600
 
     def test_set_authorization_header(self):
         """
