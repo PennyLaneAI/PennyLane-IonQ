@@ -94,7 +94,12 @@ class IonQDevice(QubitDevice):
         self._prob_array = None
         self.histogram = None
         self.circuit = {"qubits": self.num_wires, "circuit": []}
-        self.job = {"lang": "json", "body": self.circuit, "target": self.target}
+        self.job = {
+            "lang": "json",
+            "body": self.circuit,
+            "target": self.target,
+            "shots": self.shots
+        }
 
     @property
     def operations(self):
