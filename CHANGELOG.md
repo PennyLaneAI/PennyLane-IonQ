@@ -1,3 +1,19 @@
+# Release 0.16.0-dev
+
+### New features
+
+### Improvements
+
+### Breaking changes
+
+### Bug fixes
+
+### Contributors
+
+This release contains contributions from (in alphabetical order):
+
+---
+
 # Release 0.15.2
 
 ### Improvements
@@ -11,6 +27,8 @@ This release contains contributions from (in alphabetical order):
 
 Dave Bacon
 
+---
+
 # Release 0.15.1
 
 ### Improvements
@@ -23,6 +41,8 @@ Dave Bacon
 This release contains contributions from (in alphabetical order):
 
 Nathan Killoran
+
+---
 
 # Release 0.15.0
 
