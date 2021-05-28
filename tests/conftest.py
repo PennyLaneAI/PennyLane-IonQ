@@ -101,5 +101,6 @@ def device(request, shots):
 @pytest.fixture
 def requires_api():
     """Skips a test if the API key is not available"""
-    if os.environ.get("IONQ_API_KEY", None) is None:
+    key = os.environ.get("IONQ_API_KEY", None)
+    if key is None or not key:
         pytest.skip("Skipping test as API key is not available")
