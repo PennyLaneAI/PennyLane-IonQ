@@ -98,7 +98,7 @@ class IonQDevice(QubitDevice):
             "lang": "json",
             "body": self.circuit,
             "target": self.target,
-            "shots": self.shots
+            "shots": self.shots,
         }
 
     @property

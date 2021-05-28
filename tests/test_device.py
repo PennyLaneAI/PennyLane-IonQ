@@ -47,7 +47,7 @@ class TestDeviceIntegration:
     def test_shots(self, shots, monkeypatch, mocker, tol):
         """Test that shots are correctly specified when submitting a job to the API."""
 
-        monkeypatch.setattr(requests, "post", lambda url, data, headers: (url, data, headers))
+        monkeypatch.setattr(requests, "post", lambda url, timeout, data, headers: (url, data, headers))
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
