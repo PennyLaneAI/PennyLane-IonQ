@@ -1,3 +1,34 @@
+# Release 0.16.0-dev
+
+### New features
+
+### Improvements
+
+### Breaking changes
+
+### Bug fixes
+
+### Contributors
+
+This release contains contributions from (in alphabetical order):
+
+---
+
+# Release 0.15.2
+
+### Improvements
+
+* Adds a default timeout to requests of ten minutes. This is a timeout both on connect and request.
+  [(#27)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/27)
+
+### Contributors
+
+This release contains contributions from (in alphabetical order):
+
+Dave Bacon
+
+---
+
 # Release 0.15.1
 
 ### Improvements
@@ -10,6 +41,8 @@
 This release contains contributions from (in alphabetical order):
 
 Nathan Killoran
+
+---
 
 # Release 0.15.0
 

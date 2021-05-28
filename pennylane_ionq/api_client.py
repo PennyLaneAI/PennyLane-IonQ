@@ -129,6 +129,9 @@ class APIClient:
 
         self.HEADERS = {"User-Agent": self.USER_AGENT}
 
+        # Ten minute timeout on requests.
+        self.TIMEOUT_SECONDS = 60 * 10
+
         if self.AUTHENTICATION_TOKEN:
             self.set_authorization_header(self.AUTHENTICATION_TOKEN)
         else:
@@ -178,6 +181,8 @@ class APIClient:
             raise TypeError("Unexpected or unsupported method provided")
 
         params["headers"] = self.HEADERS
+
+        params["timeout"] = self.TIMEOUT_SECONDS
 
         try:
             response = method(**params)

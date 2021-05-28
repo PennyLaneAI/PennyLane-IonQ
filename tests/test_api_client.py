@@ -29,7 +29,6 @@ from pennylane_ionq.api_client import (
 
 from unittest.mock import MagicMock
 
-pytestmark = pytest.mark.frontend
 
 status_codes = requests.status_codes.codes
 
@@ -113,6 +112,7 @@ class TestAPIClient:
         client = api_client.APIClient(api_key="test")
         assert client.BASE_URL.startswith("https://")
         assert client.HEADERS["User-Agent"] == client.USER_AGENT
+        assert client.TIMEOUT_SECONDS == 600
 
     def test_set_authorization_header(self):
         """
@@ -292,8 +292,8 @@ class TestResourceManager:
 
         mock_get_response = MockGETResponse(200)
 
-        monkeypatch.setattr(requests, "get", lambda url, headers: mock_get_response)
-        monkeypatch.setattr(requests, "post", lambda url, headers, data: mock_raise(MockException))
+        monkeypatch.setattr(requests, "get", lambda url, timeout, headers: mock_get_response)
+        monkeypatch.setattr(requests, "post", lambda url, timeout, headers, data: mock_raise(MockException))
 
         client = api_client.APIClient(debug=True, api_key="test")
 
@@ -317,7 +317,7 @@ class TestJob:
         Tests a successful Job creatioin with a mock POST response. Asserts that all fields on
         the Job instance have been set correctly and match the mock data.
         """
-        monkeypatch.setattr(requests, "post", lambda url, headers, data: MockPOSTResponse(201))
+        monkeypatch.setattr(requests, "post", lambda url, timeout, headers, data: MockPOSTResponse(201))
         job = Job(api_key="test")
         job.manager.create(params={})
 
@@ -329,7 +329,7 @@ class TestJob:
         """
         Tests that the correct error code is returned when a bad request is sent to the server.
         """
-        monkeypatch.setattr(requests, "post", lambda url, headers, data: MockPOSTResponse(400))
+        monkeypatch.setattr(requests, "post", lambda url, timeout, headers, data: MockPOSTResponse(400))
         job = Job(api_key="test")
 
         with pytest.raises(Exception):

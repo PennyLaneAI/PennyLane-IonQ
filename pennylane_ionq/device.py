@@ -184,11 +184,11 @@ class IonQDevice(QubitDevice):
             basis_states = (
                 int(bin(int(k))[2:].rjust(self.num_wires, "0")[::-1], 2) for k in self.histogram
             )
-            idx = np.fromiter(basis_states, dtype=np.int)
+            idx = np.fromiter(basis_states, dtype=int)
 
             # convert the sparse probs into a probability array
             self._prob_array = np.zeros([2 ** self.num_wires])
-            self._prob_array[idx] = np.fromiter(self.histogram.values(), np.float)
+            self._prob_array[idx] = np.fromiter(self.histogram.values(), float)
 
         return self._prob_array
 
