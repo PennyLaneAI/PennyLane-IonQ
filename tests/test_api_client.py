@@ -36,7 +36,7 @@ status_codes = requests.status_codes.codes
 
 @pytest.fixture
 def client():
-    return api_client.APIClient()
+    return api_client.APIClient(api_key="test")
 
 
 SAMPLE_JOB_CREATE_RESPONSE = {
@@ -110,7 +110,7 @@ class TestAPIClient:
         """
         Test that initializing a default client generates an APIClient with the expected params.
         """
-        client = api_client.APIClient(authentication_token="")
+        client = api_client.APIClient(api_key="test")
         assert client.BASE_URL.startswith("https://")
         assert client.HEADERS["User-Agent"] == client.USER_AGENT
 
@@ -118,7 +118,7 @@ class TestAPIClient:
         """
         Test that the authentication token is added to the header correctly.
         """
-        client = api_client.APIClient()
+        client = api_client.APIClient(api_key="test")
 
         authentication_token = MagicMock()
         client.set_authorization_header(authentication_token)
@@ -295,7 +295,7 @@ class TestResourceManager:
         monkeypatch.setattr(requests, "get", lambda url, headers: mock_get_response)
         monkeypatch.setattr(requests, "post", lambda url, headers, data: mock_raise(MockException))
 
-        client = api_client.APIClient(debug=True)
+        client = api_client.APIClient(debug=True, api_key="test")
 
         assert client.DEBUG is True
         assert client.errors == []
@@ -318,7 +318,7 @@ class TestJob:
         the Job instance have been set correctly and match the mock data.
         """
         monkeypatch.setattr(requests, "post", lambda url, headers, data: MockPOSTResponse(201))
-        job = Job()
+        job = Job(api_key="test")
         job.manager.create(params={})
 
         keys_to_check = SAMPLE_JOB_CREATE_RESPONSE.keys()
@@ -330,7 +330,7 @@ class TestJob:
         Tests that the correct error code is returned when a bad request is sent to the server.
         """
         monkeypatch.setattr(requests, "post", lambda url, headers, data: MockPOSTResponse(400))
-        job = Job()
+        job = Job(api_key="test")
 
         with pytest.raises(Exception):
             job.manager.create(params={})

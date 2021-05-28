@@ -41,6 +41,7 @@ jobs:
 
   integration-tests:
     runs-on: ubuntu-latest
+    if: github.repository == 'PennyLaneAI/pennylane-ionq'
 
     steps:
       - name: Cancel Previous Runs

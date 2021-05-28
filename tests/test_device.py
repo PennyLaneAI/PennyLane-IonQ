@@ -12,11 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Tests that plugin devices are accessible and integrate with PennyLane"""
+import json
 import numpy as np
 import pennylane as qml
 import pytest
+import requests
 
 from conftest import shortnames
+from pennylane_ionq.api_client import ResourceManager, Job, Field
 
 
 class TestDeviceIntegration:
@@ -40,8 +43,34 @@ class TestDeviceIntegration:
         with pytest.raises(ValueError, match="does not support analytic"):
             qml.device(d, wires=1, shots=None)
 
+    @pytest.mark.parametrize("shots", [100, 500, 8192])
+    def test_shots(self, shots, monkeypatch, mocker, tol):
+        """Test that shots are correctly specified when submitting a job to the API."""
+
+        monkeypatch.setattr(requests, "post", lambda url, data, headers: (url, data, headers))
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
+        monkeypatch.setattr(Job, "is_complete", True)
+
+        def fake_response(self, resource_id=None):
+            """Return fake response data"""
+            fake_json = {"histogram": {"0": 1}}
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
+
+        monkeypatch.setattr(ResourceManager, "get", fake_response)
+
+        dev = qml.device("ionq.simulator", wires=1, shots=shots, api_key="test")
+
+        @qml.qnode(dev)
+        def circuit():
+            """Reference QNode"""
+            return qml.expval(qml.PauliZ(0))
+
+        spy = mocker.spy(requests, "post")
+        circuit()
+        assert json.loads(spy.call_args[1]["data"])["shots"] == shots
+
     @pytest.mark.parametrize("shots", [8192])
-    def test_one_qubit_circuit(self, shots, tol):
+    def test_one_qubit_circuit(self, shots, requires_api, tol):
         """Test that devices provide correct result for a simple circuit"""
         dev = qml.device("ionq.simulator", wires=1, shots=shots)
 
@@ -60,7 +89,7 @@ class TestDeviceIntegration:
         assert np.allclose(circuit(a, b, c), np.cos(a) * np.sin(b), **tol)
 
     @pytest.mark.parametrize("shots", [8192])
-    def test_one_qubit_ordering(self, shots, tol):
+    def test_one_qubit_ordering(self, shots, requires_api, tol):
         """Test that probabilities are returned with the correct qubit ordering"""
         dev = qml.device("ionq.simulator", wires=2, shots=shots)
 
