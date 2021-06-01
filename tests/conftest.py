@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
 import numpy as np
 import pytest
 
@@ -95,3 +96,11 @@ def device(request, shots):
         return device(wires=n, shots=shots)
 
     return _device
+
+
+@pytest.fixture
+def requires_api():
+    """Skips a test if the API key is not available"""
+    key = os.environ.get("IONQ_API_KEY", None)
+    if key is None or not key:
+        pytest.skip("Skipping test as API key is not available")
