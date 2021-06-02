@@ -1,16 +1,16 @@
-# Release 0.16.0-dev
-
-### New features
-
-### Improvements
-
-### Breaking changes
+# Release 0.15.3
 
 ### Bug fixes
+
+* Fixes a bug where the shot number was not correctly being submitted
+  to the API.
+  [(#29)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/27)
 
 ### Contributors
 
 This release contains contributions from (in alphabetical order):
+
+Dave Bacon, Josh Izaac.
 
 ---
 
