@@ -200,11 +200,6 @@ class IonQDevice(QubitDevice):
 
         return self.estimate_probability(wires=wires, shot_range=shot_range, bin_size=bin_size)
 
-    def generate_samples(self):
-        number_of_states = 2 ** self.num_wires
-        samples = self.sample_basis_states(number_of_states, self.prob)
-        return QubitDevice.states_to_binary(samples, self.num_wires)
-
 
 class SimulatorDevice(IonQDevice):
     r"""Simulator device for IonQ.
@@ -226,6 +221,11 @@ class SimulatorDevice(IonQDevice):
     def __init__(self, wires, *, shots=1024, api_key=None):
         super().__init__(wires=wires, target="simulator", shots=shots, api_key=api_key)
 
+    def generate_samples(self):
+        number_of_states = 2 ** self.num_wires
+        samples = self.sample_basis_states(number_of_states, self.prob)
+        return QubitDevice.states_to_binary(samples, self.num_wires)
+
 
 class QPUDevice(IonQDevice):
     r"""QPU device for IonQ.
@@ -246,3 +246,11 @@ class QPUDevice(IonQDevice):
 
     def __init__(self, wires, *, shots=1024, api_key=None):
         super().__init__(wires=wires, target="qpu", shots=shots, api_key=api_key)
+
+    def generate_samples(self):
+        number_of_states = 2 ** self.num_wires
+        counts = np.rint(
+            self.prob * self.shots, out=np.zeros(number_of_states, dtype=int), casting="unsafe"
+        )
+        samples = np.repeat(np.arange(number_of_states), counts)
+        return QubitDevice.states_to_binary(samples, self.num_wires)
