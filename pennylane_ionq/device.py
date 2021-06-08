@@ -222,6 +222,7 @@ class SimulatorDevice(IonQDevice):
         super().__init__(wires=wires, target="simulator", shots=shots, api_key=api_key)
 
     def generate_samples(self):
+        """Generates samples by random sampling with the probabilities returned by the simulator."""
         number_of_states = 2 ** self.num_wires
         samples = self.sample_basis_states(number_of_states, self.prob)
         return QubitDevice.states_to_binary(samples, self.num_wires)
@@ -248,9 +249,16 @@ class QPUDevice(IonQDevice):
         super().__init__(wires=wires, target="qpu", shots=shots, api_key=api_key)
 
     def generate_samples(self):
+        """Generates samples from the qpu.
+
+        Note that the order of the samples returned here is not indicative of the order in which
+        the experiments were done, but is instead controlled by a random shuffle (and hence
+        set by numpy random seed.)
+        """
         number_of_states = 2 ** self.num_wires
         counts = np.rint(
             self.prob * self.shots, out=np.zeros(number_of_states, dtype=int), casting="unsafe"
         )
         samples = np.repeat(np.arange(number_of_states), counts)
-        return QubitDevice.states_to_binary(samples, self.num_wires)
+        random_samples = np.random.shuffle(samples)
+        return QubitDevice.states_to_binary(random_samples, self.num_wires)
