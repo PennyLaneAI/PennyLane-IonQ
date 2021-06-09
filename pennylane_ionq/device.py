@@ -253,7 +253,7 @@ class QPUDevice(IonQDevice):
 
         Note that the order of the samples returned here is not indicative of the order in which
         the experiments were done, but is instead controlled by a random shuffle (and hence
-        set by numpy random seed.)
+        set by numpy random seed).
         """
         number_of_states = 2 ** self.num_wires
         counts = np.rint(
