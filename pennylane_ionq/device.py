@@ -260,5 +260,5 @@ class QPUDevice(IonQDevice):
             self.prob * self.shots, out=np.zeros(number_of_states, dtype=int), casting="unsafe"
         )
         samples = np.repeat(np.arange(number_of_states), counts)
-        random_samples = np.random.shuffle(samples)
-        return QubitDevice.states_to_binary(random_samples, self.num_wires)
+        np.random.shuffle(samples)
+        return QubitDevice.states_to_binary(samples, self.num_wires)
