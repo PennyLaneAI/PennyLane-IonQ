@@ -20,6 +20,38 @@ import requests
 
 from conftest import shortnames
 from pennylane_ionq.api_client import ResourceManager, Job, Field
+from pennylane_ionq.device import QPUDevice
+
+FAKE_API_KEY = "ABC123"
+
+
+class TestDevice:
+    """Tests for the IonQDevice class."""
+
+    @pytest.mark.parametrize(
+        "wires,histogram",
+        [
+            (1, {"0": 0.6, "1": 0.4}),
+            (2, {"0": 0.1, "1": 0.2, "2": 0.3, "3": 0.4}),
+            (4, {"0": 0.413, "6": 0.111, "15": 0.476}),
+            (4, {"7": 0.413, "3": 0.111, "2": 0.476}),
+        ],
+    )
+    def test_generate_samples_qpu_device(self, wires, histogram):
+        """Test that the generate_samples method for QPUDevices shuffles the samples between calls."""
+
+        dev = QPUDevice(wires, shots=1024, api_key=FAKE_API_KEY)
+        dev.histogram = histogram
+
+        sample1 = dev.generate_samples()
+        sample2 = dev.generate_samples()
+        assert not np.all(sample1 == sample2)  # some rows are different
+        unique_outcomes1 = np.unique(sample1, axis=0)
+        unique_outcomes2 = np.unique(sample2, axis=0)
+        assert np.all(unique_outcomes1 == unique_outcomes2)  # possible outcomes are the same
+        sorted_outcomes1 = np.sort(sample1, axis=0)
+        sorted_outcomes2 = np.sort(sample2, axis=0)
+        assert np.all(sorted_outcomes1 == sorted_outcomes2)  # set of outcomes is the same
 
 
 class TestDeviceIntegration:
@@ -47,7 +79,9 @@ class TestDeviceIntegration:
     def test_shots(self, shots, monkeypatch, mocker, tol):
         """Test that shots are correctly specified when submitting a job to the API."""
 
-        monkeypatch.setattr(requests, "post", lambda url, timeout, data, headers: (url, data, headers))
+        monkeypatch.setattr(
+            requests, "post", lambda url, timeout, data, headers: (url, data, headers)
+        )
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
@@ -99,7 +133,7 @@ class TestDeviceIntegration:
             return qml.probs(wires=[0, 1])
 
         res = circuit()
-        assert np.allclose(res, np.array([0., 1., 0., 0.]), **tol)
+        assert np.allclose(res, np.array([0.0, 1.0, 0.0, 0.0]), **tol)
 
     @pytest.mark.parametrize("d", shortnames)
     def test_prob_no_results(self, d):
