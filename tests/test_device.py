@@ -44,11 +44,14 @@ class TestDevice:
         dev.histogram = histogram
 
         sample1 = dev.generate_samples()
+        assert dev.histogram == histogram # make sure histogram is still the same
         sample2 = dev.generate_samples()
         assert not np.all(sample1 == sample2)  # some rows are different
+
         unique_outcomes1 = np.unique(sample1, axis=0)
         unique_outcomes2 = np.unique(sample2, axis=0)
         assert np.all(unique_outcomes1 == unique_outcomes2)  # possible outcomes are the same
+
         sorted_outcomes1 = np.sort(sample1, axis=0)
         sorted_outcomes2 = np.sort(sample2, axis=0)
         assert np.all(sorted_outcomes1 == sorted_outcomes2)  # set of outcomes is the same
