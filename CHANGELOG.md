@@ -1,16 +1,14 @@
-# Release 0.16.0-dev
-
-### New features
-
+# Release 0.16.0
 ### Improvements
 
-### Breaking changes
-
-### Bug fixes
+* Return samples from the `QPUDevice` directly instead of resample from the returned results.
+  [(#32)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/32)
 
 ### Contributors
 
 This release contains contributions from (in alphabetical order):
+
+Dave Bacon, Nathan Killoran
 
 ---
 
