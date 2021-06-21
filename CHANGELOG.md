@@ -1,9 +1,6 @@
 # Release 0.16.0
 ### Improvements
 
-* Adds the compatibility tag for Python 3.9.
-  [(#36)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/36)
-
 * Return samples from the `QPUDevice` directly instead of resample from the returned results.
   [(#32)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/32)
 
@@ -11,7 +8,7 @@
 
 This release contains contributions from (in alphabetical order):
 
-Dave Bacon, Nathan Killoran, Romain Moyard
+Dave Bacon, Nathan Killoran
 
 ---
 
