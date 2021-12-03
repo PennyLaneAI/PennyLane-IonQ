@@ -145,7 +145,10 @@ class IonQDevice(QubitDevice):
             gate["target"] = wires[0]
 
         if par:
-            gate["rotation"] = par[0]
+            if hasattr(par[0], "item"):
+                gate["rotation"] = par[0].item()
+            else:
+                gate["rotation"] = par[0]
 
         self.circuit["circuit"].append(gate)
 
