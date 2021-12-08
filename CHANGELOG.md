@@ -10,9 +10,7 @@
 
 ### Bug fixes
 
-* A warning is raised if the user submits an empty circuit, and if the 
-  response is a failure, then the device raises an error instead of
-  continuing to wait.
+* Parameters are converted to floats, unwrapping interface data types.
   [(#41)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/41)
 
 ### Contributors
