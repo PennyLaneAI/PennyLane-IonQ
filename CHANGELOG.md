@@ -1,4 +1,4 @@
-# Release 0.17.0-dev
+# Release 0.20.0-dev
 
 ### New features since last release
 
@@ -10,9 +10,14 @@
 
 ### Bug fixes
 
+* If response returns as failure, an error is raised. If the user
+  submits an empty circuit, a warning is raised.
+
 ### Contributors
 
 This release contains contributions from (in alphabetical order):
+
+Christina Lee
 
 ---
 

@@ -19,8 +19,8 @@ import pytest
 import requests
 
 from conftest import shortnames
-from pennylane_ionq.api_client import ResourceManager, Job, Field
-from pennylane_ionq.device import QPUDevice
+from pennylane_ionq.api_client import JobExecutionError, ResourceManager, Job, Field
+from pennylane_ionq.device import QPUDevice, IonQDevice
 
 FAKE_API_KEY = "ABC123"
 
@@ -78,6 +78,18 @@ class TestDeviceIntegration:
         with pytest.raises(ValueError, match="does not support analytic"):
             qml.device(d, wires=1, shots=None)
 
+    def test_emptycircuit_warning(self, mocker):
+        """Test warning raised on submission of an empty circuit."""
+
+        def mock_submit_job(*args):
+            pass
+
+        mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
+        dev = IonQDevice(wires=(0,))
+
+        with pytest.warns(UserWarning, match=r"Circuit is empty."):
+            dev.apply([])
+
     @pytest.mark.parametrize("shots", [100, 500, 8192])
     def test_shots(self, shots, monkeypatch, mocker, tol):
         """Test that shots are correctly specified when submitting a job to the API."""
@@ -100,6 +112,7 @@ class TestDeviceIntegration:
         @qml.qnode(dev)
         def circuit():
             """Reference QNode"""
+            qml.PauliX(wires=0)
             return qml.expval(qml.PauliZ(0))
 
         spy = mocker.spy(requests, "post")
