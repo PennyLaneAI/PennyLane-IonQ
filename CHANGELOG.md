@@ -1,4 +1,4 @@
-# Release 0.17.0-dev
+# Release 0.20.0-dev
 
 ### New features since last release
 
@@ -10,9 +10,16 @@
 
 ### Bug fixes
 
+* A warning is raised if the user submits an empty circuit, and if the 
+  response is a failure, then the device raises an error instead of
+  continuing to wait.
+  [(#41)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/41)
+
 ### Contributors
 
 This release contains contributions from (in alphabetical order):
+
+Christina Lee
 
 ---
 
