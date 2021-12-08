@@ -44,7 +44,7 @@ class TestDevice:
         dev.histogram = histogram
 
         sample1 = dev.generate_samples()
-        assert dev.histogram == histogram # make sure histogram is still the same
+        assert dev.histogram == histogram  # make sure histogram is still the same
         sample2 = dev.generate_samples()
         assert not np.all(sample1 == sample2)  # some rows are different
 
@@ -145,45 +145,48 @@ class TestDeviceIntegration:
         dev = qml.device(d, wires=1, shots=1)
         assert dev.prob is None
 
+
 class TestJobAttribute:
     """Tests job creation with mocked submission."""
 
     def test_nonparametrized_tape(self, mocker):
         """Tests job attribute after single paulix tape."""
+
         def mock_submit_job(*args):
             pass
-        mocker.patch('pennylane_ionq.device.IonQDevice._submit_job',
-            mock_submit_job)
+
+        mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
         dev = IonQDevice(wires=(0,))
 
         with qml.tape.QuantumTape() as tape:
             qml.PauliX(0)
-        
+
         dev.apply(tape.operations)
 
-        assert dev.job['lang'] == 'json'
-        assert dev.job['body']['qubits'] == 1
+        assert dev.job["lang"] == "json"
+        assert dev.job["body"]["qubits"] == 1
 
-        assert len(dev.job['body']['circuit']) == 1
-        assert dev.job['body']['circuit'][0] == {'gate': 'x', 'target': 0}
+        assert len(dev.job["body"]["circuit"]) == 1
+        assert dev.job["body"]["circuit"][0] == {"gate": "x", "target": 0}
 
     def test_parameterized_op(self, mocker):
         """Tests job attribute several parameterized operations."""
+
         def mock_submit_job(*args):
             pass
-        mocker.patch('pennylane_ionq.device.IonQDevice._submit_job',
-            mock_submit_job)
+
+        mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
         dev = IonQDevice(wires=(0,))
 
         with qml.tape.QuantumTape() as tape:
             qml.RX(1.2345, wires=0)
             qml.RY(qml.numpy.array(2.3456), wires=0)
-        
+
         dev.apply(tape.operations)
 
-        assert dev.job['lang'] == 'json'
-        assert dev.job['body']['qubits'] == 1
+        assert dev.job["lang"] == "json"
+        assert dev.job["body"]["qubits"] == 1
 
-        assert len(dev.job['body']['circuit']) == 2
-        assert dev.job['body']['circuit'][0] == {'gate': 'rx', 'target': 0, 'rotation': 1.2345}
-        assert dev.job['body']['circuit'][1] == {'gate': 'ry', 'target': 0, 'rotation': 2.3456}
+        assert len(dev.job["body"]["circuit"]) == 2
+        assert dev.job["body"]["circuit"][0] == {"gate": "rx", "target": 0, "rotation": 1.2345}
+        assert dev.job["body"]["circuit"][1] == {"gate": "ry", "target": 0, "rotation": 2.3456}
