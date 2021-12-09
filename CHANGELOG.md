@@ -12,6 +12,7 @@
 
 * If response returns as failure, an error is raised. If the user
   submits an empty circuit, a warning is raised.
+  [(#43)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/43)
 
 ### Contributors
 

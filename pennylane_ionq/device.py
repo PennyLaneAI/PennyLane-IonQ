@@ -115,14 +115,12 @@ class IonQDevice(QubitDevice):
         rotations = kwargs.pop("rotations", [])
 
         if len(operations) == 0 and len(rotations) == 0:
-            warnings.warn('Circuit is empty. Empty circuits return failures. Submitting anyway.')
+            warnings.warn("Circuit is empty. Empty circuits return failures. Submitting anyway.")
 
         for i, operation in enumerate(operations):
             if i > 0 and operation.name in {"BasisState", "QubitStateVector"}:
                 raise DeviceError(
-                    "The operation {} is only supported at the beginning of a circuit.".format(
-                        operation.name
-                    )
+                    f"The operation {operation.name} is only supported at the beginning of a circuit."
                 )
             self._apply_operation(operation)
 

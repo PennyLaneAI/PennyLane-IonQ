@@ -44,7 +44,7 @@ class TestDevice:
         dev.histogram = histogram
 
         sample1 = dev.generate_samples()
-        assert dev.histogram == histogram # make sure histogram is still the same
+        assert dev.histogram == histogram  # make sure histogram is still the same
         sample2 = dev.generate_samples()
         assert not np.all(sample1 == sample2)  # some rows are different
 
@@ -89,6 +89,19 @@ class TestDeviceIntegration:
 
         with pytest.warns(UserWarning, match=r"Circuit is empty."):
             dev.apply([])
+
+    def test_failedcircuit(self, monkeypatch):
+
+        monkeypatch.setattr(
+            requests, "post", lambda url, timeout, data, headers: (url, data, headers)
+        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
+        monkeypatch.setattr(Job, "is_complete", False)
+        monkeypatch.setattr(Job, "is_failed", True)
+
+        dev = IonQDevice(wires=(0,))
+        with pytest.raises(JobExecutionError):
+            dev._submit_job()
 
     @pytest.mark.parametrize("shots", [100, 500, 8192])
     def test_shots(self, shots, monkeypatch, mocker, tol):
