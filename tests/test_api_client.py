@@ -38,17 +38,14 @@ def client():
     return api_client.APIClient(api_key="test")
 
 
-SAMPLE_JOB_CREATE_RESPONSE = {
-    "id": "a6a146d0-d64f-42f4-8b17-ec761fbab7fd",
-    "status": "ready"
-}
+SAMPLE_JOB_CREATE_RESPONSE = {"id": "a6a146d0-d64f-42f4-8b17-ec761fbab7fd", "status": "ready"}
 
 SAMPLE_JOB_RESPONSE = {
-  "id": "617a1f8b-59d4-435d-aa33-695433d7155e",
-  "type": "simulation",
-  "status": "running",
-  "request": "1490932820",
-  "response": "1490932834",
+    "id": "617a1f8b-59d4-435d-aa33-695433d7155e",
+    "type": "simulation",
+    "status": "running",
+    "request": "1490932820",
+    "response": "1490932834",
 }
 
 
@@ -281,10 +278,12 @@ class TestResourceManager:
         """
         Tests that the client object keeps track of responses and errors when debug mode is enabled.
         """
+
         class MockException(Exception):
             """
             A mock exception to ensure that the exception raised is the expected one.
             """
+
             pass
 
         def mock_raise(exception):
@@ -293,7 +292,9 @@ class TestResourceManager:
         mock_get_response = MockGETResponse(200)
 
         monkeypatch.setattr(requests, "get", lambda url, timeout, headers: mock_get_response)
-        monkeypatch.setattr(requests, "post", lambda url, timeout, headers, data: mock_raise(MockException))
+        monkeypatch.setattr(
+            requests, "post", lambda url, timeout, headers, data: mock_raise(MockException)
+        )
 
         client = api_client.APIClient(debug=True, api_key="test")
 
@@ -317,7 +318,9 @@ class TestJob:
         Tests a successful Job creatioin with a mock POST response. Asserts that all fields on
         the Job instance have been set correctly and match the mock data.
         """
-        monkeypatch.setattr(requests, "post", lambda url, timeout, headers, data: MockPOSTResponse(201))
+        monkeypatch.setattr(
+            requests, "post", lambda url, timeout, headers, data: MockPOSTResponse(201)
+        )
         job = Job(api_key="test")
         job.manager.create(params={})
 
@@ -329,7 +332,9 @@ class TestJob:
         """
         Tests that the correct error code is returned when a bad request is sent to the server.
         """
-        monkeypatch.setattr(requests, "post", lambda url, timeout, headers, data: MockPOSTResponse(400))
+        monkeypatch.setattr(
+            requests, "post", lambda url, timeout, headers, data: MockPOSTResponse(400)
+        )
         job = Job(api_key="test")
 
         with pytest.raises(Exception):
