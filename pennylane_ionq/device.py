@@ -112,6 +112,7 @@ class IonQDevice(QubitDevice):
         return set(self._operation_map.keys())
 
     def apply(self, operations, **kwargs):
+        self.reset()
         rotations = kwargs.pop("rotations", [])
 
         if len(operations) == 0 and len(rotations) == 0:
@@ -128,6 +129,7 @@ class IonQDevice(QubitDevice):
         for operation in rotations:
             self._apply_operation(operation)
 
+        # print(self.job)
         self._submit_job()
 
     def _apply_operation(self, operation):
@@ -147,7 +149,7 @@ class IonQDevice(QubitDevice):
             gate["target"] = wires[0]
 
         if par:
-            gate["rotation"] = par[0]
+            gate["rotation"] = float(par[0])
 
         self.circuit["circuit"].append(gate)
 

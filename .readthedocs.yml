@@ -16,3 +16,15 @@ script:
   - make coverage
 after_success:
   - codecov
+=======
+requirements_file: doc/requirements.txt
+
+build:
+    image: latest
+
+python:
+    version: 3.8
+
+# Don't build any extra formats
+formats:
+    - none

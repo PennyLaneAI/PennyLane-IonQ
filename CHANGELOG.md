@@ -14,6 +14,9 @@
   submits an empty circuit, a warning is raised.
   [(#43)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/43)
 
+* Parameters are converted to floats, unwrapping interface data types.
+  [(#41)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/41)
+
 ### Contributors
 
 This release contains contributions from (in alphabetical order):
