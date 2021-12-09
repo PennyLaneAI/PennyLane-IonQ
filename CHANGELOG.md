@@ -1,4 +1,4 @@
-# Release 0.17.0-dev
+# Release 0.20.0-dev
 
 ### New features since last release
 
@@ -10,9 +10,14 @@
 
 ### Bug fixes
 
+* Parameters are converted to floats, unwrapping interface data types.
+  [(#41)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/41)
+
 ### Contributors
 
 This release contains contributions from (in alphabetical order):
+
+Christina Lee
 
 ---
 
