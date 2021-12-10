@@ -16,13 +16,14 @@ This module contains the device class for constructing IonQ devices for PennyLan
 """
 import itertools
 import functools
+import warnings
 from time import sleep
 
 import numpy as np
 
 from pennylane import QubitDevice, DeviceError
 
-from .api_client import Job
+from .api_client import Job, JobExecutionError
 from ._version import __version__
 
 
@@ -114,6 +115,9 @@ class IonQDevice(QubitDevice):
         self.reset()
         rotations = kwargs.pop("rotations", [])
 
+        if len(operations) == 0 and len(rotations) == 0:
+            warnings.warn("Circuit is empty. Empty circuits return failures. Submitting anyway.")
+
         for i, operation in enumerate(operations):
             if i > 0 and operation.name in {"BasisState", "QubitStateVector"}:
                 raise DeviceError(
@@ -159,6 +163,8 @@ class IonQDevice(QubitDevice):
         while not job.is_complete:
             sleep(0.01)
             job.reload()
+            if job.is_failed:
+                raise JobExecutionError("Job failed")
 
         job.manager.get(job.id.value)
 
