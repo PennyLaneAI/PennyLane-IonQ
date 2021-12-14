@@ -1,5 +1,10 @@
 # Release 0.20.0
 
+### Improvements
+
+* Added support for Python 3.10.
+  [(#46)](https://github.com/PennyLaneAI/pennylane-forest/pull/46)
+
 ### Bug fixes
 
 * Parameters are converted to floats, unwrapping interface data types.
@@ -13,7 +18,7 @@
 
 This release contains contributions from (in alphabetical order):
 
-Christina Lee
+Christina Lee, Jay Soni, Antal Száva
 
 ---
 
