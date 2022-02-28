@@ -1,4 +1,27 @@
+# Release 0.21.0-dev
+
+### New features since last release
+
+### Breaking changes
+
+### Improvements
+
+### Documentation
+
+### Bug fixes
+
+### Contributors
+
+This release contains contributions from (in alphabetical order):
+
+---
+
 # Release 0.20.0
+
+### Improvements
+
+* Added support for Python 3.10.
+  [(#46)](https://github.com/PennyLaneAI/pennylane-forest/pull/46)
 
 ### Bug fixes
 
@@ -13,7 +36,7 @@
 
 This release contains contributions from (in alphabetical order):
 
-Christina Lee
+Christina Lee, Jay Soni, Antal Száva
 
 ---
 
