@@ -193,7 +193,7 @@ class IonQDevice(QubitDevice):
             idx = np.fromiter(basis_states, dtype=int)
 
             # convert the sparse probs into a probability array
-            self._prob_array = np.zeros([2 ** self.num_wires])
+            self._prob_array = np.zeros([2**self.num_wires])
             self._prob_array[idx] = np.fromiter(self.histogram.values(), float)
 
         return self._prob_array
@@ -229,7 +229,7 @@ class SimulatorDevice(IonQDevice):
 
     def generate_samples(self):
         """Generates samples by random sampling with the probabilities returned by the simulator."""
-        number_of_states = 2 ** self.num_wires
+        number_of_states = 2**self.num_wires
         samples = self.sample_basis_states(number_of_states, self.prob)
         return QubitDevice.states_to_binary(samples, self.num_wires)
 
@@ -261,7 +261,7 @@ class QPUDevice(IonQDevice):
         the experiments were done, but is instead controlled by a random shuffle (and hence
         set by numpy random seed).
         """
-        number_of_states = 2 ** self.num_wires
+        number_of_states = 2**self.num_wires
         counts = np.rint(
             self.prob * self.shots, out=np.zeros(number_of_states, dtype=int), casting="unsafe"
         )
