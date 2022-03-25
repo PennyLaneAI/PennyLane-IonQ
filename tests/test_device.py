@@ -96,10 +96,11 @@ class TestDeviceIntegration:
             requests, "post", lambda url, timeout, data, headers: (url, data, headers)
         )
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
+        monkeypatch.setattr(Job, "reload", lambda ignored: None)
         monkeypatch.setattr(Job, "is_complete", False)
         monkeypatch.setattr(Job, "is_failed", True)
-
-        dev = IonQDevice(wires=(0,))
+        
+        dev = IonQDevice(wires=(0,), api_key="foo")
         with pytest.raises(JobExecutionError):
             dev._submit_job()
 

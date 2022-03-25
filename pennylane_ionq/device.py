@@ -233,7 +233,7 @@ class SimulatorDevice(IonQDevice):
         samples = self.sample_basis_states(number_of_states, self.prob)
         return QubitDevice.states_to_binary(samples, self.num_wires)
 
-
+# deprecated("Prefer HarmonyDevice to fully specify generation.")
 class QPUDevice(IonQDevice):
     r"""QPU device for IonQ.
 
@@ -268,3 +268,23 @@ class QPUDevice(IonQDevice):
         samples = np.repeat(np.arange(number_of_states), counts)
         np.random.shuffle(samples)
         return QubitDevice.states_to_binary(samples, self.num_wires)
+
+class HarmonyDevice(QPUDevice):
+    r"""Harmony QPU device for IonQ.
+
+    Args:
+        wires (int or Iterable[Number, str]]): Number of wires to initialize the device with,
+            or iterable that contains unique labels for the subsystems as numbers (i.e., ``[-1, 0, 2]``)
+            or strings (``['ancilla', 'q1', 'q2']``).
+        shots (int, list[int]): Number of circuit evaluations/random samples used to estimate
+            expectation values of observables. If ``None``, the device calculates probability, expectation values,
+            and variances analytically. If an integer, it specifies the number of samples to estimate these quantities.
+            If a list of integers is passed, the circuit evaluations are batched over the list of shots.
+        api_key (str): The IonQ API key. If not provided, the environment
+            variable ``IONQ_API_KEY`` is used.
+    """
+    name = "IonQ QPU PennyLane plugin"
+    short_name = "ionq.qpu.harmony"
+
+    def __init__(self, wires, *, shots=1024, api_key=None):
+        super().__init__(wires=wires, target="qpu.harmony", shots=shots, api_key=api_key)
