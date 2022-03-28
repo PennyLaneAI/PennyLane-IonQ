@@ -83,7 +83,9 @@ class IonQDevice(QubitDevice):
 
     def __init__(self, wires, *, target="simulator", shots=1024, api_key=None):
         if shots is None:
-            raise ValueError("The ionq device does not support analytic expectation values.")
+            raise ValueError(
+                "The ionq device does not support analytic expectation values."
+            )
 
         super().__init__(wires=wires, shots=shots)
         self.target = target
@@ -116,7 +118,9 @@ class IonQDevice(QubitDevice):
         rotations = kwargs.pop("rotations", [])
 
         if len(operations) == 0 and len(rotations) == 0:
-            warnings.warn("Circuit is empty. Empty circuits return failures. Submitting anyway.")
+            warnings.warn(
+                "Circuit is empty. Empty circuits return failures. Submitting anyway."
+            )
 
         for i, operation in enumerate(operations):
             if i > 0 and operation.name in {"BasisState", "QubitStateVector"}:
@@ -188,12 +192,13 @@ class IonQDevice(QubitDevice):
             # Here, we rearrange the states to match the big-endian ordering
             # expected by PennyLane.
             basis_states = (
-                int(bin(int(k))[2:].rjust(self.num_wires, "0")[::-1], 2) for k in self.histogram
+                int(bin(int(k))[2:].rjust(self.num_wires, "0")[::-1], 2)
+                for k in self.histogram
             )
             idx = np.fromiter(basis_states, dtype=int)
 
             # convert the sparse probs into a probability array
-            self._prob_array = np.zeros([2**self.num_wires])
+            self._prob_array = np.zeros([2 ** self.num_wires])
             self._prob_array[idx] = np.fromiter(self.histogram.values(), float)
 
         return self._prob_array
@@ -204,7 +209,9 @@ class IonQDevice(QubitDevice):
         if shot_range is None and bin_size is None:
             return self.marginal_prob(self.prob, wires)
 
-        return self.estimate_probability(wires=wires, shot_range=shot_range, bin_size=bin_size)
+        return self.estimate_probability(
+            wires=wires, shot_range=shot_range, bin_size=bin_size
+        )
 
 
 class SimulatorDevice(IonQDevice):
@@ -229,9 +236,10 @@ class SimulatorDevice(IonQDevice):
 
     def generate_samples(self):
         """Generates samples by random sampling with the probabilities returned by the simulator."""
-        number_of_states = 2**self.num_wires
+        number_of_states = 2 ** self.num_wires
         samples = self.sample_basis_states(number_of_states, self.prob)
         return QubitDevice.states_to_binary(samples, self.num_wires)
+
 
 # deprecated("Prefer HarmonyDevice to fully specify generation.")
 class QPUDevice(IonQDevice):
@@ -261,13 +269,16 @@ class QPUDevice(IonQDevice):
         the experiments were done, but is instead controlled by a random shuffle (and hence
         set by numpy random seed).
         """
-        number_of_states = 2**self.num_wires
+        number_of_states = 2 ** self.num_wires
         counts = np.rint(
-            self.prob * self.shots, out=np.zeros(number_of_states, dtype=int), casting="unsafe"
+            self.prob * self.shots,
+            out=np.zeros(number_of_states, dtype=int),
+            casting="unsafe",
         )
         samples = np.repeat(np.arange(number_of_states), counts)
         np.random.shuffle(samples)
         return QubitDevice.states_to_binary(samples, self.num_wires)
+
 
 class HarmonyDevice(QPUDevice):
     r"""Harmony QPU device for IonQ.
@@ -287,4 +298,6 @@ class HarmonyDevice(QPUDevice):
     short_name = "ionq.qpu.harmony"
 
     def __init__(self, wires, *, shots=1024, api_key=None):
-        super().__init__(wires=wires, target="qpu.harmony", shots=shots, api_key=api_key)
+        super().__init__(
+            wires=wires, target="qpu.harmony", shots=shots, api_key=api_key
+        )
