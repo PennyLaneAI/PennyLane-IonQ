@@ -117,7 +117,9 @@ class APIClient:
     BASE_URL = "https://{}".format(HOSTNAME)
 
     def __init__(self, **kwargs):
-        self.AUTHENTICATION_TOKEN = os.getenv("IONQ_API_KEY") or kwargs.get("api_key", None)
+        self.AUTHENTICATION_TOKEN = os.getenv("IONQ_API_KEY") or kwargs.get(
+            "api_key", None
+        )
         self.DEBUG = False
 
         if "IONQ_DEBUG" in os.environ:
@@ -220,7 +222,9 @@ class APIClient:
         Returns:
             requests.Response: A response object, or None if no response could be fetched
         """
-        return self.request(requests.post, url=self.join_path(path), data=json.dumps(payload))
+        return self.request(
+            requests.post, url=self.join_path(path), data=json.dumps(payload)
+        )
 
 
 class ResourceManager:
@@ -259,7 +263,9 @@ class ResourceManager:
             resource_id (int): the ID of an object to be retrieved
         """
         if "GET" not in self.resource.SUPPORTED_METHODS:
-            raise MethodNotSupportedException("GET method on this resource is not supported")
+            raise MethodNotSupportedException(
+                "GET method on this resource is not supported"
+            )
 
         if resource_id is not None:
             response = self.client.get(self.join_path(str(resource_id)))
@@ -276,7 +282,9 @@ class ResourceManager:
             **params: arbitrary parameters to be passed on to the POST request
         """
         if "POST" not in self.resource.SUPPORTED_METHODS:
-            raise MethodNotSupportedException("POST method on this resource is not supported")
+            raise MethodNotSupportedException(
+                "POST method on this resource is not supported"
+            )
 
         if self.resource.id:
             raise ObjectAlreadyCreatedException("ID must be None when calling create")
