@@ -224,8 +224,8 @@ class SimulatorDevice(IonQDevice):
     name = "IonQ Simulator PennyLane plugin"
     short_name = "ionq.simulator"
 
-    def __init__(self, wires, *, shots=1024, api_key=None):
-        super().__init__(wires=wires, target="simulator", shots=shots, api_key=api_key)
+    def __init__(self, wires, *, target="simulator", shots=1024, api_key=None):
+        super().__init__(wires=wires, target=target, shots=shots, api_key=api_key)
 
     def generate_samples(self):
         """Generates samples by random sampling with the probabilities returned by the simulator."""
@@ -251,8 +251,8 @@ class QPUDevice(IonQDevice):
     name = "IonQ QPU PennyLane plugin"
     short_name = "ionq.qpu"
 
-    def __init__(self, wires, *, shots=1024, api_key=None):
-        super().__init__(wires=wires, target="qpu", shots=shots, api_key=api_key)
+    def __init__(self, wires, *, target="qpu", shots=1024, api_key=None):
+        super().__init__(wires=wires, target=target, shots=shots, api_key=api_key)
 
     def generate_samples(self):
         """Generates samples from the qpu.

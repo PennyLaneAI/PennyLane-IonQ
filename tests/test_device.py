@@ -99,7 +99,7 @@ class TestDeviceIntegration:
         monkeypatch.setattr(Job, "is_complete", False)
         monkeypatch.setattr(Job, "is_failed", True)
 
-        dev = IonQDevice(wires=(0,))
+        dev = IonQDevice(wires=(0,), api_key="test")
         with pytest.raises(JobExecutionError):
             dev._submit_job()
 
@@ -182,7 +182,7 @@ class TestJobAttribute:
             pass
 
         mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
-        dev = IonQDevice(wires=(0,))
+        dev = IonQDevice(wires=(0,), target="foo")
 
         with qml.tape.QuantumTape() as tape:
             qml.PauliX(0)
@@ -190,6 +190,7 @@ class TestJobAttribute:
         dev.apply(tape.operations)
 
         assert dev.job["lang"] == "json"
+        assert dev.job["target"] == "foo"
         assert dev.job["body"]["qubits"] == 1
 
         assert len(dev.job["body"]["circuit"]) == 1
