@@ -1,8 +1,16 @@
 # Release 0.23.0
 
+### Improvements
+
+* Added high level access to the `target` kwarg in the 
+  `SimulatorDevice` class for general IonQ devices.
+  [(#50)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/50)
+
 ### Contributors
 
 This release contains contributions from (in alphabetical order):
+
+Jon Donovan, Antal Száva
 
 ---
 
