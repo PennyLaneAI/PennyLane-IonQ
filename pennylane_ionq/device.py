@@ -197,7 +197,7 @@ class IonQDevice(QubitDevice):
             # histogram values don't always perfectly sum to exactly one
             histogram_values = self.histogram.values()
             norm = sum(histogram_values)
-            self._prob_array[idx] = np.fromiter(histogram_values, float)/norm
+            self._prob_array[idx] = np.fromiter(histogram_values, float) / norm
 
         return self._prob_array
 

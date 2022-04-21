@@ -79,7 +79,7 @@ def init_state(scope="session"):
 
     def _init_state(n):
         state = np.random.randint(0, 2, [n])
-        ket = np.zeros([2 ** n])
+        ket = np.zeros([2**n])
         ket[np.ravel_multi_index(state, [2] * n)] = 1
         return state, ket
 
