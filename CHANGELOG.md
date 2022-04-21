@@ -14,7 +14,7 @@
 
 This release contains contributions from (in alphabetical order):
 
-Jon Donovan, Antal Száva
+Jon Donovan, Christina Lee, Antal Száva
 
 ---
 
