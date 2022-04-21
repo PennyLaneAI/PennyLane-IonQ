@@ -6,6 +6,10 @@
   `SimulatorDevice` class for general IonQ devices.
   [(#50)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/50)
 
+### Bug Fixes
+
+* Since the probabilities returned don't always perfectly sum to one, they are now normalized.
+
 ### Contributors
 
 This release contains contributions from (in alphabetical order):

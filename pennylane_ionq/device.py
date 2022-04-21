@@ -129,7 +129,6 @@ class IonQDevice(QubitDevice):
         for operation in rotations:
             self._apply_operation(operation)
 
-        # print(self.job)
         self._submit_job()
 
     def _apply_operation(self, operation):
@@ -194,7 +193,11 @@ class IonQDevice(QubitDevice):
 
             # convert the sparse probs into a probability array
             self._prob_array = np.zeros([2**self.num_wires])
-            self._prob_array[idx] = np.fromiter(self.histogram.values(), float)
+
+            # histogram values don't always perfectly sum to exactly one
+            histogram_values = self.histogram.values()
+            norm = sum(histogram_values)
+            self._prob_array[idx] = np.fromiter(histogram_values, float)/norm
 
         return self._prob_array
 
