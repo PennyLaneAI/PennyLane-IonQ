@@ -9,6 +9,7 @@
 ### Bug Fixes
 
 * Since the probabilities returned don't always perfectly sum to one, they are now normalized.
+  [(#53)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/53)
 
 ### Contributors
 
