@@ -6,11 +6,17 @@
   `SimulatorDevice` class for general IonQ devices.
   [(#50)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/50)
 
+### Bug Fixes
+
+* Since the histogram of probabilities returned from the remote simulator does not always sum exactly to one,
+  the PennyLane device normalizes them to higher precision.
+  [(#53)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/53)
+
 ### Contributors
 
 This release contains contributions from (in alphabetical order):
 
-Jon Donovan, Antal Száva
+Jon Donovan, Christina Lee, Antal Száva
 
 ---
 
