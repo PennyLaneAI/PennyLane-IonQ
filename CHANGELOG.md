@@ -8,7 +8,8 @@
 
 ### Bug Fixes
 
-* Since the probabilities returned don't always perfectly sum to one, they are now normalized.
+* Since the histogram of probabilities returned from the remote simulator does not always sum exactly to one,
+  the PennyLane device normalizes them to higher precision.
   [(#53)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/53)
 
 ### Contributors
