@@ -16,6 +16,72 @@ Custom operations
 """
 from pennylane.operation import Operation
 
+# Custom operations for the native gateset below.
+class GPI(Operation):  # pylint: disable=too-few-public-methods
+    r"""GPI(phi, wires)
+    Single-qubit GPI gate.
+
+    .. math::
+
+       GPI(\phi) =
+            \begin{pmatrix}
+                0 & e^{-i*2*\pi*\phi} \\
+                e^{i*2*\pi*\phi} & 0
+            \end{pmatrix}
+    Args:
+        phi (float): phase :math:`\phi`
+        wires (Sequence[int]): the subsystems the operation acts on
+    """
+    num_params = 1
+    num_wires = 1
+    grad_method = None
+
+
+class GPI2(Operation):  # pylint: disable=too-few-public-methods
+    r"""GPI2(phi, wires)
+    Single-qubit GPI2 gate.
+
+    .. math::
+
+       GPI2(\phi) =
+            \begin{pmatrix}
+                 1 & -i*e^{-i*2*\pi*\phi} \\
+                 -i*e^{i*2*\pi*\phi} & 1
+            \end{pmatrix}
+    Args:
+        phi (float): phase :math:`\phi`
+        wires (Sequence[int]): the subsystems the operation acts on
+    """
+    num_params = 1
+    num_wires = 1
+    grad_method = None
+
+
+class MS(Operation):  # pylint: disable=too-few-public-methods
+    r"""MS(phi1, phi2, wires)
+    2-qubit entanlging MS gate.
+
+    .. math::
+
+       MS(\phi_{0}, \phi_{1}) =
+            \frac{1}{\sqrt{2}}\begin{pmatrix}
+                1 & 0 & 0 & -i*e^{-i*2*\pi*(\phi_{0}+\phi_{1})} \\
+                0 & 1 & -i*e^{-i*2*\pi*(\phi_{0}-\phi_{1})} & 0 \\
+                0 & -i*e^{i*2*\pi*(\phi_{0}-\phi_{1})} & 1 & 0 \\
+                -i*e^{i*2*\pi*(\phi_{0}+\phi_{1})} & 0 & 0 & 1
+            \end{pmatrix}
+    Args:
+        phi1 (float): phase of the first qubit :math:`\phi`
+        phi2 (float): phase of the second qubit :math:`\phi`
+        wires (Sequence[int]): the subsystems the operation acts on
+    """
+    num_params = 2
+    num_wires = 2
+    grad_method = None
+
+
+# Custom operations for the QIS Gateset below
+
 
 class XX(Operation):
     r"""XX(phi, wires)
@@ -36,7 +102,6 @@ class XX(Operation):
     """
     num_params = 1
     num_wires = 2
-    par_domain = "R"
     grad_method = "A"
 
 
@@ -59,7 +124,6 @@ class YY(Operation):
     """
     num_params = 1
     num_wires = 2
-    par_domain = "R"
     grad_method = "A"
 
 
@@ -82,5 +146,4 @@ class ZZ(Operation):
     """
     num_params = 1
     num_wires = 2
-    par_domain = "R"
     grad_method = "A"
