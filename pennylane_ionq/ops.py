@@ -58,7 +58,7 @@ class GPI2(Operation):  # pylint: disable=too-few-public-methods
 
 
 class MS(Operation):  # pylint: disable=too-few-public-methods
-    r"""MS(phi1, phi2, wires)
+    r"""MS(phi0, phi1, wires)
     2-qubit entanlging MS gate.
 
     .. math::
@@ -71,8 +71,8 @@ class MS(Operation):  # pylint: disable=too-few-public-methods
                 -i*e^{i*2*\pi*(\phi_{0}+\phi_{1})} & 0 & 0 & 1
             \end{pmatrix}
     Args:
-        phi1 (float): phase of the first qubit :math:`\phi`
-        phi2 (float): phase of the second qubit :math:`\phi`
+        phi0 (float): phase of the first qubit :math:`\phi`
+        phi1 (float): phase of the second qubit :math:`\phi`
         wires (Sequence[int]): the subsystems the operation acts on
     """
     num_params = 2
