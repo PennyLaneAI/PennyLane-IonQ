@@ -65,10 +65,10 @@ class MS(Operation):  # pylint: disable=too-few-public-methods
 
        MS(\phi_{0}, \phi_{1}) =
             \frac{1}{\sqrt{2}}\begin{pmatrix}
-                1 & 0 & 0 & -i*e^{-i*2*\pi*(\phi_{0}+\phi_{1})} \\
-                0 & 1 & -i*e^{-i*2*\pi*(\phi_{0}-\phi_{1})} & 0 \\
-                0 & -i*e^{i*2*\pi*(\phi_{0}-\phi_{1})} & 1 & 0 \\
-                -i*e^{i*2*\pi*(\phi_{0}+\phi_{1})} & 0 & 0 & 1
+                1 & 0 & 0 & -i e^{-2 \pi i(\phi_{0}+\phi_{1})} \\
+                0 & 1 & -i e^{-2 \pi i (\phi_{0}-\phi_{1})} & 0 \\
+                0 & -i e^{2 \pi i(\phi_{0}-\phi_{1})} & 1 & 0 \\
+                -i e^{2 \pi i(\phi_{0}+\phi_{1})} & 0 & 0 & 1
             \end{pmatrix}
     Args:
         phi0 (float): phase of the first qubit :math:`\phi`
