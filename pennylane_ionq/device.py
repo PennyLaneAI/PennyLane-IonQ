@@ -240,6 +240,7 @@ class SimulatorDevice(IonQDevice):
         wires (int or Iterable[Number, str]]): Number of wires to initialize the device with,
             or iterable that contains unique labels for the subsystems as numbers (i.e., ``[-1, 0, 2]``)
             or strings (``['ancilla', 'q1', 'q2']``).
+        gateset (str): the target gateset, either ``"qis"`` or ``"native"``.
         shots (int, list[int]): Number of circuit evaluations/random samples used to estimate
             expectation values of observables. If ``None``, the device calculates probability, expectation values,
             and variances analytically. If an integer, it specifies the number of samples to estimate these quantities.
@@ -267,6 +268,7 @@ class QPUDevice(IonQDevice):
         wires (int or Iterable[Number, str]]): Number of wires to initialize the device with,
             or iterable that contains unique labels for the subsystems as numbers (i.e., ``[-1, 0, 2]``)
             or strings (``['ancilla', 'q1', 'q2']``).
+        gateset (str): the target gateset, either ``"qis"`` or ``"native"``.
         shots (int, list[int]): Number of circuit evaluations/random samples used to estimate
             expectation values of observables. If ``None``, the device calculates probability, expectation values,
             and variances analytically. If an integer, it specifies the number of samples to estimate these quantities.
