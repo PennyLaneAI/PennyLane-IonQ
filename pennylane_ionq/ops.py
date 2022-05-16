@@ -45,8 +45,8 @@ class GPI2(Operation):  # pylint: disable=too-few-public-methods
 
        GPI2(\phi) =
             \begin{pmatrix}
-                 1 & -i*e^{-i*2*\pi*\phi} \\
-                 -i*e^{i*2*\pi*\phi} & 1
+                 1 & -i e^{-2 \pi i \phi} \\
+                 -i e^{2 \pi i \phi} & 1
             \end{pmatrix}
     Args:
         phi (float): phase :math:`\phi`
