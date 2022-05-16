@@ -21,6 +21,7 @@ import requests
 from conftest import shortnames
 from pennylane_ionq.api_client import JobExecutionError, ResourceManager, Job, Field
 from pennylane_ionq.device import QPUDevice, IonQDevice
+from pennylane_ionq.ops import GPI, GPI2, MS
 
 FAKE_API_KEY = "ABC123"
 
@@ -50,11 +51,15 @@ class TestDevice:
 
         unique_outcomes1 = np.unique(sample1, axis=0)
         unique_outcomes2 = np.unique(sample2, axis=0)
-        assert np.all(unique_outcomes1 == unique_outcomes2)  # possible outcomes are the same
+        assert np.all(
+            unique_outcomes1 == unique_outcomes2
+        )  # possible outcomes are the same
 
         sorted_outcomes1 = np.sort(sample1, axis=0)
         sorted_outcomes2 = np.sort(sample2, axis=0)
-        assert np.all(sorted_outcomes1 == sorted_outcomes2)  # set of outcomes is the same
+        assert np.all(
+            sorted_outcomes1 == sorted_outcomes2
+        )  # set of outcomes is the same
 
 
 class TestDeviceIntegration:
@@ -95,7 +100,9 @@ class TestDeviceIntegration:
         monkeypatch.setattr(
             requests, "post", lambda url, timeout, data, headers: (url, data, headers)
         )
-        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
+        monkeypatch.setattr(
+            ResourceManager, "handle_response", lambda self, response: None
+        )
         monkeypatch.setattr(Job, "is_complete", False)
         monkeypatch.setattr(Job, "is_failed", True)
 
@@ -110,13 +117,17 @@ class TestDeviceIntegration:
         monkeypatch.setattr(
             requests, "post", lambda url, timeout, data, headers: (url, data, headers)
         )
-        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
+        monkeypatch.setattr(
+            ResourceManager, "handle_response", lambda self, response: None
+        )
         monkeypatch.setattr(Job, "is_complete", True)
 
         def fake_response(self, resource_id=None):
             """Return fake response data"""
             fake_json = {"histogram": {"0": 1}}
-            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
+            setattr(
+                self.resource, "data", type("data", tuple(), {"value": fake_json})()
+            )
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
@@ -190,6 +201,7 @@ class TestJobAttribute:
         dev.apply(tape.operations)
 
         assert dev.job["lang"] == "json"
+        assert dev.job["body"]["gateset"] == "qis"
         assert dev.job["target"] == "foo"
         assert dev.job["body"]["qubits"] == 1
 
@@ -212,8 +224,57 @@ class TestJobAttribute:
         dev.apply(tape.operations)
 
         assert dev.job["lang"] == "json"
+        assert dev.job["body"]["gateset"] == "qis"
         assert dev.job["body"]["qubits"] == 1
 
         assert len(dev.job["body"]["circuit"]) == 2
-        assert dev.job["body"]["circuit"][0] == {"gate": "rx", "target": 0, "rotation": 1.2345}
-        assert dev.job["body"]["circuit"][1] == {"gate": "ry", "target": 0, "rotation": 2.3456}
+        assert dev.job["body"]["circuit"][0] == {
+            "gate": "rx",
+            "target": 0,
+            "rotation": 1.2345,
+        }
+        assert dev.job["body"]["circuit"][1] == {
+            "gate": "ry",
+            "target": 0,
+            "rotation": 2.3456,
+        }
+
+    def test_parameterized_native_op(self, mocker):
+        """Tests job attribute several parameterized native operations."""
+
+        def mock_submit_job(*args):
+            pass
+
+        mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
+        dev = IonQDevice(wires=(0,1,2), gateset="native")
+
+        with qml.tape.QuantumTape() as tape:
+            GPI(0.1, wires=[0])
+            GPI2(0.2, wires=[1])
+            MS(0.2, 0.3, wires=[1, 2])
+
+        assert dev.job["lang"] == "json"
+        assert dev.job["body"]["gateset"] == "native"
+        assert dev.job["body"]["qubits"] == 3
+
+        dev.apply(tape.operations)
+
+        assert len(dev.job["body"]["circuit"]) == 3
+        assert dev.job["body"]["circuit"][0] == {
+            "gate": "gpi",
+            "target": 0,
+            "phase": 0.1,
+        }
+        assert dev.job["body"]["circuit"][1] == {
+            "gate": "gpi2",
+            "target": 1,
+            "phase": 0.2,
+        }
+        assert dev.job["body"]["circuit"][2] == {
+            "gate": "ms",
+            "targets": [1, 2],
+            "phases": [0.2, 0.3],
+        }
+
+
+

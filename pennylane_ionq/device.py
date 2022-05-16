@@ -26,6 +26,40 @@ from pennylane import QubitDevice, DeviceError
 from .api_client import Job, JobExecutionError
 from ._version import __version__
 
+_qis_operation_map = {
+    # native PennyLane operations also native to IonQ
+    "PauliX": "x",
+    "PauliY": "y",
+    "PauliZ": "z",
+    "Hadamard": "h",
+    "CNOT": "cnot",
+    "SWAP": "swap",
+    "RX": "rx",
+    "RY": "ry",
+    "RZ": "rz",
+    "S": "s",
+    "S.inv": "si",
+    "T": "t",
+    "T.inv": "ti",
+    "SX": "v",
+    "SX.inv": "vi",
+    # additional operations not native to PennyLane but present in IonQ
+    "XX": "xx",
+    "YY": "yy",
+    "ZZ": "zz",
+}
+
+_native_operation_map = {
+    "GPI": "gpi",
+    "GPI2": "gpi2",
+    "MS": "ms",
+}
+
+_GATESET_OPS = {
+    "native": _native_operation_map,
+    "qis": _qis_operation_map,
+}
+
 
 class IonQDevice(QubitDevice):
     r"""IonQ device for PennyLane.
@@ -35,6 +69,7 @@ class IonQDevice(QubitDevice):
         wires (int or Iterable[Number, str]]): Number of wires to initialize the device with,
             or iterable that contains unique labels for the subsystems as numbers (i.e., ``[-1, 0, 2]``)
             or strings (``['ancilla', 'q1', 'q2']``).
+        gateset (str): the target gateset, either ``"qis"`` or ``"native"``.
         shots (int, list[int]): Number of circuit evaluations/random samples used to estimate
             expectation values of observables.
             If a list of integers is passed, the circuit evaluations are batched over the list of shots.
@@ -54,47 +89,30 @@ class IonQDevice(QubitDevice):
         "inverse_operations": True,
     }
 
-    _operation_map = {
-        # native PennyLane operations also native to IonQ
-        "PauliX": "x",
-        "PauliY": "y",
-        "PauliZ": "z",
-        "Hadamard": "h",
-        "CNOT": "cnot",
-        "SWAP": "swap",
-        "RX": "rx",
-        "RY": "ry",
-        "RZ": "rz",
-        "S": "s",
-        "S.inv": "si",
-        "T": "t",
-        "T.inv": "ti",
-        "SX": "v",
-        "SX.inv": "vi",
-        # additional operations not native to PennyLane but present in IonQ
-        "XX": "xx",
-        "YY": "yy",
-        "ZZ": "zz",
-    }
-
     # Note: unlike QubitDevice, IonQ does not support QubitUnitary,
     # and therefore does not support the Hermitian observable.
     observables = {"PauliX", "PauliY", "PauliZ", "Hadamard", "Identity"}
 
-    def __init__(self, wires, *, target="simulator", shots=1024, api_key=None):
+    def __init__(self, wires, *, target="simulator", gateset="qis", shots=1024, api_key=None):
         if shots is None:
             raise ValueError("The ionq device does not support analytic expectation values.")
 
         super().__init__(wires=wires, shots=shots)
         self.target = target
         self.api_key = api_key
+        self.gateset = gateset
+        self._operation_map = _GATESET_OPS[gateset]
         self.reset()
 
     def reset(self):
         """Reset the device"""
         self._prob_array = None
         self.histogram = None
-        self.circuit = {"qubits": self.num_wires, "circuit": []}
+        self.circuit = {
+            "qubits": self.num_wires,
+            "circuit": [],
+            "gateset": self.gateset,
+        }
         self.job = {
             "lang": "json",
             "body": self.circuit,
@@ -138,7 +156,7 @@ class IonQDevice(QubitDevice):
         par = operation.parameters
 
         if len(wires) == 2:
-            if name in {"SWAP", "XX", "YY", "ZZ"}:
+            if name in {"SWAP", "XX", "YY", "ZZ", "MS"}:
                 # these gates takes two targets
                 gate["targets"] = wires
             else:
@@ -147,7 +165,12 @@ class IonQDevice(QubitDevice):
         else:
             gate["target"] = wires[0]
 
-        if par:
+        if self.gateset == "native":
+            if len(par) > 1:
+                gate["phases"] = [float(v) for v in par]
+            else:
+                gate["phase"] = float(par[0])
+        elif par:
             gate["rotation"] = float(par[0])
 
         self.circuit["circuit"].append(gate)
@@ -217,6 +240,7 @@ class SimulatorDevice(IonQDevice):
         wires (int or Iterable[Number, str]]): Number of wires to initialize the device with,
             or iterable that contains unique labels for the subsystems as numbers (i.e., ``[-1, 0, 2]``)
             or strings (``['ancilla', 'q1', 'q2']``).
+        gateset (str): the target gateset, either ``"qis"`` or ``"native"``.
         shots (int, list[int]): Number of circuit evaluations/random samples used to estimate
             expectation values of observables. If ``None``, the device calculates probability, expectation values,
             and variances analytically. If an integer, it specifies the number of samples to estimate these quantities.
@@ -227,8 +251,8 @@ class SimulatorDevice(IonQDevice):
     name = "IonQ Simulator PennyLane plugin"
     short_name = "ionq.simulator"
 
-    def __init__(self, wires, *, target="simulator", shots=1024, api_key=None):
-        super().__init__(wires=wires, target=target, shots=shots, api_key=api_key)
+    def __init__(self, wires, *, target="simulator", gateset="qis", shots=1024, api_key=None):
+        super().__init__(wires=wires, target=target, gateset=gateset, shots=shots, api_key=api_key)
 
     def generate_samples(self):
         """Generates samples by random sampling with the probabilities returned by the simulator."""
@@ -244,6 +268,7 @@ class QPUDevice(IonQDevice):
         wires (int or Iterable[Number, str]]): Number of wires to initialize the device with,
             or iterable that contains unique labels for the subsystems as numbers (i.e., ``[-1, 0, 2]``)
             or strings (``['ancilla', 'q1', 'q2']``).
+        gateset (str): the target gateset, either ``"qis"`` or ``"native"``.
         shots (int, list[int]): Number of circuit evaluations/random samples used to estimate
             expectation values of observables. If ``None``, the device calculates probability, expectation values,
             and variances analytically. If an integer, it specifies the number of samples to estimate these quantities.
@@ -254,8 +279,8 @@ class QPUDevice(IonQDevice):
     name = "IonQ QPU PennyLane plugin"
     short_name = "ionq.qpu"
 
-    def __init__(self, wires, *, target="qpu", shots=1024, api_key=None):
-        super().__init__(wires=wires, target=target, shots=shots, api_key=api_key)
+    def __init__(self, wires, *, target="qpu", gateset="qis", shots=1024, api_key=None):
+        super().__init__(wires=wires, target=target, gateset=gateset, shots=shots, api_key=api_key)
 
     def generate_samples(self):
         """Generates samples from the qpu.
@@ -266,7 +291,9 @@ class QPUDevice(IonQDevice):
         """
         number_of_states = 2**self.num_wires
         counts = np.rint(
-            self.prob * self.shots, out=np.zeros(number_of_states, dtype=int), casting="unsafe"
+            self.prob * self.shots,
+            out=np.zeros(number_of_states, dtype=int),
+            casting="unsafe",
         )
         samples = np.repeat(np.arange(number_of_states), counts)
         np.random.shuffle(samples)

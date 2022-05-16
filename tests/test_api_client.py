@@ -38,7 +38,10 @@ def client():
     return api_client.APIClient(api_key="test")
 
 
-SAMPLE_JOB_CREATE_RESPONSE = {"id": "a6a146d0-d64f-42f4-8b17-ec761fbab7fd", "status": "ready"}
+SAMPLE_JOB_CREATE_RESPONSE = {
+    "id": "a6a146d0-d64f-42f4-8b17-ec761fbab7fd",
+    "status": "ready",
+}
 
 SAMPLE_JOB_RESPONSE = {
     "id": "617a1f8b-59d4-435d-aa33-695433d7155e",
@@ -119,13 +122,17 @@ class TestAPIClient:
 
         authentication_token = MagicMock()
         client.set_authorization_header(authentication_token)
-        assert client.HEADERS["Authorization"] == "apiKey {}".format(authentication_token)
+        assert client.HEADERS["Authorization"] == "apiKey {}".format(
+            authentication_token
+        )
 
     def test_join_path(self, client):
         """
         Test that two paths can be joined and separated by a forward slash.
         """
-        assert client.join_path("jobs") == "{client.BASE_URL}/jobs".format(client=client)
+        assert client.join_path("jobs") == "{client.BASE_URL}/jobs".format(
+            client=client
+        )
 
 
 class TestResourceManager:
@@ -241,9 +248,13 @@ class TestResourceManager:
 
         manager = ResourceManager(mock_resource, mock_client)
 
-        monkeypatch.setattr(manager, "handle_success_response", mock_handle_success_response)
+        monkeypatch.setattr(
+            manager, "handle_success_response", mock_handle_success_response
+        )
 
-        monkeypatch.setattr(manager, "handle_error_response", mock_handle_error_response)
+        monkeypatch.setattr(
+            manager, "handle_error_response", mock_handle_error_response
+        )
 
         manager.handle_response(mock_response)
         assert manager.http_response_data == mock_response.json()
@@ -291,9 +302,13 @@ class TestResourceManager:
 
         mock_get_response = MockGETResponse(200)
 
-        monkeypatch.setattr(requests, "get", lambda url, timeout, headers: mock_get_response)
         monkeypatch.setattr(
-            requests, "post", lambda url, timeout, headers, data: mock_raise(MockException)
+            requests, "get", lambda url, timeout, headers: mock_get_response
+        )
+        monkeypatch.setattr(
+            requests,
+            "post",
+            lambda url, timeout, headers, data: mock_raise(MockException),
         )
 
         client = api_client.APIClient(debug=True, api_key="test")
