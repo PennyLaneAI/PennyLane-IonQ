@@ -25,8 +25,8 @@ class GPI(Operation):  # pylint: disable=too-few-public-methods
 
        GPI(\phi) =
             \begin{pmatrix}
-                0 & e^{-i*2*\pi*\phi} \\
-                e^{i*2*\pi*\phi} & 0
+                0 & e^{-i 2 \pi \phi} \\
+                e^{i 2 \pi \phi} & 0
             \end{pmatrix}
     Args:
         phi (float): phase :math:`\phi`
