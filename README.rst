@@ -15,7 +15,7 @@ PennyLane-IonQ Plugin
 
 .. image:: https://img.shields.io/readthedocs/pennylane-ionq.svg?logo=read-the-docs&style=flat-square
     :alt: Read the Docs
-    :target: https://pennylane-ionq.readthedocs.io
+    :target: https://docs.pennylane.ai/projects/ionq
 
 .. image:: https://img.shields.io/pypi/v/PennyLane-ionq.svg?style=flat-square
     :alt: PyPI
@@ -38,7 +38,7 @@ company offering access to quantum computing devices over the cloud.
 
 .. header-end-inclusion-marker-do-not-remove
 
-The plugin documentation can be found `here <https://pennylane-ionq.readthedocs.io/en/latest/>`__.
+The plugin documentation can be found `here <https://docs.pennylane.ai/projects/ionq>`__.
 
 Features
 ========
