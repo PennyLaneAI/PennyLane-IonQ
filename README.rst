@@ -13,9 +13,9 @@ PennyLane-IonQ Plugin
     :alt: CodeFactor Grade
     :target: https://www.codefactor.io/repository/github/pennylaneai/pennylane-ionq
 
-.. image:: https://img.shields.io/readthedocs/pennylane-ionq.svg?logo=read-the-docs&style=flat-square
+.. image:: https://readthedocs.com/projects/xanaduai-pennylane-ionq/badge/?version=latest&style=flat-square
     :alt: Read the Docs
-    :target: https://pennylane-ionq.readthedocs.io
+    :target: https://docs.pennylane.ai/projects/ionq
 
 .. image:: https://img.shields.io/pypi/v/PennyLane-ionq.svg?style=flat-square
     :alt: PyPI
