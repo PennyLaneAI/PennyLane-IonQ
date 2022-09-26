@@ -38,4 +38,5 @@ sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-serializinghtml==1.1.5
 toml==0.10.2
 urllib3==1.26.9
-xanadu-sphinx-theme==0.1.0
+# do not pin
+pennylane-sphinx-theme

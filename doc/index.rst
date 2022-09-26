@@ -16,12 +16,12 @@ Devices
 
 PennyLane-IonQ provides two IonQ devices for PennyLane:
 
-.. devicegalleryitem::
+.. title-card::
     :name: 'ionq.simulator'
     :description: Ideal noiseless trapped-ion simulator.
     :link: devices.html#simulator
 
-.. devicegalleryitem::
+.. title-card::
     :name: 'ionq.qpu'
     :description: Trapped-ion QPU
     :link: devices.html#qpu
