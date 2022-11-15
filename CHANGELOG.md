@@ -1,9 +1,17 @@
-# Release 0.27.0
+# Release 0.24.0-dev
 
 ### New features since last release
 
 * Add support for various IonQ native gates.
   [(#55)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/55)
+
+### Breaking changes
+
+### Improvements
+
+### Documentation
+
+### Bug fixes
 
 ### Contributors
 
