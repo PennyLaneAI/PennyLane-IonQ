@@ -16,6 +16,7 @@ Custom operations
 """
 from pennylane.operation import Operation
 
+
 # Custom operations for the native gateset below.
 class GPI(Operation):  # pylint: disable=too-few-public-methods
     r"""GPI(phi, wires)
