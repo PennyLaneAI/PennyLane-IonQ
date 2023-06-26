@@ -64,7 +64,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'PennyLane-IonQ'
-copyright = "2022, Xanadu Quantum Technologies, Inc."
+copyright = "2023, Xanadu Quantum Technologies, Inc."
 author = 'Xanadu Inc.'
 
 add_module_names = False
@@ -138,7 +138,7 @@ html_theme_options = {
     ],
     "toc_overview": True,
     "navbar_active_link": 3,
-    "google_analytics_tracking_id": "UA-130507810-1"
+    "google_analytics_tracking_id": "G-C480Z9JL0D"
 }
 
 edit_on_github_project = 'PennyLaneAI/pennylane-ionq'
