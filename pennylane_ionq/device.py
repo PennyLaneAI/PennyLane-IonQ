@@ -330,9 +330,9 @@ class QPUDevice(IonQDevice):
             target=target,
             gateset=gateset,
             shots=shots,
+            api_key=api_key,
             error_mitigation=error_mitigation,
             sharpen=sharpen,
-            api_key=api_key,
         )
 
     def generate_samples(self):
