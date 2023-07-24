@@ -321,9 +321,9 @@ class QPUDevice(IonQDevice):
         target="qpu",
         gateset="qis",
         shots=1024,
+        api_key=None,
         error_mitigation=None,
         sharpen=None,
-        api_key=None,
     ):
         super().__init__(
             wires=wires,
