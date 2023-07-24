@@ -214,8 +214,7 @@ class IonQDevice(QubitDevice):
             if job.is_failed:
                 raise JobExecutionError("Job failed")
 
-        if self.sharpen is not None:
-            params["sharpen"] = sharpen
+        params = {} if self.sharpen is None else {"sharpen": self.sharpen}
 
         job.manager.get(resource_id=job.id.value, params=params)
 
