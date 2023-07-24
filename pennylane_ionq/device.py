@@ -101,6 +101,7 @@ class IonQDevice(QubitDevice):
         gateset="qis",
         shots=1024,
         error_mitigation=None,
+        sharpen=None,
         api_key=None,
     ):
         if shots is None:
@@ -113,6 +114,7 @@ class IonQDevice(QubitDevice):
         self.api_key = api_key
         self.gateset = gateset
         self.error_mitigation = error_mitigation
+        self.sharpen = sharpen
         self._operation_map = _GATESET_OPS[gateset]
         self.reset()
 
@@ -212,7 +214,10 @@ class IonQDevice(QubitDevice):
             if job.is_failed:
                 raise JobExecutionError("Job failed")
 
-        job.manager.get(job.id.value)
+        if self.sharpen is not None:
+            params["sharpen"] = sharpen
+
+        job.manager.get(resource_id=job.id.value, params=params)
 
         # The returned job histogram is of the form
         # dict[str, float], and maps the computational basis
@@ -318,6 +323,7 @@ class QPUDevice(IonQDevice):
         gateset="qis",
         shots=1024,
         error_mitigation=None,
+        sharpen=None,
         api_key=None,
     ):
         super().__init__(
@@ -326,6 +332,7 @@ class QPUDevice(IonQDevice):
             gateset=gateset,
             shots=shots,
             error_mitigation=error_mitigation,
+            sharpen=sharpen,
             api_key=api_key,
         )
 

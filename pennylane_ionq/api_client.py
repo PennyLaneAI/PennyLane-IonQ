@@ -200,17 +200,18 @@ class APIClient:
 
         return response
 
-    def get(self, path):
+    def get(self, path, params=None):
         """
         Sends a GET request to the provided path. Returns a response object.
 
         Args:
             path (str): path to send the GET request to
+            params (dict): parameters to include in the request
 
         Returns:
             requests.Response: A response object, or None if no response could be fetched
         """
-        return self.request(requests.get, url=self.join_path(path))
+        return self.request(requests.get, url=self.join_path(path), params=params)
 
     def post(self, path, payload):
         """
@@ -255,7 +256,7 @@ class ResourceManager:
         """
         return join_path(self.resource.PATH, path)
 
-    def get(self, resource_id=None):
+    def get(self, resource_id=None, params=None):
         """
         Attempts to retrieve a particular record by sending a GET
         request to the appropriate endpoint. If successful, the resource
@@ -270,9 +271,9 @@ class ResourceManager:
             )
 
         if resource_id is not None:
-            response = self.client.get(self.join_path(str(resource_id)))
+            response = self.client.get(self.join_path(str(resource_id)), params=params)
         else:
-            response = self.client.get(self.resource.PATH)
+            response = self.client.get(self.resource.PATH, params=params)
         self.handle_response(response)
 
     def create(self, **params):
