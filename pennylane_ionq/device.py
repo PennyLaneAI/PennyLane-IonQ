@@ -139,7 +139,7 @@ class IonQDevice(QubitDevice):
             self.job["target"] = "qpu.harmony"
             warnings.warn(
                 "The ionq_qpu backend is deprecated. Defaulting to ionq_qpu.harmony.",
-                DeprecationWarning,
+                UserWarning,
                 stacklevel=2,
             )
 
