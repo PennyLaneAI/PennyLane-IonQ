@@ -100,9 +100,9 @@ class IonQDevice(QubitDevice):
         target="simulator",
         gateset="qis",
         shots=1024,
+        api_key=None,
         error_mitigation=None,
         sharpen=None,
-        api_key=None,
     ):
         if shots is None:
             raise ValueError(
