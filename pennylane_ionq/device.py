@@ -155,7 +155,6 @@ class IonQDevice(QubitDevice):
     def apply(self, operations, **kwargs):
         self.reset()
         rotations = kwargs.pop("rotations", [])
-        self.error_mitigation = kwargs.pop("error_mitigation", {})
 
         if len(operations) == 0 and len(rotations) == 0:
             warnings.warn(
