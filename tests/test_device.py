@@ -96,7 +96,6 @@ class TestDeviceIntegration:
             dev.apply([])
 
     def test_failedcircuit(self, monkeypatch):
-
         monkeypatch.setattr(
             requests, "post", lambda url, timeout, data, headers: (url, data, headers)
         )
@@ -200,13 +199,13 @@ class TestJobAttribute:
 
         dev.apply(tape.operations)
 
-        assert dev.job["lang"] == "json"
-        assert dev.job["body"]["gateset"] == "qis"
+        assert dev.job["input"]["format"] == "ionq.circuit.v0"
+        assert dev.job["input"]["gateset"] == "qis"
         assert dev.job["target"] == "foo"
-        assert dev.job["body"]["qubits"] == 1
+        assert dev.job["input"]["qubits"] == 1
 
-        assert len(dev.job["body"]["circuit"]) == 1
-        assert dev.job["body"]["circuit"][0] == {"gate": "x", "target": 0}
+        assert len(dev.job["input"]["circuit"]) == 1
+        assert dev.job["input"]["circuit"][0] == {"gate": "x", "target": 0}
 
     def test_parameterized_op(self, mocker):
         """Tests job attribute several parameterized operations."""
@@ -223,17 +222,17 @@ class TestJobAttribute:
 
         dev.apply(tape.operations)
 
-        assert dev.job["lang"] == "json"
-        assert dev.job["body"]["gateset"] == "qis"
-        assert dev.job["body"]["qubits"] == 1
+        assert dev.job["input"]["format"] == "ionq.circuit.v0"
+        assert dev.job["input"]["gateset"] == "qis"
+        assert dev.job["input"]["qubits"] == 1
 
-        assert len(dev.job["body"]["circuit"]) == 2
-        assert dev.job["body"]["circuit"][0] == {
+        assert len(dev.job["input"]["circuit"]) == 2
+        assert dev.job["input"]["circuit"][0] == {
             "gate": "rx",
             "target": 0,
             "rotation": 1.2345,
         }
-        assert dev.job["body"]["circuit"][1] == {
+        assert dev.job["input"]["circuit"][1] == {
             "gate": "ry",
             "target": 0,
             "rotation": 2.3456,
@@ -246,35 +245,32 @@ class TestJobAttribute:
             pass
 
         mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
-        dev = IonQDevice(wires=(0,1,2), gateset="native")
+        dev = IonQDevice(wires=(0, 1, 2), gateset="native")
 
         with qml.tape.QuantumTape() as tape:
             GPI(0.1, wires=[0])
             GPI2(0.2, wires=[1])
             MS(0.2, 0.3, wires=[1, 2])
 
-        assert dev.job["lang"] == "json"
-        assert dev.job["body"]["gateset"] == "native"
-        assert dev.job["body"]["qubits"] == 3
-
         dev.apply(tape.operations)
 
-        assert len(dev.job["body"]["circuit"]) == 3
-        assert dev.job["body"]["circuit"][0] == {
+        assert dev.job["input"]["format"] == "ionq.circuit.v0"
+        assert dev.job["input"]["gateset"] == "native"
+        assert dev.job["input"]["qubits"] == 3
+
+        assert len(dev.job["input"]["circuit"]) == 3
+        assert dev.job["input"]["circuit"][0] == {
             "gate": "gpi",
             "target": 0,
             "phase": 0.1,
         }
-        assert dev.job["body"]["circuit"][1] == {
+        assert dev.job["input"]["circuit"][1] == {
             "gate": "gpi2",
             "target": 1,
             "phase": 0.2,
         }
-        assert dev.job["body"]["circuit"][2] == {
+        assert dev.job["input"]["circuit"][2] == {
             "gate": "ms",
             "targets": [1, 2],
             "phases": [0.2, 0.3],
         }
-
-
-
