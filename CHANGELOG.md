@@ -14,6 +14,8 @@
 
 This release contains contributions from (in alphabetical order):
 
+Spencer Churchill
+
 ---
 # Release 0.28.0
 
