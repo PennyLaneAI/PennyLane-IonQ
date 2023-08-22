@@ -4,7 +4,7 @@
 
 ### Breaking changes
 
-* Support for Python 3.8 has been removed.
+* Support for Python 3.8 has been removed, and support for 3.11 has been added.
   [(#78)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/78)
 
 ### Improvements
