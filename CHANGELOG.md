@@ -1,10 +1,13 @@
-# Release 0.29.0-dev
+# Release 0.32.0-dev
 
 ### New features since last release
 
 ### Breaking changes
 
 ### Improvements
+
+* Added support for `qml.StatePrep` as a state preparation operation.
+  [(#77)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/77)
 
 ### Documentation
 
@@ -13,6 +16,8 @@
 ### Contributors
 
 This release contains contributions from (in alphabetical order):
+
+ Jay Soni
 
 ---
 # Release 0.28.0
