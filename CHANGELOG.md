@@ -5,7 +5,7 @@
 ### Breaking changes
 
 * Support for Python 3.8 has been removed.
-  [(#)]()
+  [(#78)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/78)
 
 ### Improvements
 
