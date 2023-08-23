@@ -4,6 +4,9 @@
 
 ### Breaking changes 💔
 
+* Support for Python 3.8 has been removed, and support for 3.11 has been added.
+  [(#78)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/78)
+
 ### Improvements 🛠
 
 * Added support for `qml.StatePrep` as a state preparation operation.
@@ -17,7 +20,8 @@
 
 This release contains contributions from (in alphabetical order):
 
- Jay Soni
+Mudit Pandey,
+Jay Soni
 
 ---
 # Release 0.28.0
