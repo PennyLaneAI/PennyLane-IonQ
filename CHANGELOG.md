@@ -6,6 +6,12 @@
 
 ### Improvements
 
+* adds a new `error_mitigation` parameter on job submission so users can
+  configure strategies
+* adds a new `aggregation` parameter on results to allow getting results
+  aggregated under the two different methods described in
+  <https://arxiv.org/pdf/2301.07233.pdf>
+
 ### Documentation
 
 ### Bug fixes

@@ -303,12 +303,16 @@ class TestResourceManager:
         mock_get_response = MockGETResponse(200)
 
         monkeypatch.setattr(
-            requests, "get", lambda url, timeout, headers: mock_get_response
+            requests,
+            "get",
+            lambda url, params=None, timeout=None, headers=None: mock_get_response,
         )
         monkeypatch.setattr(
             requests,
             "post",
-            lambda url, timeout, headers, data: mock_raise(MockException),
+            lambda url, data=None, timeout=None, headers=None: mock_raise(
+                MockException
+            ),
         )
 
         client = api_client.APIClient(debug=True, api_key="test")

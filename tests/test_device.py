@@ -121,7 +121,7 @@ class TestDeviceIntegration:
         )
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None):
+        def fake_response(self, resource_id=None, params=None):
             """Return fake response data"""
             fake_json = {"histogram": {"0": 1}}
             setattr(
