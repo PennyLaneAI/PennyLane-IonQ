@@ -1,26 +1,46 @@
-# Release 0.29.0-dev
+# Release 0.33.0-dev
 
 ### New features since last release
 
-### Breaking changes
+### Improvements 🛠
 
-### Improvements
-
-* adds a new `error_mitigation` parameter on job submission so users can
+* adds a new `error_mitigation` parameter on IonQ job submission so users can
   configure strategies
-* adds a new `aggregation` parameter on results to allow getting results
+* adds a new `aggregation` parameter on IonQ results to allow getting results
   aggregated under the two different methods described in
   <https://arxiv.org/pdf/2301.07233.pdf>
 
-### Documentation
+### Breaking changes 💔
 
-### Bug fixes
+### Deprecations 👋
 
-### Contributors
+### Documentation 📝
+
+### Bug fixes 🐛
+
+### Contributors ✍️
 
 This release contains contributions from (in alphabetical order):
 
-Spencer Churchill
+---
+# Release 0.32.0
+
+### Breaking changes 💔
+
+* Support for Python 3.8 has been removed, and support for 3.11 has been added.
+  [(#78)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/78)
+
+### Improvements 🛠
+
+* Added support for `qml.StatePrep` as a state preparation operation.
+  [(#77)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/77)
+
+### Contributors ✍️
+
+This release contains contributions from (in alphabetical order):
+
+Mudit Pandey,
+Jay Soni
 
 ---
 # Release 0.28.0
