@@ -108,7 +108,8 @@ You can instantiate the IonQ devices for PennyLane as follows:
 
     import pennylane as qml
     dev1 = qml.device('ionq.simulator', wires=2, shots=1000)
-    dev2 = qml.device('ionq.qpu', backend='harmony', wires=2, shots=1000)
+    dev2 = qml.device('ionq.qpu.harmony', wires=2, shots=1000)
+    dev3 = qml.device('ionq.qpu', backend='aria-1', wires=2, shots=1000)
 
 These devices can then be used just like other devices for the definition and evaluation of
 quantum circuits within PennyLane. For more details and ideas, see the
