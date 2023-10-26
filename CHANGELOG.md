@@ -6,6 +6,9 @@
 
 ### Improvements
 
+* Use new `backend` field to specify `qpu`.
+  [(#81)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/81)
+
 ### Documentation
 
 ### Bug fixes
