@@ -143,7 +143,7 @@ class IonQDevice(QubitDevice):
             )
 
         for i, operation in enumerate(operations):
-            if i > 0 and operation.name in {"BasisState", "QubitStateVector"}:
+            if i > 0 and operation.name in {"BasisState", "QubitStateVector", "StatePrep"}:
                 raise DeviceError(
                     f"The operation {operation.name} is only supported at the beginning of a circuit."
                 )
