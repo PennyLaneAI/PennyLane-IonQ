@@ -333,6 +333,17 @@ class QPUDevice(IonQDevice):
 
 
 class HarmonyQPUDevice(QPUDevice):
+    """
+    PennyLane device for the IonQ Harmony QPU backend.
+
+    Args:
+        wires (int or Iterable[Number, str]): Number of subsystems represented by the device, or iterable of unique labels for the subsystems.
+        gateset (str): Target gateset, either "qis" or "native".
+        shots (int): Number of circuit evaluations/random samples used to estimate expectation values and variances of observables.
+        api_key (str): The IonQ API key. If not provided, the environment
+            variable ``IONQ_API_KEY`` is used.
+    """
+
     def __init__(self, wires, *, gateset="qis", shots=1024, api_key=None):
         super().__init__(
             wires,
@@ -345,6 +356,17 @@ class HarmonyQPUDevice(QPUDevice):
 
 
 class Aria1QPUDevice(QPUDevice):
+    """
+    PennyLane device for the IonQ Aria-1 QPU backend.
+
+    Args:
+        wires (int or Iterable[Number, str]): Number of subsystems represented by the device, or iterable of unique labels for the subsystems.
+        gateset (str): Target gateset, either "qis" or "native".
+        shots (int): Number of circuit evaluations/random samples used to estimate expectation values and variances of observables.
+        api_key (str): The IonQ API key. If not provided, the environment
+            variable ``IONQ_API_KEY`` is used.
+    """
+
     def __init__(self, wires, *, gateset="qis", shots=1024, api_key=None):
         super().__init__(
             wires,
@@ -357,6 +379,17 @@ class Aria1QPUDevice(QPUDevice):
 
 
 class Aria2QPUDevice(QPUDevice):
+    """
+    PennyLane device for the IonQ Aria-2 QPU backend.
+
+    Args:
+        wires (int or Iterable[Number, str]): Number of subsystems represented by the device, or iterable of unique labels for the subsystems.
+        gateset (str): Target gateset, either "qis" or "native".
+        shots (int): Number of circuit evaluations/random samples used to estimate expectation values and variances of observables.
+        api_key (str): The IonQ API key. If not provided, the environment
+            variable ``IONQ_API_KEY`` is used.
+    """
+
     def __init__(self, wires, *, gateset="qis", shots=1024, api_key=None):
         super().__init__(
             wires,
@@ -369,6 +402,17 @@ class Aria2QPUDevice(QPUDevice):
 
 
 class Forte1QPUDevice(QPUDevice):
+    """
+    PennyLane device for the IonQ Forte-1 QPU backend.
+
+    Args:
+        wires (int or Iterable[Number, str]): Number of subsystems represented by the device, or iterable of unique labels for the subsystems.
+        gateset (str): Target gateset, either "qis" or "native".
+        shots (int): Number of circuit evaluations/random samples used to estimate expectation values and variances of observables.
+        api_key (str): The IonQ API key. If not provided, the environment
+            variable ``IONQ_API_KEY`` is used.
+    """
+
     def __init__(self, wires, *, gateset="qis", shots=1024, api_key=None):
         super().__init__(
             wires,
