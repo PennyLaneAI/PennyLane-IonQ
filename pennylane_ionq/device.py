@@ -302,7 +302,7 @@ class QPUDevice(IonQDevice):
         shots=1024,
         api_key=None,
     ):
-        target += backend
+        target += "." + backend
         super().__init__(
             wires=wires, target=target, gateset=gateset, shots=shots, api_key=api_key
         )
