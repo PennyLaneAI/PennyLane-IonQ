@@ -15,7 +15,14 @@ import os
 import numpy as np
 import pytest
 
-from pennylane_ionq import SimulatorDevice, QPUDevice
+from pennylane_ionq import (
+    SimulatorDevice,
+    QPUDevice,
+    HarmonyQPUDevice,
+    Aria1QPUDevice,
+    Aria2QPUDevice,
+    Forte1QPUDevice,
+)
 
 
 np.random.seed(42)
