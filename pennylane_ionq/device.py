@@ -14,9 +14,7 @@
 """
 This module contains the device class for constructing IonQ devices for PennyLane.
 """
-import itertools
-import functools
-import warnings
+import os, warnings
 from time import sleep
 
 import numpy as np
@@ -143,7 +141,11 @@ class IonQDevice(QubitDevice):
             )
 
         for i, operation in enumerate(operations):
-            if i > 0 and operation.name in {"BasisState", "QubitStateVector", "StatePrep"}:
+            if i > 0 and operation.name in {
+                "BasisState",
+                "QubitStateVector",
+                "StatePrep",
+            }:
                 raise DeviceError(
                     f"The operation {operation.name} is only supported at the beginning of a circuit."
                 )
@@ -282,6 +284,7 @@ class QPUDevice(IonQDevice):
             or iterable that contains unique labels for the subsystems as numbers (i.e., ``[-1, 0, 2]``)
             or strings (``['ancilla', 'q1', 'q2']``).
         gateset (str): the target gateset, either ``"qis"`` or ``"native"``.
+        backend (str): Optional specifier for an IonQ backend. Can be ``"harmony"``, ``"aria-1"``, etc.
         shots (int, list[int]): Number of circuit evaluations/random samples used to estimate
             expectation values of observables. If ``None``, the device calculates probability, expectation values,
             and variances analytically. If an integer, it specifies the number of samples to estimate these quantities.
@@ -297,12 +300,13 @@ class QPUDevice(IonQDevice):
         wires,
         *,
         target="qpu",
-        backend="",
+        backend=None,
         gateset="qis",
         shots=1024,
         api_key=None,
     ):
-        target += "." + backend
+        if backend is not None:
+            target += "." + backend
         super().__init__(
             wires=wires, target=target, gateset=gateset, shots=shots, api_key=api_key
         )
@@ -323,3 +327,54 @@ class QPUDevice(IonQDevice):
         samples = np.repeat(np.arange(number_of_states), counts)
         np.random.shuffle(samples)
         return QubitDevice.states_to_binary(samples, self.num_wires)
+
+
+# Specific Backends
+
+
+class HarmonyQPUDevice(QPUDevice):
+    def __init__(self, wires, *, gateset="qis", shots=1024, api_key=None):
+        super().__init__(
+            wires,
+            target="qpu",
+            backend="harmony",
+            gateset=gateset,
+            shots=shots,
+            api_key=api_key,
+        )
+
+
+class Aria1QPUDevice(QPUDevice):
+    def __init__(self, wires, *, gateset="qis", shots=1024, api_key=None):
+        super().__init__(
+            wires,
+            target="qpu",
+            backend="aria-1",
+            gateset=gateset,
+            shots=shots,
+            api_key=api_key,
+        )
+
+
+class Aria2QPUDevice(QPUDevice):
+    def __init__(self, wires, *, gateset="qis", shots=1024, api_key=None):
+        super().__init__(
+            wires,
+            target="qpu",
+            backend="aria-2",
+            gateset=gateset,
+            shots=shots,
+            api_key=api_key,
+        )
+
+
+class Forte1QPUDevice(QPUDevice):
+    def __init__(self, wires, *, gateset="qis", shots=1024, api_key=None):
+        super().__init__(
+            wires,
+            target="qpu",
+            backend="forte-1",
+            gateset=gateset,
+            shots=shots,
+            api_key=api_key,
+        )

@@ -38,6 +38,10 @@ info = {
         "pennylane.plugins": [
             "ionq.simulator = pennylane_ionq:SimulatorDevice",
             "ionq.qpu = pennylane_ionq:QPUDevice",
+            "ionq.qpu.harmony = pennylane_ionq:HarmonyQPUDevice",
+            "ionq.qpu.aria-1 = pennylane_ionq:Aria1QPUDevice",
+            "ionq.qpu.aria-2 = pennylane_ionq:Aria2QPUDevice",
+            "ionq.qpu.forte-1 = pennylane_ionq:Forte1QPUDevice",
         ]
     },
     "description": "PennyLane plugin for IonQ",
