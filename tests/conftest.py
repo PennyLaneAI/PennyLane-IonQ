@@ -57,7 +57,14 @@ analytic_devices = []
 # List of all devices that do *not* support analytic expectation
 # value computation. This generally includes hardware devices
 # and hardware simulators.
-hw_devices = [SimulatorDevice]
+hw_devices = [
+    SimulatorDevice,
+    QPUDevice,
+    HarmonyQPUDevice,
+    Aria1QPUDevice,
+    Aria2QPUDevice,
+    Forte1QPUDevice,
+]
 
 # List of all device shortnames
 shortnames = [d.short_name for d in analytic_devices + hw_devices]

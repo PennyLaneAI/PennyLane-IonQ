@@ -96,7 +96,6 @@ class TestDeviceIntegration:
             dev.apply([])
 
     def test_failedcircuit(self, monkeypatch):
-
         monkeypatch.setattr(
             requests, "post", lambda url, timeout, data, headers: (url, data, headers)
         )
@@ -246,7 +245,7 @@ class TestJobAttribute:
             pass
 
         mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
-        dev = IonQDevice(wires=(0,1,2), gateset="native")
+        dev = IonQDevice(wires=(0, 1, 2), gateset="native")
 
         with qml.tape.QuantumTape() as tape:
             GPI(0.1, wires=[0])
@@ -275,6 +274,3 @@ class TestJobAttribute:
             "targets": [1, 2],
             "phases": [0.2, 0.3],
         }
-
-
-
