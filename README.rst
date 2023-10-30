@@ -1,7 +1,7 @@
 PennyLane-IonQ Plugin
 #####################
 
-.. image:: https://img.shields.io/github/workflow/status/PennyLaneAI/pennylane-ionq/Tests/master?logo=github&style=flat-square
+.. image:: https://img.shields.io/github/actions/workflow/status/PennyLaneAI/pennylane-ionq/tests.yml?branch=master&logo=github&style=flat-square
     :alt: GitHub Workflow Status (branch)
     :target: https://github.com/PennyLaneAI/pennylane-ionq/actions?query=workflow%3ATests
 
