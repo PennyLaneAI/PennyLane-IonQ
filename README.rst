@@ -120,7 +120,7 @@ to the `PennyLane documentation <https://pennylane.readthedocs.io>`_.
 Contributing
 ============
 
-We welcome contributions—simply fork the PennyLane-IonQ repository, and then make a
+We welcome contributions-simply fork the PennyLane-IonQ repository, and then make a
 `pull request <https://help.github.com/articles/about-pull-requests/>`_ containing your contribution.
 All contributers to PennyLane-IonQ will be listed as contributors on the releases.
 
