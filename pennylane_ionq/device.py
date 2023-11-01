@@ -309,7 +309,11 @@ class QPUDevice(IonQDevice):
         if self.backend is not None:
             target += "." + self.backend
         super().__init__(
-            wires=wires, target=target, gateset=gateset, shots=shots, api_key=api_key
+            wires=wires,
+            target=target,
+            gateset=gateset,
+            shots=shots,
+            api_key=api_key,
         )
 
     def generate_samples(self):
