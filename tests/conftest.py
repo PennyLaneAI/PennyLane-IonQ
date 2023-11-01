@@ -11,17 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
 import numpy as np
 import pytest
 
-from pennylane_ionq import (
-    SimulatorDevice,
-    QPUDevice,
-    HarmonyQPUDevice,
-    Aria1QPUDevice,
-    Aria2QPUDevice,
-    Forte1QPUDevice,
-)
+from pennylane_ionq import SimulatorDevice, QPUDevice
 
 
 np.random.seed(42)
@@ -57,14 +51,7 @@ analytic_devices = []
 # List of all devices that do *not* support analytic expectation
 # value computation. This generally includes hardware devices
 # and hardware simulators.
-hw_devices = [
-    SimulatorDevice,
-    QPUDevice,
-    HarmonyQPUDevice,
-    Aria1QPUDevice,
-    Aria2QPUDevice,
-    Forte1QPUDevice,
-]
+hw_devices = [SimulatorDevice, QPUDevice]
 
 # List of all device shortnames
 shortnames = [d.short_name for d in analytic_devices + hw_devices]

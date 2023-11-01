@@ -305,8 +305,9 @@ class QPUDevice(IonQDevice):
         shots=1024,
         api_key=None,
     ):
-        if backend is not None:
-            target += "." + backend
+        self.backend = backend
+        if self.backend is not None:
+            target += "." + self.backend
         super().__init__(
             wires=wires, target=target, gateset=gateset, shots=shots, api_key=api_key
         )
@@ -327,98 +328,3 @@ class QPUDevice(IonQDevice):
         samples = np.repeat(np.arange(number_of_states), counts)
         np.random.shuffle(samples)
         return QubitDevice.states_to_binary(samples, self.num_wires)
-
-
-# Specific Backends
-
-
-class HarmonyQPUDevice(QPUDevice):
-    """
-    PennyLane device for the IonQ Harmony QPU backend.
-
-    Args:
-        wires (int or Iterable[Number, str]): Number of subsystems represented by the device, or iterable of unique labels for the subsystems.
-        gateset (str): Target gateset, either "qis" or "native".
-        shots (int): Number of circuit evaluations/random samples used to estimate expectation values and variances of observables.
-        api_key (str): The IonQ API key. If not provided, the environment
-            variable ``IONQ_API_KEY`` is used.
-    """
-
-    def __init__(self, wires, *, gateset="qis", shots=1024, api_key=None):
-        super().__init__(
-            wires,
-            target="qpu",
-            backend="harmony",
-            gateset=gateset,
-            shots=shots,
-            api_key=api_key,
-        )
-
-
-class Aria1QPUDevice(QPUDevice):
-    """
-    PennyLane device for the IonQ Aria-1 QPU backend.
-
-    Args:
-        wires (int or Iterable[Number, str]): Number of subsystems represented by the device, or iterable of unique labels for the subsystems.
-        gateset (str): Target gateset, either "qis" or "native".
-        shots (int): Number of circuit evaluations/random samples used to estimate expectation values and variances of observables.
-        api_key (str): The IonQ API key. If not provided, the environment
-            variable ``IONQ_API_KEY`` is used.
-    """
-
-    def __init__(self, wires, *, gateset="qis", shots=1024, api_key=None):
-        super().__init__(
-            wires,
-            target="qpu",
-            backend="aria-1",
-            gateset=gateset,
-            shots=shots,
-            api_key=api_key,
-        )
-
-
-class Aria2QPUDevice(QPUDevice):
-    """
-    PennyLane device for the IonQ Aria-2 QPU backend.
-
-    Args:
-        wires (int or Iterable[Number, str]): Number of subsystems represented by the device, or iterable of unique labels for the subsystems.
-        gateset (str): Target gateset, either "qis" or "native".
-        shots (int): Number of circuit evaluations/random samples used to estimate expectation values and variances of observables.
-        api_key (str): The IonQ API key. If not provided, the environment
-            variable ``IONQ_API_KEY`` is used.
-    """
-
-    def __init__(self, wires, *, gateset="qis", shots=1024, api_key=None):
-        super().__init__(
-            wires,
-            target="qpu",
-            backend="aria-2",
-            gateset=gateset,
-            shots=shots,
-            api_key=api_key,
-        )
-
-
-class Forte1QPUDevice(QPUDevice):
-    """
-    PennyLane device for the IonQ Forte-1 QPU backend.
-
-    Args:
-        wires (int or Iterable[Number, str]): Number of subsystems represented by the device, or iterable of unique labels for the subsystems.
-        gateset (str): Target gateset, either "qis" or "native".
-        shots (int): Number of circuit evaluations/random samples used to estimate expectation values and variances of observables.
-        api_key (str): The IonQ API key. If not provided, the environment
-            variable ``IONQ_API_KEY`` is used.
-    """
-
-    def __init__(self, wires, *, gateset="qis", shots=1024, api_key=None):
-        super().__init__(
-            wires,
-            target="qpu",
-            backend="forte-1",
-            gateset=gateset,
-            shots=shots,
-            api_key=api_key,
-        )

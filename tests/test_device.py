@@ -181,6 +181,18 @@ class TestDeviceIntegration:
         dev = qml.device(d, wires=1, shots=1)
         assert dev.prob is None
 
+    @pytest.mark.parametrize(
+        "backend", ["harmony", "aria-1", "aria-2", "forte-1", None]
+    )
+    def test_backend_initialization(self, backend):
+        """Test that the device initializes with the correct backend."""
+        if backend:
+            dev = qml.device("ionq.qpu", wires=2, shots=1000, backend=backend)
+            assert dev.backend == backend
+        else:
+            dev = qml.device("ionq.qpu", wires=2, shots=1000)
+            assert dev.backend == None
+
 
 class TestJobAttribute:
     """Tests job creation with mocked submission."""
