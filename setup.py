@@ -33,13 +33,11 @@ info = {
     "maintainer_email": "software@xanadu.ai",
     "url": "http://xanadu.ai",
     "license": "Apache License 2.0",
-    "packages": [
-        "pennylane_ionq"
-    ],
+    "packages": ["pennylane_ionq"],
     "entry_points": {
         "pennylane.plugins": [
             "ionq.simulator = pennylane_ionq:SimulatorDevice",
-            "ionq.qpu = pennylane_ionq:QPUDevice"
+            "ionq.qpu = pennylane_ionq:QPUDevice",
         ]
     },
     "description": "PennyLane plugin for IonQ",
