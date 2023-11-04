@@ -14,9 +14,7 @@
 """
 This module contains the device class for constructing IonQ devices for PennyLane.
 """
-import itertools
-import functools
-import warnings
+import os, warnings
 from time import sleep
 
 import numpy as np
@@ -158,7 +156,11 @@ class IonQDevice(QubitDevice):
             warnings.warn("Circuit is empty. Empty circuits return failures. Submitting anyway.")
 
         for i, operation in enumerate(operations):
-            if i > 0 and operation.name in {"BasisState", "QubitStateVector", "StatePrep"}:
+            if i > 0 and operation.name in {
+                "BasisState",
+                "QubitStateVector",
+                "StatePrep",
+            }:
                 raise DeviceError(
                     f"The operation {operation.name} is only supported at the beginning of a circuit."
                 )
@@ -292,6 +294,7 @@ class QPUDevice(IonQDevice):
             or iterable that contains unique labels for the subsystems as numbers (i.e., ``[-1, 0, 2]``)
             or strings (``['ancilla', 'q1', 'q2']``).
         gateset (str): the target gateset, either ``"qis"`` or ``"native"``.
+        backend (str): Optional specifier for an IonQ backend. Can be ``"harmony"``, ``"aria-1"``, etc.
         shots (int, list[int]): Number of circuit evaluations/random samples used to estimate
             expectation values of observables. If ``None``, the device calculates probability, expectation values,
             and variances analytically. If an integer, it specifies the number of samples to estimate these quantities.
@@ -309,10 +312,14 @@ class QPUDevice(IonQDevice):
         target="qpu",
         gateset="qis",
         shots=1024,
-        api_key=None,
+        backend=None,
         error_mitigation=None,
         sharpen=None,
+        api_key=None,
     ):
+        self.backend = backend
+        if self.backend is not None:
+            target += "." + self.backend
         super().__init__(
             wires=wires,
             target=target,

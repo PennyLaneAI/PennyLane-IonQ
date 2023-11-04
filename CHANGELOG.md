@@ -9,6 +9,8 @@
 * adds a new `aggregation` parameter on IonQ results to allow getting results
   aggregated under the two different methods described in
   <https://arxiv.org/pdf/2301.07233.pdf>
+* Use new `backend` field to specify `qpu`.
+  [(#81)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/81)
 
 ### Breaking changes 💔
 
@@ -21,6 +23,8 @@
 ### Contributors ✍️
 
 This release contains contributions from (in alphabetical order):
+
+Spencer Churchill
 
 ---
 # Release 0.32.0
