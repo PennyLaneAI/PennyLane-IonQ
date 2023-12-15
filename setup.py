@@ -33,13 +33,11 @@ info = {
     "maintainer_email": "software@xanadu.ai",
     "url": "http://xanadu.ai",
     "license": "Apache License 2.0",
-    "packages": [
-        "pennylane_ionq"
-    ],
+    "packages": ["pennylane_ionq"],
     "entry_points": {
         "pennylane.plugins": [
             "ionq.simulator = pennylane_ionq:SimulatorDevice",
-            "ionq.qpu = pennylane_ionq:QPUDevice"
+            "ionq.qpu = pennylane_ionq:QPUDevice",
         ]
     },
     "description": "PennyLane plugin for IonQ",
@@ -61,10 +59,9 @@ classifiers = [
     "Programming Language :: Python",
     # Make sure to specify here the versions of Python supported
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.7",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3 :: Only",
     "Topic :: Scientific/Engineering :: Physics",
 ]
