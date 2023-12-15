@@ -42,7 +42,7 @@ extensions = [
     'sphinx_automodapi.smart_resolver'
 ]
 
-intersphinx_mapping = {"https://pennylane.readthedocs.io/en/stable/": None}
+intersphinx_mapping = {"https://docs.pennylane.ai/en/stable/": None}
 
 autosummary_generate = True
 autosummary_imported_members = False
@@ -50,7 +50,8 @@ automodapi_toctreedirnm = "code/api"
 automodsumm_inherited_members = True
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates', 'xanadu_theme']
+from pennylane_sphinx_theme import templates_dir
+templates_path = [templates_dir()]
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
@@ -63,7 +64,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'PennyLane-IonQ'
-copyright = "Copyright 2021"
+copyright = "2023, Xanadu Quantum Technologies, Inc."
 author = 'Xanadu Inc.'
 
 add_module_names = False
@@ -84,7 +85,7 @@ version = re.match(r'^(\d+\.\d+)', release).expand(r'\1')
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = "en"
 
 # today_fmt is used as the format for a strftime call.
 today_fmt = '%Y-%m-%d'
@@ -122,35 +123,22 @@ html_static_path = ['_static']
 #
 # This is required for the alabaster theme
 # refs: http://alabaster.readthedocs.io/en/latest/installation.html#sidebars
-html_sidebars = {
-    '**' : [
-        'logo-text.html',
-        'searchbox.html',
-        'globaltoc.html',
-    ]
-}
+
 
 
 # -- Xanadu theme ---------------------------------------------------------
-html_theme = 'xanadu_theme'
-html_theme_path = ['.']
+html_theme = 'pennylane'
 
 # xanadu theme options (see theme.conf for more information)
 html_theme_options = {
-    # Set the name of the project to appear in the left sidebar.
-    "project_nav_name": "PennyLane-IonQ",
-
-    # Path to a touch icon
-    "touch_icon": "logo_new.png",
-
-    "large_toc": True,
-    "navigation_button": "#19b37b",
-    "navigation_button_hover": "#0e714d",
-    "toc_caption": "#19b37b",
-    "toc_hover": "#19b37b",
-    "table_header_bg": "#edf7f4",
-    "table_header_border": "#19b37b",
-    "download_button": "#19b37b",
+    "navbar_name": "PennyLane-IonQ",
+    "extra_copyrights": [
+        "TensorFlow, the TensorFlow logo, and any related marks are trademarks "
+        "of Google Inc."
+    ],
+    "toc_overview": True,
+    "navbar_active_link": 3,
+    "google_analytics_tracking_id": "G-C480Z9JL0D"
 }
 
 edit_on_github_project = 'PennyLaneAI/pennylane-ionq'
@@ -166,9 +154,3 @@ inheritance_node_attrs = dict(color='lightskyblue1', style='filled')
 
 #autodoc_default_flags = ['members']
 autosummary_generate = True
-
-from directives import CustomDeviceGalleryItemDirective, UsageDetails
-
-def setup(app):
-    app.add_directive('devicegalleryitem', CustomDeviceGalleryItemDirective)
-    app.add_directive('usagedetails', UsageDetails)

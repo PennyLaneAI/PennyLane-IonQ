@@ -38,16 +38,17 @@ directly in PennyLane by specifying ``"ionq.simulator"``:
 Trapped-Ion QPU
 ---------------
 
-This device provides access to IonQ's trapped-ion QPU.
+This device provides access to IonQ's trapped-ion QPUs.
 Once the plugin has been installed, you can use this device
-directly in PennyLane by specifying ``"ionq.qpu"``:
+directly in PennyLane by specifying ``"ionq.qpu"`` with a
+``"backend"`` from `available backends <https://docs.ionq.com/#tag/jobs>`_:
 
 .. code-block:: python
 
     import pennylane as qml
     from pennylane_ionq import ops
 
-    dev = qml.device("ionq.qpu", wires=2)
+    dev = qml.device("ionq.qpu", backend="harmony", wires=2)
 
     @qml.qnode(dev)
     def circuit(x, y):
