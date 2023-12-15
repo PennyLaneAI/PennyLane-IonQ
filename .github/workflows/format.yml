@@ -8,6 +8,6 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: Black Code Formatter
-      uses: lgeiger/black-action@v1.0.1
+      uses: lgeiger/black-action@master
       with:
         args: "-l 100 pennylane_ionq/ --check"
