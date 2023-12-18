@@ -169,7 +169,9 @@ class TestResourceManager:
         with pytest.raises(MethodNotSupportedException):
             manager.get(1)
 
-    def test_get(self, monkeypatch):
+    @pytest.mark.parametrize("resource_id", [1, None])
+    @pytest.mark.parametrize("params", [{}, {"sharpen": True}, {"sharpen": False}])
+    def test_get(self, monkeypatch, resource_id, params):
         """
         Test a successful GET request. Tests that manager.handle_response is being called with
         the correct Response object.
@@ -184,7 +186,7 @@ class TestResourceManager:
         manager = ResourceManager(mock_resource, mock_client)
         monkeypatch.setattr(manager, "handle_response", MagicMock())
 
-        manager.get(1)
+        manager.get(resource_id=resource_id, params=params)
 
         # TODO test that this is called with correct path
         mock_client.get.assert_called_once()
