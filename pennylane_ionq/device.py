@@ -14,7 +14,7 @@
 """
 This module contains the device class for constructing IonQ devices for PennyLane.
 """
-import os, warnings
+import warnings
 from time import sleep
 
 import numpy as np
@@ -63,16 +63,27 @@ class IonQDevice(QubitDevice):
     r"""IonQ device for PennyLane.
 
     Args:
-        target (str): the target device, either ``"simulator"`` or ``"qpu"``
         wires (int or Iterable[Number, str]]): Number of wires to initialize the device with,
             or iterable that contains unique labels for the subsystems as numbers (i.e., ``[-1, 0, 2]``)
             or strings (``['ancilla', 'q1', 'q2']``).
-        gateset (str): the target gateset, either ``"qis"`` or ``"native"``.
+
+    Kwargs:
+        target (str): the target device, either ``"simulator"`` or ``"qpu"``. Defaults to ``simulator``.
+        gateset (str): the target gateset, either ``"qis"`` or ``"native"``. Defaults to ``qis``.
         shots (int, list[int]): Number of circuit evaluations/random samples used to estimate
-            expectation values of observables.
+            expectation values of observables. Defaults to 1024.
             If a list of integers is passed, the circuit evaluations are batched over the list of shots.
         api_key (str): The IonQ API key. If not provided, the environment
             variable ``IONQ_API_KEY`` is used.
+        error_mitigation (dict): settings for error mitigation when creating a job. Defaults to None.
+            Not available on all backends. Set by default on some hardware systems. See
+            `IonQ API Job Creation <https://docs.ionq.com/#tag/jobs/operation/createJob>`_  and
+            `IonQ Debiasing and Sharpening <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
+            Valid keys include: ``debiasing`` (bool).
+        sharpen (bool): whether to use debiasing when accessing the results of an executed job. Defaults to None
+            (no value passed at job retrieval). Will generally return more accurate results if your expected output
+            distribution has peaks. See `IonQ Debiasing and Sharpening
+            <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
     """
     # pylint: disable=too-many-instance-attributes
     name = "IonQ PennyLane plugin"
@@ -100,7 +111,7 @@ class IonQDevice(QubitDevice):
         shots=1024,
         api_key=None,
         error_mitigation=None,
-        sharpen=None,
+        sharpen=False,
     ):
         if shots is None:
             raise ValueError("The ionq device does not support analytic expectation values.")
@@ -265,19 +276,22 @@ class SimulatorDevice(IonQDevice):
         wires (int or Iterable[Number, str]]): Number of wires to initialize the device with,
             or iterable that contains unique labels for the subsystems as numbers (i.e., ``[-1, 0, 2]``)
             or strings (``['ancilla', 'q1', 'q2']``).
-        gateset (str): the target gateset, either ``"qis"`` or ``"native"``.
-        shots (int, list[int]): Number of circuit evaluations/random samples used to estimate
+
+    Kwargs:
+        gateset (str): the target gateset, either ``"qis"`` or ``"native"``. Defaults to ``qis``.
+        shots (int, list[int], None): Number of circuit evaluations/random samples used to estimate
             expectation values of observables. If ``None``, the device calculates probability, expectation values,
             and variances analytically. If an integer, it specifies the number of samples to estimate these quantities.
             If a list of integers is passed, the circuit evaluations are batched over the list of shots.
+            Defaults to 1024.
         api_key (str): The IonQ API key. If not provided, the environment
             variable ``IONQ_API_KEY`` is used.
     """
     name = "IonQ Simulator PennyLane plugin"
     short_name = "ionq.simulator"
 
-    def __init__(self, wires, *, target="simulator", gateset="qis", shots=1024, api_key=None):
-        super().__init__(wires=wires, target=target, gateset=gateset, shots=shots, api_key=api_key)
+    def __init__(self, wires, *, gateset="qis", shots=1024, api_key=None):
+        super().__init__(wires=wires, target="simulator", gateset=gateset, shots=shots, api_key=api_key)
 
     def generate_samples(self):
         """Generates samples by random sampling with the probabilities returned by the simulator."""
@@ -293,14 +307,23 @@ class QPUDevice(IonQDevice):
         wires (int or Iterable[Number, str]]): Number of wires to initialize the device with,
             or iterable that contains unique labels for the subsystems as numbers (i.e., ``[-1, 0, 2]``)
             or strings (``['ancilla', 'q1', 'q2']``).
-        gateset (str): the target gateset, either ``"qis"`` or ``"native"``.
+    Kwargs:
+        gateset (str): the target gateset, either ``"qis"`` or ``"native"``.  Defaults to ``qis``.
         backend (str): Optional specifier for an IonQ backend. Can be ``"harmony"``, ``"aria-1"``, etc.
         shots (int, list[int]): Number of circuit evaluations/random samples used to estimate
-            expectation values of observables. If ``None``, the device calculates probability, expectation values,
-            and variances analytically. If an integer, it specifies the number of samples to estimate these quantities.
-            If a list of integers is passed, the circuit evaluations are batched over the list of shots.
+            expectation values of observables. Defaults to 1024. If a list of integers is passed, the
+            circuit evaluations are batched over the list of shots.
         api_key (str): The IonQ API key. If not provided, the environment
             variable ``IONQ_API_KEY`` is used.
+        error_mitigation (dict): settings for error mitigation when creating a job. Defaults to None.
+            Not available on all backends. Set by default on some hardware systems. See
+            `IonQ API Job Creation <https://docs.ionq.com/#tag/jobs/operation/createJob>`_  and
+            `IonQ Debiasing and Sharpening <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
+            Valid keys include: ``debiasing`` (bool).
+        sharpen (bool): whether to use debiasing when accessing the results of an executed job. Defaults to None
+            (no value passed at job retrieval). Will generally return more accurate results if your expected output
+            distribution has peaks. See `IonQ Debiasing and Sharpening
+            <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
     """
     name = "IonQ QPU PennyLane plugin"
     short_name = "ionq.qpu"
@@ -309,7 +332,6 @@ class QPUDevice(IonQDevice):
         self,
         wires,
         *,
-        target="qpu",
         gateset="qis",
         shots=1024,
         backend=None,
@@ -317,6 +339,7 @@ class QPUDevice(IonQDevice):
         sharpen=None,
         api_key=None,
     ):
+        target = "qpu"
         self.backend = backend
         if self.backend is not None:
             target += "." + self.backend
