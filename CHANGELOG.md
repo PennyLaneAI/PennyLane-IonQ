@@ -6,9 +6,12 @@
 
 * adds a new `error_mitigation` parameter on IonQ job submission so users can
   configure strategies
+  [(#75)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/75)
+
 * adds a new `aggregation` parameter on IonQ results to allow getting results
   aggregated under the two different methods described in
   <https://arxiv.org/pdf/2301.07233.pdf>
+  [(#75)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/75)
 * Use new `backend` field to specify `qpu`.
   [(#81)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/81)
 
