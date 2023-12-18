@@ -114,9 +114,7 @@ class IonQDevice(QubitDevice):
         sharpen=False,
     ):
         if shots is None:
-            raise ValueError(
-                "The ionq device does not support analytic expectation values."
-            )
+            raise ValueError("The ionq device does not support analytic expectation values.")
 
         super().__init__(wires=wires, shots=shots)
         self.target = target
@@ -166,9 +164,7 @@ class IonQDevice(QubitDevice):
         rotations = kwargs.pop("rotations", [])
 
         if len(operations) == 0 and len(rotations) == 0:
-            warnings.warn(
-                "Circuit is empty. Empty circuits return failures. Submitting anyway."
-            )
+            warnings.warn("Circuit is empty. Empty circuits return failures. Submitting anyway.")
 
         for i, operation in enumerate(operations):
             if i > 0 and operation.name in {
@@ -250,8 +246,7 @@ class IonQDevice(QubitDevice):
             # Here, we rearrange the states to match the big-endian ordering
             # expected by PennyLane.
             basis_states = (
-                int(bin(int(k))[2:].rjust(self.num_wires, "0")[::-1], 2)
-                for k in self.histogram
+                int(bin(int(k))[2:].rjust(self.num_wires, "0")[::-1], 2) for k in self.histogram
             )
             idx = np.fromiter(basis_states, dtype=int)
 
@@ -271,9 +266,7 @@ class IonQDevice(QubitDevice):
         if shot_range is None and bin_size is None:
             return self.marginal_prob(self.prob, wires)
 
-        return self.estimate_probability(
-            wires=wires, shot_range=shot_range, bin_size=bin_size
-        )
+        return self.estimate_probability(wires=wires, shot_range=shot_range, bin_size=bin_size)
 
 
 class SimulatorDevice(IonQDevice):
