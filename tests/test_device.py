@@ -142,7 +142,9 @@ class TestDeviceIntegration:
         circuit()
         assert json.loads(spy.call_args[1]["data"])["shots"] == shots
 
-    @pytest.mark.parametrize("error_mitigation", [None, {"debias": True}, {"debias": False}])
+    @pytest.mark.parametrize(
+        "error_mitigation", [None, {"debias": True}, {"debias": False}]
+    )
     def test_error_mitigation(self, error_mitigation, monkeypatch, mocker):
         """Test that shots are correctly specified when submitting a job to the API."""
 
@@ -163,7 +165,13 @@ class TestDeviceIntegration:
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
-        dev = qml.device("ionq.qpu", wires=1, shots=5000, api_key="test", error_mitigation=error_mitigation)
+        dev = qml.device(
+            "ionq.qpu",
+            wires=1,
+            shots=5000,
+            api_key="test",
+            error_mitigation=error_mitigation,
+        )
 
         @qml.qnode(dev)
         def circuit():
@@ -174,11 +182,13 @@ class TestDeviceIntegration:
         spy = mocker.spy(requests, "post")
         circuit()
         if error_mitigation is not None:
-            assert json.loads(spy.call_args[1]["data"])["error_mitigation"] == error_mitigation
+            assert (
+                json.loads(spy.call_args[1]["data"])["error_mitigation"]
+                == error_mitigation
+            )
         else:
             with pytest.raises(KeyError, match="error_mitigation"):
                 json.loads(spy.call_args[1]["data"])["error_mitigation"]
-
 
     @pytest.mark.parametrize("shots", [8192])
     def test_one_qubit_circuit(self, shots, requires_api, tol):
