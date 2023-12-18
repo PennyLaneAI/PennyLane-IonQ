@@ -13,9 +13,8 @@ trapped-ion simulator and another to access to IonQ's trapped-ion QPUs.
 Ideal trapped-ion simulator
 ------------------------
 
-The `simulator device <https://docs.pennylane.ai/projects/ionq/en/latest/code/api/pennylane_ionq.SimulatorDevice.html>`_
-provides an ideal noiseless trapped-ion simulation. Once the plugin has been installed, you can use this device
-directly in PennyLane by specifying ``"ionq.simulator"``:
+The :class:`~.pennylane_ionq.SimulatorDevice` provides an ideal noiseless trapped-ion simulation.
+Once the plugin has been installed, you can use this device directly in PennyLane by specifying ``"ionq.simulator"``:
 
 .. code-block:: python
 
