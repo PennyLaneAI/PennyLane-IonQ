@@ -2,18 +2,22 @@
 
 ### New features since last release
 
+* Application of debiasing and sharpening for error mitigation is made available, with parameters set on device initialization. Error mitigation strategies that 
+  need to be set at runtime are defined in the `error_mitigation` dictionary (currently only a single strategy, `debiasing`, is available). Whether or not to
+  apply sharpening to the returned results is set via the parameter `sharpen`. A device using debiasing and sharpening to mitigate errors can be initialized as:
+  
+  ```python
+  import pennylane as qml
+
+  dev = qml.device("ionq.qpu", wires=2, error_mitigation={"debias": True}, sharpen=True)
+  ```
+
+  For more details, see the [IonQ Guide on sharpening and debiasing](https://ionq.com/resources/debiasing-and-sharpening), or refer to the publication <https://arxiv.org/pdf/2301.07233.pdf>
+  [(#75)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/75)
+
 ### Improvements 🛠
 
 * The IonQ API version accessed via the plugin is updated from 0.1 to 0.3
-  [(#75)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/75)
-
-* Adds a new `error_mitigation` parameter on IonQ job submission so users can
-  configure error mitigation strategies
-  [(#75)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/75)
-
-* Adds a new `aggregation` parameter on IonQ results to allow getting results
-  aggregated under the two different methods described in
-  <https://arxiv.org/pdf/2301.07233.pdf>
   [(#75)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/75)
   
 * Use new `backend` field to specify `qpu`.

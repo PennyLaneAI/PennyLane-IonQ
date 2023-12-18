@@ -79,8 +79,8 @@ class IonQDevice(QubitDevice):
             Not available on all backends. Set by default on some hardware systems. See
             `IonQ API Job Creation <https://docs.ionq.com/#tag/jobs/operation/createJob>`_  and
             `IonQ Debiasing and Sharpening <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
-            Valid keys include: ``debiasing`` (bool).
-        sharpen (bool): whether to use debiasing when accessing the results of an executed job. Defaults to None
+            Valid keys include: ``debias`` (bool).
+        sharpen (bool): whether to use sharpening when accessing the results of an executed job. Defaults to None
             (no value passed at job retrieval). Will generally return more accurate results if your expected output
             distribution has peaks. See `IonQ Debiasing and Sharpening
             <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
@@ -275,7 +275,7 @@ class SimulatorDevice(IonQDevice):
     Args:
         wires (int or Iterable[Number, str]]): Number of wires to initialize the device with,
             or iterable that contains unique labels for the subsystems as numbers (i.e., ``[-1, 0, 2]``)
-            or strings (``['ancilla', 'q1', 'q2']``). 
+            or strings (``['ancilla', 'q1', 'q2']``).
         gateset (str): the target gateset, either ``"qis"`` or ``"native"``. Defaults to ``qis``.
         shots (int, list[int], None): Number of circuit evaluations/random samples used to estimate
             expectation values of observables. If ``None``, the device calculates probability, expectation values,
@@ -322,10 +322,10 @@ class QPUDevice(IonQDevice):
             Not available on all backends. Set by default on some hardware systems. See
             `IonQ API Job Creation <https://docs.ionq.com/#tag/jobs/operation/createJob>`_  and
             `IonQ Debiasing and Sharpening <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
-            Valid keys include: ``debiasing`` (bool).
-        sharpen (bool): whether to use debiasing when accessing the results of an executed job. Defaults to None
-            (no value passed at job retrieval). Will generally return more accurate results if your expected output
-            distribution has peaks. See `IonQ Debiasing and Sharpening
+            Valid keys include: ``debias`` (bool).
+        sharpen (bool): whether to use sharpening when accessing the results of an executed job.
+            Defaults to None (no value passed at job retrieval). Will generally return more accurate results if
+            your expected output distribution has peaks. See `IonQ Debiasing and Sharpening
             <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
     """
     name = "IonQ QPU PennyLane plugin"
