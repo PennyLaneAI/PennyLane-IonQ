@@ -4,14 +4,18 @@
 
 ### Improvements 🛠
 
-* adds a new `error_mitigation` parameter on IonQ job submission so users can
-  configure strategies
+* The IonQ API version accessed via the plugin is updated from 0.1 to 0.3
   [(#75)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/75)
 
-* adds a new `aggregation` parameter on IonQ results to allow getting results
+* Adds a new `error_mitigation` parameter on IonQ job submission so users can
+  configure error mitigation strategies
+  [(#75)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/75)
+
+* Adds a new `aggregation` parameter on IonQ results to allow getting results
   aggregated under the two different methods described in
   <https://arxiv.org/pdf/2301.07233.pdf>
   [(#75)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/75)
+  
 * Use new `backend` field to specify `qpu`.
   [(#81)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/81)
 
@@ -28,6 +32,7 @@
 This release contains contributions from (in alphabetical order):
 
 Spencer Churchill
+Lillian Frederiksen
 
 ---
 # Release 0.32.0
