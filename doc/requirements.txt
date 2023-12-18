@@ -4,7 +4,7 @@ autograd==1.4
 autoray==0.3.2
 Babel==2.10.3
 cachetools==5.2.0
-certifi==2022.5.18.1
+certifi==2023.7.22
 charset-normalizer==2.0.12
 docutils==0.18.1
 future==0.18.2
