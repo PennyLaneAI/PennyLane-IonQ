@@ -3,7 +3,7 @@
 ### New features since last release
 
 * Application of debiasing and sharpening for error mitigation is made available, with parameters set on device initialization. Error mitigation strategies that 
-  need to be set at runtime are defined in the `error_mitigation` dictionary (currently only a single strategy, `debiasing`, is available). Whether or not to
+  need to be set at runtime are defined in the `error_mitigation` dictionary (currently a single strategy, `debias`, is available). Whether or not to
   apply sharpening to the returned results is set via the parameter `sharpen`. A device using debiasing and sharpening to mitigate errors can be initialized as:
   
   ```python
