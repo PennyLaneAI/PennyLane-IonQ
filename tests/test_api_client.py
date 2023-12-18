@@ -122,17 +122,13 @@ class TestAPIClient:
 
         authentication_token = MagicMock()
         client.set_authorization_header(authentication_token)
-        assert client.HEADERS["Authorization"] == "apiKey {}".format(
-            authentication_token
-        )
+        assert client.HEADERS["Authorization"] == "apiKey {}".format(authentication_token)
 
     def test_join_path(self, client):
         """
         Test that two paths can be joined and separated by a forward slash.
         """
-        assert client.join_path("jobs") == "{client.BASE_URL}/jobs".format(
-            client=client
-        )
+        assert client.join_path("jobs") == "{client.BASE_URL}/jobs".format(client=client)
 
 
 class TestResourceManager:
@@ -250,13 +246,9 @@ class TestResourceManager:
 
         manager = ResourceManager(mock_resource, mock_client)
 
-        monkeypatch.setattr(
-            manager, "handle_success_response", mock_handle_success_response
-        )
+        monkeypatch.setattr(manager, "handle_success_response", mock_handle_success_response)
 
-        monkeypatch.setattr(
-            manager, "handle_error_response", mock_handle_error_response
-        )
+        monkeypatch.setattr(manager, "handle_error_response", mock_handle_error_response)
 
         manager.handle_response(mock_response)
         assert manager.http_response_data == mock_response.json()
@@ -312,9 +304,7 @@ class TestResourceManager:
         monkeypatch.setattr(
             requests,
             "post",
-            lambda url, data=None, timeout=None, headers=None: mock_raise(
-                MockException
-            ),
+            lambda url, data=None, timeout=None, headers=None: mock_raise(MockException),
         )
 
         client = api_client.APIClient(debug=True, api_key="test")
