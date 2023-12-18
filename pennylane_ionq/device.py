@@ -314,7 +314,7 @@ class QPUDevice(IonQDevice):
             or iterable that contains unique labels for the subsystems as numbers (i.e., ``[-1, 0, 2]``)
             or strings (``['ancilla', 'q1', 'q2']``).
     Kwargs:
-        gateset (str): the target gateset, either ``"qis"`` or ``"native"``.  Defaults to ``qis``.
+        gateset (str): the target gateset, either ``"qis"`` or ``"native"``. Defaults to ``qis``.
         backend (str): Optional specifier for an IonQ backend. Can be ``"harmony"``, ``"aria-1"``, etc.
         shots (int, list[int]): Number of circuit evaluations/random samples used to estimate
             expectation values of observables. Defaults to 1024. If a list of integers is passed, the

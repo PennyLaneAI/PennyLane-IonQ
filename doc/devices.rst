@@ -37,9 +37,8 @@ Once the plugin has been installed, you can use this device directly in PennyLan
 Trapped-Ion QPU
 ---------------
 
-The `QPU device <https://docs.pennylane.ai/projects/ionq/en/latest/code/api/pennylane_ionq.QPUDevice.html>`_
-provides access to IonQ's trapped-ion QPUs. Once the plugin has been installed, you can use this device
-directly in PennyLane by specifying ``"ionq.qpu"`` with a
+The :class:`~.pennylane_ionq.QPUDevice` provides access to IonQ's trapped-ion QPUs. Once the plugin has been
+installed, you can use this device directly in PennyLane by specifying ``"ionq.qpu"`` with a
 ``"backend"`` from `available backends <https://docs.ionq.com/#tag/jobs>`_:
 
 .. code-block:: python
