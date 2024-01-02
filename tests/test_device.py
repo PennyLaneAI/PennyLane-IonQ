@@ -17,6 +17,7 @@ import numpy as np
 import pennylane as qml
 import pytest
 import requests
+from unittest.mock import PropertyMock, patch
 
 from conftest import shortnames
 from pennylane_ionq.api_client import JobExecutionError, ResourceManager, Job, Field
@@ -209,6 +210,18 @@ class TestDeviceIntegration:
         None if no job has yet been run."""
         dev = qml.device(d, wires=1, shots=1)
         assert dev.prob is None
+
+    def test_probability(self):
+        """Test that device.probability works."""
+        dev = qml.device("ionq.simulator", wires=2)
+        dev._samples = np.array([[1, 1], [1, 1], [0, 0], [0, 0]])
+        assert np.array_equal(dev.probability(shot_range=(0, 2)), [0, 0, 0, 1])
+
+        uniform_prob = [0.25] * 4
+        with patch("pennylane_ionq.device.SimulatorDevice.prob", new_callable=PropertyMock) as mock_prob:
+            mock_prob.return_value = uniform_prob
+            assert np.array_equal(dev.probability(), uniform_prob)
+
 
     @pytest.mark.parametrize("backend", ["harmony", "aria-1", "aria-2", "forte-1", None])
     def test_backend_initialization(self, backend):

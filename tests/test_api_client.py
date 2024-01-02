@@ -22,6 +22,8 @@ from pennylane_ionq import api_client
 from pennylane_ionq.api_client import (
     requests,
     Job,
+    Resource,
+    Field,
     ResourceManager,
     ObjectAlreadyCreatedException,
     MethodNotSupportedException,
@@ -323,7 +325,40 @@ class TestResourceManager:
         assert len(client.errors) == 1
 
 
-class TestJob:
+class TestResource:
+
+    def test_resource_reloaading(self, monkeypatch):
+        """Test that ID must be set on resource types when reloading."""
+
+        class NoID(Resource):
+            """Dummy API resource without ID set."""
+
+            def __init__(self, client=None, api_key=None):
+                """Dummy init."""
+                self.fields = (Field("foo", str),)
+                super().__init__(client=client, api_key=api_key)
+
+        class WithID(Resource):
+            """Dummy API resource without ID set."""
+
+            def __init__(self, client=None, api_key=None):
+                """Dummy init."""
+                self.fields = (Field("foo", str), Field("id", str))
+                super().__init__(client=client, api_key=api_key)
+
+        monkeypatch.setattr(
+            requests, "post", lambda url, timeout, headers, data: MockPOSTResponse(201)
+        )
+
+        res = NoID(api_key="test")
+
+        with pytest.raises(TypeError, match="Resource does not have an ID"):
+            res.reload()
+
+        res = WithID(api_key="test")
+        res.reload()
+
+
     def test_create_created(self, monkeypatch):
         """
         Tests a successful Job creatioin with a mock POST response. Asserts that all fields on
@@ -334,6 +369,8 @@ class TestJob:
         )
         job = Job(api_key="test")
         job.manager.create(params={})
+        assert not job.is_complete
+        assert not job.is_failed
 
         keys_to_check = SAMPLE_JOB_CREATE_RESPONSE.keys()
         for key in keys_to_check:
