@@ -223,7 +223,7 @@ class TestDeviceIntegration:
             assert dev.backend == backend
         else:
             dev = qml.device("ionq.qpu", wires=2, shots=1000)
-            assert dev.backend == None
+            assert dev.backend == "harmony"  # default value
 
 
 class TestJobAttribute:

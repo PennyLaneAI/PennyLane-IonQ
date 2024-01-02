@@ -313,6 +313,7 @@ class QPUDevice(IonQDevice):
             or strings (``['ancilla', 'q1', 'q2']``).
         gateset (str): the target gateset, either ``"qis"`` or ``"native"``. Defaults to ``qis``.
         backend (str): Optional specifier for an IonQ backend. Can be ``"harmony"``, ``"aria-1"``, etc.
+            Default to ``harmony``.
         shots (int, list[int]): Number of circuit evaluations/random samples used to estimate
             expectation values of observables. Defaults to 1024. If a list of integers is passed, the
             circuit evaluations are batched over the list of shots.
@@ -337,15 +338,13 @@ class QPUDevice(IonQDevice):
         *,
         gateset="qis",
         shots=1024,
-        backend=None,
+        backend="harmony",
         error_mitigation=None,
         sharpen=None,
         api_key=None,
     ):
-        target = "qpu"
+        target = f"qpu.{backend}"
         self.backend = backend
-        if self.backend is not None:
-            target += "." + self.backend
         super().__init__(
             wires=wires,
             target=target,
