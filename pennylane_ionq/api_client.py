@@ -112,12 +112,16 @@ class APIClient:
         api_key (str): IonQ cloud platform API key
     """
 
-    USER_AGENT = "pennylane-ionq-api-client/0.1"
-    HOSTNAME = "api.ionq.co/v0.1"
+    USER_AGENT = "pennylane-ionq-api-client/0.3"
+    HOSTNAME = "api.ionq.co/v0.3"
     BASE_URL = "https://{}".format(HOSTNAME)
 
     def __init__(self, **kwargs):
-        self.AUTHENTICATION_TOKEN = os.getenv("IONQ_API_KEY") or kwargs.get("api_key", None)
+        self.AUTHENTICATION_TOKEN = (
+            kwargs.get("api_key", None)
+            or os.getenv("PENNYLANE_IONQ_API_KEY")
+            or os.getenv("IONQ_API_KEY")
+        )
         self.DEBUG = False
 
         if "IONQ_DEBUG" in os.environ:
@@ -196,17 +200,18 @@ class APIClient:
 
         return response
 
-    def get(self, path):
+    def get(self, path, params=None):
         """
         Sends a GET request to the provided path. Returns a response object.
 
         Args:
             path (str): path to send the GET request to
+            params (dict): parameters to include in the request
 
         Returns:
             requests.Response: A response object, or None if no response could be fetched
         """
-        return self.request(requests.get, url=self.join_path(path))
+        return self.request(requests.get, url=self.join_path(path), params=params)
 
     def post(self, path, payload):
         """
@@ -249,7 +254,7 @@ class ResourceManager:
         """
         return join_path(self.resource.PATH, path)
 
-    def get(self, resource_id=None):
+    def get(self, resource_id=None, params=None):
         """
         Attempts to retrieve a particular record by sending a GET
         request to the appropriate endpoint. If successful, the resource
@@ -262,9 +267,9 @@ class ResourceManager:
             raise MethodNotSupportedException("GET method on this resource is not supported")
 
         if resource_id is not None:
-            response = self.client.get(self.join_path(str(resource_id)))
+            response = self.client.get(self.join_path(str(resource_id)), params=params)
         else:
-            response = self.client.get(self.resource.PATH)
+            response = self.client.get(self.resource.PATH, params=params)
         self.handle_response(response)
 
     def create(self, **params):

@@ -17,6 +17,7 @@ import numpy as np
 import pennylane as qml
 import pytest
 import requests
+from unittest.mock import PropertyMock, patch
 
 from conftest import shortnames
 from pennylane_ionq.api_client import JobExecutionError, ResourceManager, Job, Field
@@ -51,15 +52,11 @@ class TestDevice:
 
         unique_outcomes1 = np.unique(sample1, axis=0)
         unique_outcomes2 = np.unique(sample2, axis=0)
-        assert np.all(
-            unique_outcomes1 == unique_outcomes2
-        )  # possible outcomes are the same
+        assert np.all(unique_outcomes1 == unique_outcomes2)  # possible outcomes are the same
 
         sorted_outcomes1 = np.sort(sample1, axis=0)
         sorted_outcomes2 = np.sort(sample2, axis=0)
-        assert np.all(
-            sorted_outcomes1 == sorted_outcomes2
-        )  # set of outcomes is the same
+        assert np.all(sorted_outcomes1 == sorted_outcomes2)  # set of outcomes is the same
 
 
 class TestDeviceIntegration:
@@ -99,9 +96,7 @@ class TestDeviceIntegration:
         monkeypatch.setattr(
             requests, "post", lambda url, timeout, data, headers: (url, data, headers)
         )
-        monkeypatch.setattr(
-            ResourceManager, "handle_response", lambda self, response: None
-        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", False)
         monkeypatch.setattr(Job, "is_failed", True)
 
@@ -116,17 +111,13 @@ class TestDeviceIntegration:
         monkeypatch.setattr(
             requests, "post", lambda url, timeout, data, headers: (url, data, headers)
         )
-        monkeypatch.setattr(
-            ResourceManager, "handle_response", lambda self, response: None
-        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None):
+        def fake_response(self, resource_id=None, params=None):
             """Return fake response data"""
             fake_json = {"histogram": {"0": 1}}
-            setattr(
-                self.resource, "data", type("data", tuple(), {"value": fake_json})()
-            )
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
@@ -141,6 +132,45 @@ class TestDeviceIntegration:
         spy = mocker.spy(requests, "post")
         circuit()
         assert json.loads(spy.call_args[1]["data"])["shots"] == shots
+
+    @pytest.mark.parametrize("error_mitigation", [None, {"debias": True}, {"debias": False}])
+    def test_error_mitigation(self, error_mitigation, monkeypatch, mocker):
+        """Test that shots are correctly specified when submitting a job to the API."""
+
+        monkeypatch.setattr(
+            requests, "post", lambda url, timeout, data, headers: (url, data, headers)
+        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
+        monkeypatch.setattr(Job, "is_complete", True)
+
+        def fake_response(self, resource_id=None, params=None):
+            """Return fake response data"""
+            fake_json = {"histogram": {"0": 1}}
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
+
+        monkeypatch.setattr(ResourceManager, "get", fake_response)
+
+        dev = qml.device(
+            "ionq.qpu",
+            wires=1,
+            shots=5000,
+            api_key="test",
+            error_mitigation=error_mitigation,
+        )
+
+        @qml.qnode(dev)
+        def circuit():
+            """Reference QNode"""
+            qml.PauliX(wires=0)
+            return qml.expval(qml.PauliZ(0))
+
+        spy = mocker.spy(requests, "post")
+        circuit()
+        if error_mitigation is not None:
+            assert json.loads(spy.call_args[1]["data"])["error_mitigation"] == error_mitigation
+        else:
+            with pytest.raises(KeyError, match="error_mitigation"):
+                json.loads(spy.call_args[1]["data"])["error_mitigation"]
 
     @pytest.mark.parametrize("shots", [8192])
     def test_one_qubit_circuit(self, shots, requires_api, tol):
@@ -181,22 +211,28 @@ class TestDeviceIntegration:
         dev = qml.device(d, wires=1, shots=1)
         assert dev.prob is None
 
-    @pytest.mark.parametrize(
-        "backend", ["harmony", "aria-1", "aria-2", "forte-1", None]
-    )
+    def test_probability(self):
+        """Test that device.probability works."""
+        dev = qml.device("ionq.simulator", wires=2)
+        dev._samples = np.array([[1, 1], [1, 1], [0, 0], [0, 0]])
+        assert np.array_equal(dev.probability(shot_range=(0, 2)), [0, 0, 0, 1])
+
+        uniform_prob = [0.25] * 4
+        with patch("pennylane_ionq.device.SimulatorDevice.prob", new_callable=PropertyMock) as mock_prob:
+            mock_prob.return_value = uniform_prob
+            assert np.array_equal(dev.probability(), uniform_prob)
+
+
+    @pytest.mark.parametrize("backend", ["harmony", "aria-1", "aria-2", "forte-1", None])
     def test_backend_initialization(self, backend):
         """Test that the device initializes with the correct backend."""
-        if backend:
-            dev = qml.device(
-                "ionq.qpu",
-                wires=2,
-                shots=1000,
-                backend=backend,
-            )
-            assert dev.backend == backend
-        else:
-            dev = qml.device("ionq.qpu", wires=2, shots=1000)
-            assert dev.backend == None
+        dev = qml.device(
+            "ionq.qpu",
+            wires=2,
+            shots=1000,
+            backend=backend,
+        )
+        assert dev.backend == backend
 
 
 class TestJobAttribute:
@@ -216,13 +252,13 @@ class TestJobAttribute:
 
         dev.apply(tape.operations)
 
-        assert dev.job["lang"] == "json"
-        assert dev.job["body"]["gateset"] == "qis"
+        assert dev.job["input"]["format"] == "ionq.circuit.v0"
+        assert dev.job["input"]["gateset"] == "qis"
         assert dev.job["target"] == "foo"
-        assert dev.job["body"]["qubits"] == 1
+        assert dev.job["input"]["qubits"] == 1
 
-        assert len(dev.job["body"]["circuit"]) == 1
-        assert dev.job["body"]["circuit"][0] == {"gate": "x", "target": 0}
+        assert len(dev.job["input"]["circuit"]) == 1
+        assert dev.job["input"]["circuit"][0] == {"gate": "x", "target": 0}
 
     def test_parameterized_op(self, mocker):
         """Tests job attribute several parameterized operations."""
@@ -239,17 +275,17 @@ class TestJobAttribute:
 
         dev.apply(tape.operations)
 
-        assert dev.job["lang"] == "json"
-        assert dev.job["body"]["gateset"] == "qis"
-        assert dev.job["body"]["qubits"] == 1
+        assert dev.job["input"]["format"] == "ionq.circuit.v0"
+        assert dev.job["input"]["gateset"] == "qis"
+        assert dev.job["input"]["qubits"] == 1
 
-        assert len(dev.job["body"]["circuit"]) == 2
-        assert dev.job["body"]["circuit"][0] == {
+        assert len(dev.job["input"]["circuit"]) == 2
+        assert dev.job["input"]["circuit"][0] == {
             "gate": "rx",
             "target": 0,
             "rotation": 1.2345,
         }
-        assert dev.job["body"]["circuit"][1] == {
+        assert dev.job["input"]["circuit"][1] == {
             "gate": "ry",
             "target": 0,
             "rotation": 2.3456,
@@ -269,24 +305,24 @@ class TestJobAttribute:
             GPI2(0.2, wires=[1])
             MS(0.2, 0.3, wires=[1, 2])
 
-        assert dev.job["lang"] == "json"
-        assert dev.job["body"]["gateset"] == "native"
-        assert dev.job["body"]["qubits"] == 3
-
         dev.apply(tape.operations)
 
-        assert len(dev.job["body"]["circuit"]) == 3
-        assert dev.job["body"]["circuit"][0] == {
+        assert dev.job["input"]["format"] == "ionq.circuit.v0"
+        assert dev.job["input"]["gateset"] == "native"
+        assert dev.job["input"]["qubits"] == 3
+
+        assert len(dev.job["input"]["circuit"]) == 3
+        assert dev.job["input"]["circuit"][0] == {
             "gate": "gpi",
             "target": 0,
             "phase": 0.1,
         }
-        assert dev.job["body"]["circuit"][1] == {
+        assert dev.job["input"]["circuit"][1] == {
             "gate": "gpi2",
             "target": 1,
             "phase": 0.2,
         }
-        assert dev.job["body"]["circuit"][2] == {
+        assert dev.job["input"]["circuit"][2] == {
             "gate": "ms",
             "targets": [1, 2],
             "phases": [0.2, 0.3],
