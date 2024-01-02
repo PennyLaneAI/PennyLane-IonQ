@@ -343,8 +343,10 @@ class QPUDevice(IonQDevice):
         sharpen=None,
         api_key=None,
     ):
-        target = f"qpu.{backend}"
+        target = "qpu"
         self.backend = backend
+        if self.backend is not None:
+            target += "." + self.backend
         super().__init__(
             wires=wires,
             target=target,
