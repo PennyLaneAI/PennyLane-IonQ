@@ -270,7 +270,9 @@ class ResourceManager:
             response = self.client.get(self.join_path(str(resource_id)), params=params)
         else:
             response = self.client.get(self.resource.PATH, params=params)
-        self.handle_response(response)
+
+        # we need params later, unfortuantely
+        self.handle_response(response, params)
 
     def create(self, **params):
         """
@@ -290,7 +292,7 @@ class ResourceManager:
 
         self.handle_response(response)
 
-    def handle_response(self, response):
+    def handle_response(self, response, params=None):
         """
         Store the status code on the manager object and handle the response
         based on the status code.
@@ -303,7 +305,7 @@ class ResourceManager:
             self.http_response_status_code = response.status_code
 
             if response.status_code in (200, 201):
-                self.handle_success_response(response)
+                self.handle_success_response(response, params=params)
             else:
                 self.handle_error_response(response)
         else:
@@ -315,14 +317,14 @@ class ResourceManager:
         """
         warnings.warn("Your request could not be completed")
 
-    def handle_success_response(self, response):
+    def handle_success_response(self, response, params=None):
         """
         Handles a successful response by refreshing the instance fields.
 
         Args:
             response (requests.Response): a response object to be parsed
         """
-        self.refresh_data(response.json())
+        self.refresh_data(response.json(), params=params)
 
     def handle_error_response(self, response):
         """
@@ -339,7 +341,7 @@ class ResourceManager:
         except Exception as e:
             raise Exception(response.text) from e
 
-    def refresh_data(self, data):
+    def refresh_data(self, data, params=None):
         """
         Refreshes the instance's attributes with the provided data and
         converts it to the correct type.
@@ -349,6 +351,10 @@ class ResourceManager:
         """
         for field in self.resource.fields:
             field.set(data.get(field.name, None))
+
+        if "results_url" in data.keys():
+            result = self.client.get(self.join_path(data["results_url"]), params=params)
+            self.resource.fields[-1].set(result.json())
 
         if hasattr(self.resource, "refresh_data"):
             self.resource.refresh_data()
@@ -449,7 +455,6 @@ class Job(Resource):
         """
         self.fields = (
             Field("id", str),
-            Field("type", str),
             Field("status", str),
             Field("request", dateutil.parser.parse),
             Field("response", dateutil.parser.parse),
