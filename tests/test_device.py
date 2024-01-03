@@ -116,7 +116,7 @@ class TestDeviceIntegration:
 
         def fake_response(self, resource_id=None, params=None):
             """Return fake response data"""
-            fake_json = {"histogram": {"0": 1}}
+            fake_json = {"0": 1}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
