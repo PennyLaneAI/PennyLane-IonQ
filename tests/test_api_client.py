@@ -259,7 +259,7 @@ class TestResourceManager:
 
         mock_response.status_code = 200
         manager.handle_response(mock_response)
-        mock_handle_success_response.assert_called_once_with(mock_response)
+        mock_handle_success_response.assert_called_once_with(mock_response, params=None)
 
     def test_handle_refresh_data(self):
         """
