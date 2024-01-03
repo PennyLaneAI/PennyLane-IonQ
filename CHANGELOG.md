@@ -14,11 +14,13 @@
 
   For more details, see the [IonQ Guide on sharpening and debiasing](https://ionq.com/resources/debiasing-and-sharpening), or refer to the publication <https://arxiv.org/pdf/2301.07233.pdf>
   [(#75)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/75)
+  [(#96)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/96)
 
 ### Improvements 🛠
 
 * The IonQ API version accessed via the plugin is updated from 0.1 to 0.3
   [(#75)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/75)
+  [(#96)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/96)
   
 * Use new `backend` field to specify `qpu`.
   [(#81)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/81)
