@@ -458,6 +458,8 @@ class Job(Resource):
             Field("status", str),
             Field("request", dateutil.parser.parse),
             Field("response", dateutil.parser.parse),
+            # it is important that data remain the final item in
+            # this tuple to ensure storing results in the correct entry
             Field("data"),
         )
 
