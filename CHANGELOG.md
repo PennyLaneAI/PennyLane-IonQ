@@ -1,4 +1,4 @@
-# Release 0.33.0-dev
+# Release 0.35.0
 
 ### New features since last release
 
@@ -24,14 +24,6 @@
   
 * Use new `backend` field to specify `qpu`.
   [(#81)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/81)
-
-### Breaking changes 💔
-
-### Deprecations 👋
-
-### Documentation 📝
-
-### Bug fixes 🐛
 
 ### Contributors ✍️
 
