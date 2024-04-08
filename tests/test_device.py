@@ -218,10 +218,11 @@ class TestDeviceIntegration:
         assert np.array_equal(dev.probability(shot_range=(0, 2)), [0, 0, 0, 1])
 
         uniform_prob = [0.25] * 4
-        with patch("pennylane_ionq.device.SimulatorDevice.prob", new_callable=PropertyMock) as mock_prob:
+        with patch(
+            "pennylane_ionq.device.SimulatorDevice.prob", new_callable=PropertyMock
+        ) as mock_prob:
             mock_prob.return_value = uniform_prob
             assert np.array_equal(dev.probability(), uniform_prob)
-
 
     @pytest.mark.parametrize("backend", ["harmony", "aria-1", "aria-2", "forte-1", None])
     def test_backend_initialization(self, backend):
