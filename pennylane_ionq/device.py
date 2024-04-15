@@ -85,6 +85,7 @@ class IonQDevice(QubitDevice):
             distribution has peaks. See `IonQ Debiasing and Sharpening
             <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
     """
+
     # pylint: disable=too-many-instance-attributes
     name = "IonQ PennyLane plugin"
     short_name = "ionq"
