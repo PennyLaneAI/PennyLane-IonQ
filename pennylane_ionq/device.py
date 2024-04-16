@@ -204,7 +204,7 @@ class IonQDevice(QubitDevice):
             if len(par) > 1:
                 gate["phases"] = [float(v) for v in par[:2]]
                 if len(par) > 2:
-                    gate["rotation"] = float(par[2])
+                    gate["angle"] = float(par[2])
             else:
                 gate["phase"] = float(par[0])
         elif par:
