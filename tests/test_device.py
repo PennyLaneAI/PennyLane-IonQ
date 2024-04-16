@@ -349,11 +349,11 @@ class TestJobAttribute:
             "gate": "ms",
             "targets": [1, 2],
             "phases": [0.2, 0.3],
-            "rotation": 0.25,
+            "angle": 0.25,
         }
         assert dev.job["input"]["circuit"][3] == {
             "gate": "ms",
             "targets": [1, 2],
             "phases": [0.4, 0.5],
-            "rotation": 0.1,
+            "angle": 0.1,
         }
