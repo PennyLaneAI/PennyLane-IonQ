@@ -243,9 +243,7 @@ class TestDeviceIntegration:
             mock_prob.return_value = uniform_prob
             assert np.array_equal(dev.probability(), uniform_prob)
 
-    @pytest.mark.parametrize(
-        "backend", ["harmony", "aria-1", "aria-2", "forte-1", None]
-    )
+    @pytest.mark.parametrize("backend", ["harmony", "aria-1", "aria-2", "forte-1", None])
     def test_backend_initialization(self, backend):
         """Test that the device initializes with the correct backend."""
         dev = qml.device(

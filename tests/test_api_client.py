@@ -358,7 +358,6 @@ class TestResource:
         res = WithID(api_key="test")
         res.reload()
 
-
     def test_create_created(self, monkeypatch):
         """
         Tests a successful Job creatioin with a mock POST response. Asserts that all fields on
