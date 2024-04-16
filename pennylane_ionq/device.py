@@ -85,6 +85,7 @@ class IonQDevice(QubitDevice):
             distribution has peaks. See `IonQ Debiasing and Sharpening
             <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
     """
+
     # pylint: disable=too-many-instance-attributes
     name = "IonQ PennyLane plugin"
     short_name = "ionq"
@@ -100,7 +101,7 @@ class IonQDevice(QubitDevice):
 
     # Note: unlike QubitDevice, IonQ does not support QubitUnitary,
     # and therefore does not support the Hermitian observable.
-    observables = {"PauliX", "PauliY", "PauliZ", "Hadamard", "Identity"}
+    observables = {"PauliX", "PauliY", "PauliZ", "Hadamard", "Identity", "Prod"}
 
     def __init__(
         self,
@@ -285,6 +286,7 @@ class SimulatorDevice(IonQDevice):
         api_key (str): The IonQ API key. If not provided, the environment
             variable ``IONQ_API_KEY`` is used.
     """
+
     name = "IonQ Simulator PennyLane plugin"
     short_name = "ionq.simulator"
 
@@ -329,6 +331,7 @@ class QPUDevice(IonQDevice):
             your expected output distribution has peaks. See `IonQ Debiasing and Sharpening
             <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
     """
+
     name = "IonQ QPU PennyLane plugin"
     short_name = "ionq.qpu"
 
