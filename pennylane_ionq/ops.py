@@ -33,6 +33,7 @@ class GPI(Operation):  # pylint: disable=too-few-public-methods
         phi (float): phase :math:`\phi`
         wires (Sequence[int]): the subsystems the operation acts on
     """
+
     num_params = 1
     num_wires = 1
     grad_method = None
@@ -53,32 +54,40 @@ class GPI2(Operation):  # pylint: disable=too-few-public-methods
         phi (float): phase :math:`\phi`
         wires (Sequence[int]): the subsystems the operation acts on
     """
+
     num_params = 1
     num_wires = 1
     grad_method = None
 
 
 class MS(Operation):  # pylint: disable=too-few-public-methods
-    r"""MS(phi0, phi1, wires)
-    2-qubit entanlging MS gate.
+    r"""MS(phi0, phi1, theta=0.25, wires)
+    2-qubit entangling MS gate.
 
     .. math::
 
-       MS(\phi_{0}, \phi_{1}) =
+       MS(\phi_{0}, \phi_{1}, \theta) =
             \frac{1}{\sqrt{2}}\begin{pmatrix}
-                1 & 0 & 0 & -i e^{-2 \pi i(\phi_{0}+\phi_{1})} \\
-                0 & 1 & -i e^{-2 \pi i (\phi_{0}-\phi_{1})} & 0 \\
-                0 & -i e^{2 \pi i(\phi_{0}-\phi_{1})} & 1 & 0 \\
-                -i e^{2 \pi i(\phi_{0}+\phi_{1})} & 0 & 0 & 1
+                \cos(\theta / 2) & 0 & 0 & -i e^{-2 \pi i(\phi_{0}+\phi_{1})} \\
+                0 & \cos(\theta / 2) & -i e^{-2 \pi i (\phi_{0}-\phi_{1})} & 0 \\
+                0 & -i e^{2 \pi i(\phi_{0}-\phi_{1})} & \cos(\theta / 2) & 0 \\
+                -i e^{2 \pi i(\phi_{0}+\phi_{1})} & 0 & 0 & \cos(\theta / 2)
             \end{pmatrix}
+
     Args:
-        phi0 (float): phase of the first qubit :math:`\phi`
-        phi1 (float): phase of the second qubit :math:`\phi`
+        phi0 (float): phase of the first qubit :math:`\phi_0`
+        phi1 (float): phase of the second qubit :math:`\phi_1`
+        theta (float): entanglement ratio of the qubits :math:`\theta` [0, 0.25], defaults to 0.25
         wires (Sequence[int]): the subsystems the operation acts on
     """
-    num_params = 2
+
+    num_params = 3
     num_wires = 2
+    par_domain = "R"
     grad_method = None
+
+    def __init__(self, phi0, phi1, theta=0.25, wires=None):
+        super().__init__(phi0, phi1, theta, wires=wires)
 
 
 # Custom operations for the QIS Gateset below
@@ -101,6 +110,7 @@ class XX(Operation):
         phi (float): rotation angle :math:`\phi`
         wires (Sequence[int]): the subsystems the operation acts on
     """
+
     num_params = 1
     num_wires = 2
     grad_method = "A"
@@ -123,6 +133,7 @@ class YY(Operation):
         phi (float): rotation angle :math:`\phi`
         wires (Sequence[int]): the subsystems the operation acts on
     """
+
     num_params = 1
     num_wires = 2
     grad_method = "A"
@@ -145,6 +156,7 @@ class ZZ(Operation):
         phi (float): rotation angle :math:`\phi`
         wires (Sequence[int]): the subsystems the operation acts on
     """
+
     num_params = 1
     num_wires = 2
     grad_method = "A"
