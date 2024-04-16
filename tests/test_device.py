@@ -334,7 +334,7 @@ class TestJobAttribute:
         assert dev.job["input"]["gateset"] == "native"
         assert dev.job["input"]["qubits"] == 3
 
-        assert len(dev.job["input"]["circuit"]) == 3
+        assert len(dev.job["input"]["circuit"]) == 4
         assert dev.job["input"]["circuit"][0] == {
             "gate": "gpi",
             "target": 0,
