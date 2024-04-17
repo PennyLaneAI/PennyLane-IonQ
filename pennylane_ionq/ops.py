@@ -77,7 +77,7 @@ class MS(Operation):  # pylint: disable=too-few-public-methods
     Args:
         phi0 (float): phase of the first qubit :math:`\phi_0`
         phi1 (float): phase of the second qubit :math:`\phi_1`
-        theta (float): entanglement ratio of the qubits :math:`\theta` [0, 0.25], defaults to 0.25
+        theta (float): entanglement ratio of the qubits :math:`\theta \in [0, 0.25]`, defaults to 0.25
         wires (Sequence[int]): the subsystems the operation acts on
     """
 
