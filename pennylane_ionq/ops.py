@@ -83,7 +83,6 @@ class MS(Operation):  # pylint: disable=too-few-public-methods
 
     num_params = 3
     num_wires = 2
-    par_domain = "R"
     grad_method = None
 
     def __init__(self, phi0, phi1, theta=0.25, wires=None):
