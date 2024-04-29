@@ -133,7 +133,7 @@ class APIClient:
 
         self.HEADERS = {"User-Agent": self.USER_AGENT}
 
-        # Ten minute timeout on requests.
+        # sets the default timeout for API requests
         self.TIMEOUT_SECONDS = timeout_seconds
 
         if self.AUTHENTICATION_TOKEN:
@@ -338,8 +338,8 @@ class ResourceManager:
         self.errors.append(error)
         try:
             response.raise_for_status()
-        except Exception as e:
-            raise Exception(response.text) from e
+        except requests.exceptions.HTTPError as e:
+            raise requests.exceptions.HTTPError(e)
 
     def refresh_data(self, data, params=None):
         """
