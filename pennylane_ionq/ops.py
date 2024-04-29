@@ -33,6 +33,7 @@ class GPI(Operation):  # pylint: disable=too-few-public-methods
         phi (float): phase :math:`\phi`
         wires (Sequence[int]): the subsystems the operation acts on
     """
+
     num_params = 1
     num_wires = 1
     grad_method = None
@@ -53,6 +54,7 @@ class GPI2(Operation):  # pylint: disable=too-few-public-methods
         phi (float): phase :math:`\phi`
         wires (Sequence[int]): the subsystems the operation acts on
     """
+
     num_params = 1
     num_wires = 1
     grad_method = None
@@ -76,6 +78,7 @@ class MS(Operation):  # pylint: disable=too-few-public-methods
         phi1 (float): phase of the second qubit :math:`\phi`
         wires (Sequence[int]): the subsystems the operation acts on
     """
+
     num_params = 2
     num_wires = 2
     grad_method = None
@@ -101,6 +104,7 @@ class XX(Operation):
         phi (float): rotation angle :math:`\phi`
         wires (Sequence[int]): the subsystems the operation acts on
     """
+
     num_params = 1
     num_wires = 2
     grad_method = "A"
@@ -123,6 +127,7 @@ class YY(Operation):
         phi (float): rotation angle :math:`\phi`
         wires (Sequence[int]): the subsystems the operation acts on
     """
+
     num_params = 1
     num_wires = 2
     grad_method = "A"
@@ -145,6 +150,7 @@ class ZZ(Operation):
         phi (float): rotation angle :math:`\phi`
         wires (Sequence[int]): the subsystems the operation acts on
     """
+
     num_params = 1
     num_wires = 2
     grad_method = "A"

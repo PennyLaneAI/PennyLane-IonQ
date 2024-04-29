@@ -22,6 +22,8 @@ from pennylane_ionq import api_client
 from pennylane_ionq.api_client import (
     requests,
     Job,
+    Resource,
+    Field,
     ResourceManager,
     ObjectAlreadyCreatedException,
     MethodNotSupportedException,
@@ -122,17 +124,13 @@ class TestAPIClient:
 
         authentication_token = MagicMock()
         client.set_authorization_header(authentication_token)
-        assert client.HEADERS["Authorization"] == "apiKey {}".format(
-            authentication_token
-        )
+        assert client.HEADERS["Authorization"] == "apiKey {}".format(authentication_token)
 
     def test_join_path(self, client):
         """
         Test that two paths can be joined and separated by a forward slash.
         """
-        assert client.join_path("jobs") == "{client.BASE_URL}/jobs".format(
-            client=client
-        )
+        assert client.join_path("jobs") == "{client.BASE_URL}/jobs".format(client=client)
 
 
 class TestResourceManager:
@@ -169,7 +167,9 @@ class TestResourceManager:
         with pytest.raises(MethodNotSupportedException):
             manager.get(1)
 
-    def test_get(self, monkeypatch):
+    @pytest.mark.parametrize("resource_id", [1, None])
+    @pytest.mark.parametrize("params", [{}, {"sharpen": True}, {"sharpen": False}])
+    def test_get(self, monkeypatch, resource_id, params):
         """
         Test a successful GET request. Tests that manager.handle_response is being called with
         the correct Response object.
@@ -184,11 +184,11 @@ class TestResourceManager:
         manager = ResourceManager(mock_resource, mock_client)
         monkeypatch.setattr(manager, "handle_response", MagicMock())
 
-        manager.get(1)
+        manager.get(resource_id=resource_id, params=params)
 
         # TODO test that this is called with correct path
         mock_client.get.assert_called_once()
-        manager.handle_response.assert_called_once_with(mock_response)
+        manager.handle_response.assert_called_once_with(mock_response, params)
 
     def test_timeout_setting(self, monkeypatch):
         """
@@ -269,13 +269,9 @@ class TestResourceManager:
 
         manager = ResourceManager(mock_resource, mock_client)
 
-        monkeypatch.setattr(
-            manager, "handle_success_response", mock_handle_success_response
-        )
+        monkeypatch.setattr(manager, "handle_success_response", mock_handle_success_response)
 
-        monkeypatch.setattr(
-            manager, "handle_error_response", mock_handle_error_response
-        )
+        monkeypatch.setattr(manager, "handle_error_response", mock_handle_error_response)
 
         manager.handle_response(mock_response)
         assert manager.http_response_data == mock_response.json()
@@ -284,7 +280,7 @@ class TestResourceManager:
 
         mock_response.status_code = 200
         manager.handle_response(mock_response)
-        mock_handle_success_response.assert_called_once_with(mock_response)
+        mock_handle_success_response.assert_called_once_with(mock_response, params=None)
 
     def test_handle_refresh_data(self):
         """
@@ -324,12 +320,14 @@ class TestResourceManager:
         mock_get_response = MockGETResponse(200)
 
         monkeypatch.setattr(
-            requests, "get", lambda url, timeout, headers: mock_get_response
+            requests,
+            "get",
+            lambda url, params=None, timeout=None, headers=None: mock_get_response,
         )
         monkeypatch.setattr(
             requests,
             "post",
-            lambda url, timeout, headers, data: mock_raise(MockException),
+            lambda url, data=None, timeout=None, headers=None: mock_raise(MockException),
         )
 
         client = api_client.APIClient(debug=True, api_key="test")
@@ -348,7 +346,39 @@ class TestResourceManager:
         assert len(client.errors) == 1
 
 
-class TestJob:
+class TestResource:
+
+    def test_resource_reloaading(self, monkeypatch):
+        """Test that ID must be set on resource types when reloading."""
+
+        class NoID(Resource):
+            """Dummy API resource without ID set."""
+
+            def __init__(self, client=None, api_key=None):
+                """Dummy init."""
+                self.fields = (Field("foo", str),)
+                super().__init__(client=client, api_key=api_key)
+
+        class WithID(Resource):
+            """Dummy API resource without ID set."""
+
+            def __init__(self, client=None, api_key=None):
+                """Dummy init."""
+                self.fields = (Field("foo", str), Field("id", str))
+                super().__init__(client=client, api_key=api_key)
+
+        monkeypatch.setattr(
+            requests, "post", lambda url, timeout, headers, data: MockPOSTResponse(201)
+        )
+
+        res = NoID(api_key="test")
+
+        with pytest.raises(TypeError, match="Resource does not have an ID"):
+            res.reload()
+
+        res = WithID(api_key="test")
+        res.reload()
+
     def test_create_created(self, monkeypatch):
         """
         Tests a successful Job creatioin with a mock POST response. Asserts that all fields on
@@ -359,6 +389,8 @@ class TestJob:
         )
         job = Job(api_key="test")
         job.manager.create(params={})
+        assert not job.is_complete
+        assert not job.is_failed
 
         keys_to_check = SAMPLE_JOB_CREATE_RESPONSE.keys()
         for key in keys_to_check:

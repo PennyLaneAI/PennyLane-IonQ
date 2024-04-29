@@ -112,12 +112,16 @@ class APIClient:
         api_key (str): IonQ cloud platform API key
     """
 
-    USER_AGENT = "pennylane-ionq-api-client/0.1"
-    HOSTNAME = "api.ionq.co/v0.1"
+    USER_AGENT = "pennylane-ionq-api-client/0.3"
+    HOSTNAME = "api.ionq.co/v0.3"
     BASE_URL = "https://{}".format(HOSTNAME)
 
     def __init__(self, timeout_seconds=600, **kwargs):
-        self.AUTHENTICATION_TOKEN = os.getenv("IONQ_API_KEY") or kwargs.get("api_key", None)
+        self.AUTHENTICATION_TOKEN = (
+            kwargs.get("api_key", None)
+            or os.getenv("PENNYLANE_IONQ_API_KEY")
+            or os.getenv("IONQ_API_KEY")
+        )
         self.DEBUG = False
 
         if "IONQ_DEBUG" in os.environ:
@@ -196,17 +200,18 @@ class APIClient:
 
         return response
 
-    def get(self, path):
+    def get(self, path, params=None):
         """
         Sends a GET request to the provided path. Returns a response object.
 
         Args:
             path (str): path to send the GET request to
+            params (dict): parameters to include in the request
 
         Returns:
             requests.Response: A response object, or None if no response could be fetched
         """
-        return self.request(requests.get, url=self.join_path(path))
+        return self.request(requests.get, url=self.join_path(path), params=params)
 
     def post(self, path, payload):
         """
@@ -249,7 +254,7 @@ class ResourceManager:
         """
         return join_path(self.resource.PATH, path)
 
-    def get(self, resource_id=None):
+    def get(self, resource_id=None, params=None):
         """
         Attempts to retrieve a particular record by sending a GET
         request to the appropriate endpoint. If successful, the resource
@@ -262,10 +267,12 @@ class ResourceManager:
             raise MethodNotSupportedException("GET method on this resource is not supported")
 
         if resource_id is not None:
-            response = self.client.get(self.join_path(str(resource_id)))
+            response = self.client.get(self.join_path(str(resource_id)), params=params)
         else:
-            response = self.client.get(self.resource.PATH)
-        self.handle_response(response)
+            response = self.client.get(self.resource.PATH, params=params)
+
+        # we need params later, unfortuantely
+        self.handle_response(response, params)
 
     def create(self, **params):
         """
@@ -285,7 +292,7 @@ class ResourceManager:
 
         self.handle_response(response)
 
-    def handle_response(self, response):
+    def handle_response(self, response, params=None):
         """
         Store the status code on the manager object and handle the response
         based on the status code.
@@ -298,7 +305,7 @@ class ResourceManager:
             self.http_response_status_code = response.status_code
 
             if response.status_code in (200, 201):
-                self.handle_success_response(response)
+                self.handle_success_response(response, params=params)
             else:
                 self.handle_error_response(response)
         else:
@@ -310,14 +317,14 @@ class ResourceManager:
         """
         warnings.warn("Your request could not be completed")
 
-    def handle_success_response(self, response):
+    def handle_success_response(self, response, params=None):
         """
         Handles a successful response by refreshing the instance fields.
 
         Args:
             response (requests.Response): a response object to be parsed
         """
-        self.refresh_data(response.json())
+        self.refresh_data(response.json(), params=params)
 
     def handle_error_response(self, response):
         """
@@ -334,7 +341,7 @@ class ResourceManager:
         except Exception as e:
             raise Exception(response.text) from e
 
-    def refresh_data(self, data):
+    def refresh_data(self, data, params=None):
         """
         Refreshes the instance's attributes with the provided data and
         converts it to the correct type.
@@ -344,6 +351,10 @@ class ResourceManager:
         """
         for field in self.resource.fields:
             field.set(data.get(field.name, None))
+
+        if "results_url" in data.keys():
+            result = self.client.get(self.join_path(data["results_url"]), params=params)
+            self.resource.fields[-1].set(result.json())
 
         if hasattr(self.resource, "refresh_data"):
             self.resource.refresh_data()
@@ -444,10 +455,11 @@ class Job(Resource):
         """
         self.fields = (
             Field("id", str),
-            Field("type", str),
             Field("status", str),
             Field("request", dateutil.parser.parse),
             Field("response", dateutil.parser.parse),
+            # it is important that data remain the final item in
+            # this tuple to ensure storing results in the correct entry
             Field("data"),
         )
 
