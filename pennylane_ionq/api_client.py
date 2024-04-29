@@ -116,7 +116,7 @@ class APIClient:
     HOSTNAME = "api.ionq.co/v0.3"
     BASE_URL = "https://{}".format(HOSTNAME)
 
-    def __init__(self, timeout_seconds=600, **kwargs):
+    def __init__(self, timeout_seconds=200, **kwargs):
         self.AUTHENTICATION_TOKEN = (
             kwargs.get("api_key", None)
             or os.getenv("PENNYLANE_IONQ_API_KEY")
@@ -135,6 +135,9 @@ class APIClient:
 
         # sets the default timeout for API requests
         self.TIMEOUT_SECONDS = timeout_seconds
+
+        # sets the default number of retries for API requests
+        self.RETRIES = 3
 
         if self.AUTHENTICATION_TOKEN:
             self.set_authorization_header(self.AUTHENTICATION_TOKEN)
@@ -169,9 +172,10 @@ class APIClient:
 
     def request(self, method, **params):
         """
-        Calls ``method`` with ``params`` after applying headers. Records the request type and
-        parameters to ``self.errors`` if the request is not successful, and the response to
-        ``self.responses`` if a response is returned from the server.
+        Calls ``method`` with ``params`` after applying headers. Implements retry logic for
+        network-related errors. Records the request type and parameters to ``self.errors`` if
+        the request is not successful, and the response to ``self.responses`` if a response is
+        returned from the server.
 
         Args:
             method: one of ``requests.get`` or ``requests.post``
@@ -185,18 +189,24 @@ class APIClient:
             raise TypeError("Unexpected or unsupported method provided")
 
         params["headers"] = self.HEADERS
-
         params["timeout"] = self.TIMEOUT_SECONDS
+        attempt = 0
 
-        try:
-            response = method(**params)
-        except Exception as e:
+        while attempt < self.RETRIES:
+            try:
+                response = method(**params)
+                if response.status_code < 500:  # Consider 5xx errors as potential retries, adjust as needed
+                    return response
+            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+                if attempt == self.RETRIES - 1:
+                    # Log or handle the final failed attempt as needed
+                    if self.DEBUG:
+                        self.errors.append((method.__name__, params, str(e)))
+                    raise
+                attempt += 1
+
             if self.DEBUG:
-                self.errors.append((method, params, e))
-            raise
-
-        if self.DEBUG:
-            self.responses.append(response)
+                self.responses.append(response)
 
         return response
 
