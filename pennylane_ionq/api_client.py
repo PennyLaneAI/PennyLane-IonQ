@@ -116,7 +116,7 @@ class APIClient:
     HOSTNAME = "api.ionq.co/v0.1"
     BASE_URL = "https://{}".format(HOSTNAME)
 
-    def __init__(self, **kwargs):
+    def __init__(self, timeout_seconds=600, **kwargs):
         self.AUTHENTICATION_TOKEN = os.getenv("IONQ_API_KEY") or kwargs.get("api_key", None)
         self.DEBUG = False
 
@@ -130,7 +130,7 @@ class APIClient:
         self.HEADERS = {"User-Agent": self.USER_AGENT}
 
         # Ten minute timeout on requests.
-        self.TIMEOUT_SECONDS = 60 * 10
+        self.TIMEOUT_SECONDS = timeout_seconds
 
         if self.AUTHENTICATION_TOKEN:
             self.set_authorization_header(self.AUTHENTICATION_TOKEN)

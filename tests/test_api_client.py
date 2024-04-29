@@ -190,6 +190,27 @@ class TestResourceManager:
         mock_client.get.assert_called_once()
         manager.handle_response.assert_called_once_with(mock_response)
 
+    def test_timeout_setting(self, monkeypatch):
+        """
+        Test that the APIClient uses a custom timeout setting correctly for its requests.
+        """
+        custom_timeout = 1200  # Custom timeout in seconds
+        client = api_client.APIClient(api_key="test", timeout_seconds=custom_timeout)
+        assert (
+            client.TIMEOUT_SECONDS == custom_timeout
+        ), "The custom timeout should be set correctly."
+
+        # Mock the requests method to check if the custom timeout is being used
+        mock_request = MagicMock()
+        monkeypatch.setattr(requests, "get", mock_request)
+
+        client.get("https://example.com")
+        mock_request.assert_called_once()
+        _, kwargs = mock_request.call_args
+        assert (
+            kwargs["timeout"] == custom_timeout
+        ), "The custom timeout should be used in the request."
+
     def test_create_unsupported(self):
         """
         Test a POST (create) request with a resource that does not support that type or request.
