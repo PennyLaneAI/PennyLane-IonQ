@@ -243,7 +243,9 @@ class TestDeviceIntegration:
             mock_prob.return_value = uniform_prob
             assert np.array_equal(dev.probability(), uniform_prob)
 
-    @pytest.mark.parametrize("backend", ["harmony", "aria-1", "aria-2", "forte-1", None])
+    @pytest.mark.parametrize(
+        "backend", ["harmony", "aria-1", "aria-2", "forte-1", None]
+    )
     def test_backend_initialization(self, backend):
         """Test that the device initializes with the correct backend."""
         dev = qml.device(
@@ -355,3 +357,33 @@ class TestJobAttribute:
             "phases": [0.4, 0.5],
             "angle": 0.1,
         }
+
+    @pytest.mark.parametrize(
+        "phi0, phi1, theta",
+        [
+            (0.1, 0.2, 0.25),  # Default fully entangling case
+            (0, 0.3, 0.1),     # Partially entangling case
+            (1.5, 2.7, 0),     # No entanglement case
+        ],
+    )
+    def test_ms_gate_theta_variation(self, phi0, phi1, theta, tol=1e-6):
+        """Test MS gate with different theta values to ensure correct entanglement behavior."""
+        ms_gate = MS(phi0, phi1, theta, wires=[0, 1])
+
+        # Compute the matrix representation of the gate
+        computed_matrix = ms_gate.compute_matrix(*ms_gate.data)
+
+        # Expected matrix
+        expected_matrix = (
+            1 / np.sqrt(2) * np.array([
+                [np.cos(theta / 2), 0, 0, -1j * np.exp(-2 * np.pi * 1j * (phi0 + phi1))],
+                [0, np.cos(theta / 2), -1j * np.exp(-2 * np.pi * 1j * (phi0 - phi1)), 0],
+                [0, -1j * np.exp(2 * np.pi * 1j * (phi0 - phi1)), np.cos(theta / 2), 0],
+                [-1j * np.exp(2 * np.pi * 1j * (phi0 + phi1)), 0, 0, np.cos(theta / 2)],
+            ])
+        )
+
+        assert ms_gate.data == (phi0, phi1, theta)
+        assert np.allclose(
+            computed_matrix, expected_matrix, atol=tol
+        ), "Computed matrix does not match the expected matrix"

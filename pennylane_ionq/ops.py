@@ -14,6 +14,7 @@
 """
 Custom operations
 """
+import numpy as np
 from pennylane.operation import Operation
 
 
@@ -87,6 +88,31 @@ class MS(Operation):  # pylint: disable=too-few-public-methods
 
     def __init__(self, phi0, phi1, theta=0.25, wires=None):
         super().__init__(phi0, phi1, theta, wires=wires)
+
+    @staticmethod
+    def compute_matrix(phi0, phi1, theta):  # pylint: disable=arguments-differ
+        r"""Representation of the operator as a canonical matrix in the computational basis.
+
+        Args:
+            phi0 (float): phase of the first qubit :math:`\phi_0`
+            phi1 (float): phase of the second qubit :math:`\phi_1`
+            theta (float): entanglement ratio :math:`\theta`
+
+        Returns:
+            np.ndarray: canonical matrix
+        """
+        cos = np.cos(theta / 2)
+        exp = np.exp
+        pi = np.pi
+        i = 1j
+        return (
+            1 / np.sqrt(2) * np.array([
+                [cos, 0, 0, -i * exp(-2 * pi * i * (phi0 + phi1))],
+                [0, cos, -i * exp(-2 * pi * i * (phi0 - phi1)), 0],
+                [0, -i * exp(2 * pi * i * (phi0 - phi1)), cos, 0],
+                [-i * exp(2 * pi * i * (phi0 + phi1)), 0, 0, cos],
+            ])
+        )
 
 
 # Custom operations for the QIS Gateset below
