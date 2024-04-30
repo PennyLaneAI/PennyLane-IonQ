@@ -362,8 +362,8 @@ class TestJobAttribute:
         "phi0, phi1, theta",
         [
             (0.1, 0.2, 0.25),  # Default fully entangling case
-            (0, 0.3, 0.1),     # Partially entangling case
-            (1.5, 2.7, 0),     # No entanglement case
+            (0, 0.3, 0.1),  # Partially entangling case
+            (1.5, 2.7, 0),  # No entanglement case
         ],
     )
     def test_ms_gate_theta_variation(self, phi0, phi1, theta, tol=1e-6):
@@ -374,13 +374,21 @@ class TestJobAttribute:
         computed_matrix = ms_gate.compute_matrix(*ms_gate.data)
 
         # Expected matrix
+        cos = np.cos(theta / 2)
+        exp = np.exp
+        pi = np.pi
+        i = 1j
         expected_matrix = (
-            1 / np.sqrt(2) * np.array([
-                [np.cos(theta / 2), 0, 0, -1j * np.exp(-2 * np.pi * 1j * (phi0 + phi1))],
-                [0, np.cos(theta / 2), -1j * np.exp(-2 * np.pi * 1j * (phi0 - phi1)), 0],
-                [0, -1j * np.exp(2 * np.pi * 1j * (phi0 - phi1)), np.cos(theta / 2), 0],
-                [-1j * np.exp(2 * np.pi * 1j * (phi0 + phi1)), 0, 0, np.cos(theta / 2)],
-            ])
+            1
+            / np.sqrt(2)
+            * np.array(
+                [
+                    [cos, 0, 0, -i * exp(-2 * pi * i * (phi0 + phi1))],
+                    [0, cos, -i * exp(-2 * pi * i * (phi0 - phi1)), 0],
+                    [0, -i * exp(2 * pi * i * (phi0 - phi1)), cos, 0],
+                    [-i * exp(2 * pi * i * (phi0 + phi1)), 0, 0, cos],
+                ]
+            )
         )
 
         assert ms_gate.data == (phi0, phi1, theta)

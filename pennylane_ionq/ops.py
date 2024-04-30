@@ -106,12 +106,16 @@ class MS(Operation):  # pylint: disable=too-few-public-methods
         pi = np.pi
         i = 1j
         return (
-            1 / np.sqrt(2) * np.array([
-                [cos, 0, 0, -i * exp(-2 * pi * i * (phi0 + phi1))],
-                [0, cos, -i * exp(-2 * pi * i * (phi0 - phi1)), 0],
-                [0, -i * exp(2 * pi * i * (phi0 - phi1)), cos, 0],
-                [-i * exp(2 * pi * i * (phi0 + phi1)), 0, 0, cos],
-            ])
+            1
+            / np.sqrt(2)
+            * np.array(
+                [
+                    [cos, 0, 0, -i * exp(-2 * pi * i * (phi0 + phi1))],
+                    [0, cos, -i * exp(-2 * pi * i * (phi0 - phi1)), 0],
+                    [0, -i * exp(2 * pi * i * (phi0 - phi1)), cos, 0],
+                    [-i * exp(2 * pi * i * (phi0 + phi1)), 0, 0, cos],
+                ]
+            )
         )
 
 
