@@ -52,11 +52,15 @@ class TestDevice:
 
         unique_outcomes1 = np.unique(sample1, axis=0)
         unique_outcomes2 = np.unique(sample2, axis=0)
-        assert np.all(unique_outcomes1 == unique_outcomes2)  # possible outcomes are the same
+        assert np.all(
+            unique_outcomes1 == unique_outcomes2
+        )  # possible outcomes are the same
 
         sorted_outcomes1 = np.sort(sample1, axis=0)
         sorted_outcomes2 = np.sort(sample2, axis=0)
-        assert np.all(sorted_outcomes1 == sorted_outcomes2)  # set of outcomes is the same
+        assert np.all(
+            sorted_outcomes1 == sorted_outcomes2
+        )  # set of outcomes is the same
 
 
 class TestDeviceIntegration:
@@ -96,7 +100,9 @@ class TestDeviceIntegration:
         monkeypatch.setattr(
             requests, "post", lambda url, timeout, data, headers: (url, data, headers)
         )
-        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
+        monkeypatch.setattr(
+            ResourceManager, "handle_response", lambda self, response: None
+        )
         monkeypatch.setattr(Job, "is_complete", False)
         monkeypatch.setattr(Job, "is_failed", True)
 
@@ -111,13 +117,17 @@ class TestDeviceIntegration:
         monkeypatch.setattr(
             requests, "post", lambda url, timeout, data, headers: (url, data, headers)
         )
-        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
+        monkeypatch.setattr(
+            ResourceManager, "handle_response", lambda self, response: None
+        )
         monkeypatch.setattr(Job, "is_complete", True)
 
         def fake_response(self, resource_id=None, params=None):
             """Return fake response data"""
             fake_json = {"0": 1}
-            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
+            setattr(
+                self.resource, "data", type("data", tuple(), {"value": fake_json})()
+            )
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
@@ -133,20 +143,26 @@ class TestDeviceIntegration:
         circuit()
         assert json.loads(spy.call_args[1]["data"])["shots"] == shots
 
-    @pytest.mark.parametrize("error_mitigation", [None, {"debias": True}, {"debias": False}])
+    @pytest.mark.parametrize(
+        "error_mitigation", [None, {"debias": True}, {"debias": False}]
+    )
     def test_error_mitigation(self, error_mitigation, monkeypatch, mocker):
         """Test that shots are correctly specified when submitting a job to the API."""
 
         monkeypatch.setattr(
             requests, "post", lambda url, timeout, data, headers: (url, data, headers)
         )
-        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
+        monkeypatch.setattr(
+            ResourceManager, "handle_response", lambda self, response: None
+        )
         monkeypatch.setattr(Job, "is_complete", True)
 
         def fake_response(self, resource_id=None, params=None):
             """Return fake response data"""
             fake_json = {"0": 1}
-            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
+            setattr(
+                self.resource, "data", type("data", tuple(), {"value": fake_json})()
+            )
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
@@ -167,7 +183,10 @@ class TestDeviceIntegration:
         spy = mocker.spy(requests, "post")
         circuit()
         if error_mitigation is not None:
-            assert json.loads(spy.call_args[1]["data"])["error_mitigation"] == error_mitigation
+            assert (
+                json.loads(spy.call_args[1]["data"])["error_mitigation"]
+                == error_mitigation
+            )
         else:
             with pytest.raises(KeyError, match="error_mitigation"):
                 json.loads(spy.call_args[1]["data"])["error_mitigation"]
@@ -224,7 +243,9 @@ class TestDeviceIntegration:
             mock_prob.return_value = uniform_prob
             assert np.array_equal(dev.probability(), uniform_prob)
 
-    @pytest.mark.parametrize("backend", ["harmony", "aria-1", "aria-2", "forte-1", None])
+    @pytest.mark.parametrize(
+        "backend", ["harmony", "aria-1", "aria-2", "forte-1", None]
+    )
     def test_backend_initialization(self, backend):
         """Test that the device initializes with the correct backend."""
         dev = qml.device(
@@ -305,6 +326,7 @@ class TestJobAttribute:
             GPI(0.1, wires=[0])
             GPI2(0.2, wires=[1])
             MS(0.2, 0.3, wires=[1, 2])
+            MS(0.4, 0.5, 0.1, wires=[1, 2])
 
         dev.apply(tape.operations)
 
@@ -312,7 +334,7 @@ class TestJobAttribute:
         assert dev.job["input"]["gateset"] == "native"
         assert dev.job["input"]["qubits"] == 3
 
-        assert len(dev.job["input"]["circuit"]) == 3
+        assert len(dev.job["input"]["circuit"]) == 4
         assert dev.job["input"]["circuit"][0] == {
             "gate": "gpi",
             "target": 0,
@@ -327,4 +349,49 @@ class TestJobAttribute:
             "gate": "ms",
             "targets": [1, 2],
             "phases": [0.2, 0.3],
+            "angle": 0.25,
         }
+        assert dev.job["input"]["circuit"][3] == {
+            "gate": "ms",
+            "targets": [1, 2],
+            "phases": [0.4, 0.5],
+            "angle": 0.1,
+        }
+
+    @pytest.mark.parametrize(
+        "phi0, phi1, theta",
+        [
+            (0.1, 0.2, 0.25),  # Default fully entangling case
+            (0, 0.3, 0.1),  # Partially entangling case
+            (1.5, 2.7, 0),  # No entanglement case
+        ],
+    )
+    def test_ms_gate_theta_variation(self, phi0, phi1, theta, tol=1e-6):
+        """Test MS gate with different theta values to ensure correct entanglement behavior."""
+        ms_gate = MS(phi0, phi1, theta, wires=[0, 1])
+
+        # Compute the matrix representation of the gate
+        computed_matrix = ms_gate.compute_matrix(*ms_gate.data)
+
+        # Expected matrix
+        cos = np.cos(theta / 2)
+        exp = np.exp
+        pi = np.pi
+        i = 1j
+        expected_matrix = (
+            1
+            / np.sqrt(2)
+            * np.array(
+                [
+                    [cos, 0, 0, -i * exp(-2 * pi * i * (phi0 + phi1))],
+                    [0, cos, -i * exp(-2 * pi * i * (phi0 - phi1)), 0],
+                    [0, -i * exp(2 * pi * i * (phi0 - phi1)), cos, 0],
+                    [-i * exp(2 * pi * i * (phi0 + phi1)), 0, 0, cos],
+                ]
+            )
+        )
+
+        assert list(ms_gate.data) == [phi0, phi1, theta]
+        assert np.allclose(
+            computed_matrix, expected_matrix, atol=tol
+        ), "Computed matrix does not match the expected matrix"
