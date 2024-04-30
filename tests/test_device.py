@@ -391,7 +391,7 @@ class TestJobAttribute:
             )
         )
 
-        assert ms_gate.data == (phi0, phi1, theta)
+        assert list(ms_gate.data) == [phi0, phi1, theta]
         assert np.allclose(
             computed_matrix, expected_matrix, atol=tol
         ), "Computed matrix does not match the expected matrix"
