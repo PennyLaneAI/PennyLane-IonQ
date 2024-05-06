@@ -14,15 +14,30 @@
 """
 This module contains the device class for constructing IonQ devices for PennyLane.
 """
+import inspect
+import logging
 import warnings
 from time import sleep
 
 import numpy as np
+import pennylane as qml
 
 from pennylane import QubitDevice, DeviceError
 
+from pennylane.measurements import (
+    ClassicalShadowMP,
+    CountsMP,
+    SampleMP,
+    ShadowExpvalMP,
+    Shots,
+)
+from pennylane.resource import Resources
+
 from .api_client import Job, JobExecutionError
 from ._version import __version__
+
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 _qis_operation_map = {
     # native PennyLane operations also native to IonQ
@@ -126,18 +141,27 @@ class IonQDevice(QubitDevice):
         self._operation_map = _GATESET_OPS[gateset]
         self.reset()
 
-    def reset(self):
+    def reset(self, no_circuits=1):
         """Reset the device"""
+        self.no_circuits = no_circuits
         self._prob_array = None
         self.histogram = None
-        self.circuit = {
-            "format": "ionq.circuit.v0",
-            "qubits": self.num_wires,
-            "circuit": [],
-            "gateset": self.gateset,
-        }
+        if no_circuits <= 1:
+            self.input = {
+                "format": "ionq.circuit.v0",
+                "qubits": self.num_wires,
+                "circuit": [],
+                "gateset": self.gateset,
+            }
+        else:
+            self.input = {
+                "format": "ionq.circuit.v0",
+                "qubits": self.num_wires,
+                "circuits": [ { "circuit": [] } for _ in range(no_circuits) ],
+                "gateset": self.gateset,
+            }
         self.job = {
-            "input": self.circuit,
+            "input": self.input,
             "target": self.target,
             "shots": self.shots,
         }
@@ -151,6 +175,101 @@ class IonQDevice(QubitDevice):
                 stacklevel=2,
             )
 
+    def batch_execute(self, circuits):
+        """Execute a batch of quantum circuits on the device.
+
+        The circuits are represented by tapes, and they are executed one-by-one using the
+        device's ``execute`` method. The results are collected in a list.
+
+        Args:
+            circuits (list[~.tape.QuantumTape]): circuits to execute on the device
+
+        Returns:
+            list[array[float]]: list of measured value(s)
+        """
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(
+                """Entry with args=(circuits=%s) called by=%s""",
+                circuits,
+                "::L".join(
+                    str(i) for i in inspect.getouterframes(inspect.currentframe(), 2)[1][1:3]
+                ),
+            )
+
+        results = []
+        self.reset(no_circuits=len(circuits))
+
+        for circuit_index, circuit in enumerate(circuits):
+            self.check_validity(circuit.operations, circuit.observables)
+            self.apply(
+                circuit.operations, 
+                    rotations=self._get_diagonalizing_gates(circuit), 
+                    circuit_index=circuit_index, 
+                    submit_job=False
+                )
+
+        self._submit_job()
+    
+        for circuit_index, circuit in enumerate(circuits):
+            # sample_type = (SampleMP, CountsMP, ClassicalShadowMP, ShadowExpvalMP)
+            # if self.shots is not None or any(isinstance(m, sample_type) for m in circuit.measurements):
+            #     # Lightning does not support apply(rotations) anymore, so we need to rotate here
+            #     # Lightning without binaries fallbacks to `QubitDevice`, and hence the _CPP_BINARY_AVAILABLE condition
+            #     is_lightning = (
+            #         hasattr(self, "name")
+            #         and isinstance(self.name, str)
+            #         and "Lightning" in self.name
+            #         and getattr(self, "_CPP_BINARY_AVAILABLE", False)
+            #     )
+            #     diagonalizing_gates = self._get_diagonalizing_gates(circuit) if is_lightning else None
+            #     if is_lightning and diagonalizing_gates:
+            #         self.apply(diagonalizing_gates, circuit_index=circuit_index, submit_job=False)
+            #     self._samples = self.generate_samples()
+            #     if is_lightning and diagonalizing_gates:
+            #         self.apply(
+            #                 [qml.adjoint(g, lazy=False) for g in reversed(diagonalizing_gates)],
+            #                 circuit_index=circuit_index,
+            #                 submit_job=False
+            #             )
+
+            # compute the required statistics
+            if self._shot_vector is not None:
+                result = self.shot_vec_statistics(circuit)
+            else:
+                result = self.statistics(circuit)
+                single_measurement = len(circuit.measurements) == 1
+
+                result = result[0] if single_measurement else tuple(result)
+
+            results.append(result)
+
+        # increment counter for number of executions of qubit device
+        self._num_executions += 1
+
+        if self.tracker.active:
+            for circuit in circuits:
+                shots_from_dev = self._shots if not self.shot_vector else self._raw_shot_sequence
+                tape_resources = circuit.specs["resources"]
+
+                resources = Resources(  # temporary until shots get updated on tape !
+                    tape_resources.num_wires,
+                    tape_resources.num_gates,
+                    tape_resources.gate_types,
+                    tape_resources.gate_sizes,
+                    tape_resources.depth,
+                    Shots(shots_from_dev),
+                )
+                self.tracker.update(
+                    executions=1, shots=self._shots, results=results, resources=resources
+                )
+                self.tracker.record()
+
+        if self.tracker.active:
+            self.tracker.update(batches=1, batch_len=len(circuits))
+            self.tracker.record()
+
+        return results
+
     @property
     def operations(self):
         """Get the supported set of operations.
@@ -160,7 +279,7 @@ class IonQDevice(QubitDevice):
         """
         return set(self._operation_map.keys())
 
-    def apply(self, operations, **kwargs):
+    def apply(self, operations, submit_job=True, circuit_index=None, **kwargs):
         self.reset()
         rotations = kwargs.pop("rotations", [])
 
@@ -176,15 +295,22 @@ class IonQDevice(QubitDevice):
                 raise DeviceError(
                     f"The operation {operation.name} is only supported at the beginning of a circuit."
                 )
-            self._apply_operation(operation)
+            if self.no_circuits == 1:
+                self._apply_operation(operation)
+            elif self.no_circuits > 1:
+                self._apply_operation(operation, circuit_index)
 
         # diagonalize observables
         for operation in rotations:
-            self._apply_operation(operation)
+            if self.no_circuits == 1:
+                self._apply_operation(operation)
+            elif self.no_circuits > 1:
+                self._apply_operation(operation, circuit_index)
 
-        self._submit_job()
+        if submit_job:
+            self._submit_job()
 
-    def _apply_operation(self, operation):
+    def _apply_operation(self, operation, circuit_index=0):
         name = operation.name
         wires = self.map_wires(operation.wires).tolist()
         gate = {"gate": self._operation_map[name]}
@@ -208,7 +334,10 @@ class IonQDevice(QubitDevice):
         elif par:
             gate["rotation"] = float(par[0])
 
-        self.circuit["circuit"].append(gate)
+        if self.no_circuits == 1:
+            self.input["circuit"].append(gate)
+        elif self.no_circuits > 1:
+            self.input["circuits"][circuit_index]["circuit"].append(gate)
 
     def _submit_job(self):
         job = Job(api_key=self.api_key)
