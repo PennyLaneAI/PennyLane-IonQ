@@ -27,11 +27,16 @@ from pennylane import QubitDevice, DeviceError
 from pennylane.measurements import (
     ClassicalShadowMP,
     CountsMP,
+    ExpectationMP,
+    MeasurementValue,
+    ProbabilityMP,
     SampleMP,
     ShadowExpvalMP,
     Shots,
+    VarianceMP,
 )
 from pennylane.resource import Resources
+from pennylane.tape import QuantumTape
 
 from .api_client import Job, JobExecutionError
 from ._version import __version__
@@ -130,7 +135,9 @@ class IonQDevice(QubitDevice):
         sharpen=False,
     ):
         if shots is None:
-            raise ValueError("The ionq device does not support analytic expectation values.")
+            raise ValueError(
+                "The ionq device does not support analytic expectation values."
+            )
 
         super().__init__(wires=wires, shots=shots)
         self.target = target
@@ -144,8 +151,8 @@ class IonQDevice(QubitDevice):
     def reset(self, no_circuits=1):
         """Reset the device"""
         self.no_circuits = no_circuits
-        self._prob_array = None
         self.histogram = None
+        self.histograms = None
         if no_circuits <= 1:
             self.input = {
                 "format": "ionq.circuit.v0",
@@ -157,7 +164,7 @@ class IonQDevice(QubitDevice):
             self.input = {
                 "format": "ionq.circuit.v0",
                 "qubits": self.num_wires,
-                "circuits": [ { "circuit": [] } for _ in range(no_circuits) ],
+                "circuits": [{"circuit": []} for _ in range(no_circuits)],
                 "gateset": self.gateset,
             }
         self.job = {
@@ -192,51 +199,36 @@ class IonQDevice(QubitDevice):
                 """Entry with args=(circuits=%s) called by=%s""",
                 circuits,
                 "::L".join(
-                    str(i) for i in inspect.getouterframes(inspect.currentframe(), 2)[1][1:3]
+                    str(i)
+                    for i in inspect.getouterframes(inspect.currentframe(), 2)[1][1:3]
                 ),
             )
 
-        results = []
         self.reset(no_circuits=len(circuits))
 
         for circuit_index, circuit in enumerate(circuits):
             self.check_validity(circuit.operations, circuit.observables)
-            self.apply(
-                circuit.operations, 
-                    rotations=self._get_diagonalizing_gates(circuit), 
-                    circuit_index=circuit_index, 
-                    submit_job=False
-                )
+            self.batch_apply(
+                circuit.operations,
+                rotations=self._get_diagonalizing_gates(circuit),
+                circuit_index=circuit_index,
+            )
 
         self._submit_job()
-    
+
+        results = []
         for circuit_index, circuit in enumerate(circuits):
-            # sample_type = (SampleMP, CountsMP, ClassicalShadowMP, ShadowExpvalMP)
-            # if self.shots is not None or any(isinstance(m, sample_type) for m in circuit.measurements):
-            #     # Lightning does not support apply(rotations) anymore, so we need to rotate here
-            #     # Lightning without binaries fallbacks to `QubitDevice`, and hence the _CPP_BINARY_AVAILABLE condition
-            #     is_lightning = (
-            #         hasattr(self, "name")
-            #         and isinstance(self.name, str)
-            #         and "Lightning" in self.name
-            #         and getattr(self, "_CPP_BINARY_AVAILABLE", False)
-            #     )
-            #     diagonalizing_gates = self._get_diagonalizing_gates(circuit) if is_lightning else None
-            #     if is_lightning and diagonalizing_gates:
-            #         self.apply(diagonalizing_gates, circuit_index=circuit_index, submit_job=False)
-            #     self._samples = self.generate_samples()
-            #     if is_lightning and diagonalizing_gates:
-            #         self.apply(
-            #                 [qml.adjoint(g, lazy=False) for g in reversed(diagonalizing_gates)],
-            #                 circuit_index=circuit_index,
-            #                 submit_job=False
-            #             )
+            sample_type = (SampleMP, CountsMP, ClassicalShadowMP, ShadowExpvalMP)
+            if self.shots is not None or any(
+                isinstance(m, sample_type) for m in circuit.measurements
+            ):
+                self._samples = self.generate_samples(circuit_index)
 
             # compute the required statistics
             if self._shot_vector is not None:
                 result = self.shot_vec_statistics(circuit)
             else:
-                result = self.statistics(circuit)
+                result = self.statistics(circuit, circuit_index=circuit_index)
                 single_measurement = len(circuit.measurements) == 1
 
                 result = result[0] if single_measurement else tuple(result)
@@ -248,7 +240,9 @@ class IonQDevice(QubitDevice):
 
         if self.tracker.active:
             for circuit in circuits:
-                shots_from_dev = self._shots if not self.shot_vector else self._raw_shot_sequence
+                shots_from_dev = (
+                    self._shots if not self.shot_vector else self._raw_shot_sequence
+                )
                 tape_resources = circuit.specs["resources"]
 
                 resources = Resources(  # temporary until shots get updated on tape !
@@ -260,11 +254,12 @@ class IonQDevice(QubitDevice):
                     Shots(shots_from_dev),
                 )
                 self.tracker.update(
-                    executions=1, shots=self._shots, results=results, resources=resources
+                    executions=1,
+                    shots=self._shots,
+                    results=results,
+                    resources=resources,
                 )
-                self.tracker.record()
 
-        if self.tracker.active:
             self.tracker.update(batches=1, batch_len=len(circuits))
             self.tracker.record()
 
@@ -279,12 +274,14 @@ class IonQDevice(QubitDevice):
         """
         return set(self._operation_map.keys())
 
-    def apply(self, operations, submit_job=True, circuit_index=None, **kwargs):
-        self.reset()
+    def batch_apply(self, operations, circuit_index=None, **kwargs):
+
         rotations = kwargs.pop("rotations", [])
 
         if len(operations) == 0 and len(rotations) == 0:
-            warnings.warn("Circuit is empty. Empty circuits return failures. Submitting anyway.")
+            warnings.warn(
+                "Circuit is empty. Empty circuits return failures. Submitting anyway."
+            )
 
         for i, operation in enumerate(operations):
             if i > 0 and operation.name in {
@@ -295,20 +292,37 @@ class IonQDevice(QubitDevice):
                 raise DeviceError(
                     f"The operation {operation.name} is only supported at the beginning of a circuit."
                 )
-            if self.no_circuits == 1:
-                self._apply_operation(operation)
-            elif self.no_circuits > 1:
-                self._apply_operation(operation, circuit_index)
+            self._apply_operation(operation, circuit_index)
 
         # diagonalize observables
         for operation in rotations:
-            if self.no_circuits == 1:
-                self._apply_operation(operation)
-            elif self.no_circuits > 1:
-                self._apply_operation(operation, circuit_index)
+            self._apply_operation(operation, circuit_index)
 
-        if submit_job:
-            self._submit_job()
+    def apply(self, operations, **kwargs):
+        self.reset()
+        rotations = kwargs.pop("rotations", [])
+
+        if len(operations) == 0 and len(rotations) == 0:
+            warnings.warn(
+                "Circuit is empty. Empty circuits return failures. Submitting anyway."
+            )
+
+        for i, operation in enumerate(operations):
+            if i > 0 and operation.name in {
+                "BasisState",
+                "QubitStateVector",
+                "StatePrep",
+            }:
+                raise DeviceError(
+                    f"The operation {operation.name} is only supported at the beginning of a circuit."
+                )
+            self._apply_operation(operation)
+
+        # diagonalize observables
+        for operation in rotations:
+            self._apply_operation(operation)
+
+        self._submit_job()
 
     def _apply_operation(self, operation, circuit_index=0):
         name = operation.name
@@ -361,42 +375,175 @@ class IonQDevice(QubitDevice):
         # state (as a base-10 integer string) to the probability
         # as a floating point value between 0 and 1.
         # e.g., {"0": 0.413, "9": 0.111, "17": 0.476}
-        self.histogram = job.data.value
+        if self.no_circuits <= 1:
+            self.histogram = job.data.value
+        else:
+            self.histograms = []
+            for key in job.data.value.keys():
+                self.histograms.append(job.data.value[key])
 
-    @property
-    def prob(self):
+    def prob(self, circuit_index=None):
         """None or array[float]: Array of computational basis state probabilities. If
         no job has been submitted, returns ``None``.
         """
-        if self.histogram is None:
+        if self.histogram is None and self.histograms is None:
             return None
 
-        if self._prob_array is None:
-            # The IonQ API returns basis states using little-endian ordering.
-            # Here, we rearrange the states to match the big-endian ordering
-            # expected by PennyLane.
-            basis_states = (
-                int(bin(int(k))[2:].rjust(self.num_wires, "0")[::-1], 2) for k in self.histogram
-            )
-            idx = np.fromiter(basis_states, dtype=int)
+        if self.histogram is not None:
+            histogram = self.histogram
+        else:
+            histogram = self.histograms[circuit_index]
 
-            # convert the sparse probs into a probability array
-            self._prob_array = np.zeros([2**self.num_wires])
+        # The IonQ API returns basis states using little-endian ordering.
+        # Here, we rearrange the states to match the big-endian ordering
+        # expected by PennyLane.
+        basis_states = (
+            int(bin(int(k))[2:].rjust(self.num_wires, "0")[::-1], 2) for k in histogram
+        )
+        idx = np.fromiter(basis_states, dtype=int)
 
-            # histogram values don't always perfectly sum to exactly one
-            histogram_values = self.histogram.values()
-            norm = sum(histogram_values)
-            self._prob_array[idx] = np.fromiter(histogram_values, float) / norm
+        # convert the sparse probs into a probability array
+        prob_array = np.zeros([2**self.num_wires])
 
-        return self._prob_array
+        # histogram values don't always perfectly sum to exactly one
+        histogram_values = histogram.values()
+        norm = sum(histogram_values)
+        prob_array[idx] = np.fromiter(histogram_values, float) / norm
 
-    def probability(self, wires=None, shot_range=None, bin_size=None):
+        return prob_array
+
+    def probability(
+        self, wires=None, shot_range=None, bin_size=None, circuit_index=None
+    ):
         wires = wires or self.wires
 
         if shot_range is None and bin_size is None:
-            return self.marginal_prob(self.prob, wires)
+            return self.marginal_prob(self.prob(circuit_index), wires)
 
-        return self.estimate_probability(wires=wires, shot_range=shot_range, bin_size=bin_size)
+        return self.estimate_probability(
+            wires=wires, shot_range=shot_range, bin_size=bin_size
+        )
+
+    def statistics(
+        self, circuit: QuantumTape, shot_range=None, bin_size=None, circuit_index=None
+    ):
+        if circuit_index is None:
+            return super().statistics(circuit, shot_range=shot_range, bin_size=bin_size)
+
+        measurements = circuit.measurements
+        results = []
+        for m in measurements:
+            # TODO: Remove this when all overriden measurements support the `MeasurementProcess` class
+            if isinstance(m.mv, list):
+                # MeasurementProcess stores information needed for processing if terminal measurement
+                # uses a list of mid-circuit measurement values
+                obs = m
+            else:
+                obs = m.obs or m.mv or m
+            if isinstance(m, ExpectationMP):
+                result = self.expval(
+                    obs,
+                    shot_range=shot_range,
+                    bin_size=bin_size,
+                    circuit_index=circuit_index,
+                )
+            elif isinstance(m, ProbabilityMP):
+                result = self.probability(
+                    wires=m.wires,
+                    shot_range=shot_range,
+                    bin_size=bin_size,
+                    circuit_index=circuit_index,
+                )
+            elif isinstance(m, VarianceMP):
+                result = self.var(
+                    obs,
+                    shot_range=shot_range,
+                    bin_size=bin_size,
+                    circuit_index=circuit_index,
+                )
+            else:
+                return super().statistics(
+                    circuit, shot_range=shot_range, bin_size=bin_size
+                )
+
+            result = self._asarray(result, dtype=self.R_DTYPE)
+
+            if self._shot_vector is not None and isinstance(result, np.ndarray):
+                result = qml.math.squeeze(result)
+
+            if result is not None:
+                results.append(result)
+
+        return results
+
+    def expval(self, observable, shot_range=None, bin_size=None, circuit_index=None):
+        # exact expectation value
+        if self.shots is None:
+            try:
+                eigvals = self._asarray(
+                    (
+                        observable.eigvals()
+                        if not isinstance(observable, MeasurementValue)
+                        # Indexing a MeasurementValue gives the output of the processing function
+                        # for that index as a binary number.
+                        else [
+                            observable[i]
+                            for i in range(2 ** len(observable.measurements))
+                        ]
+                    ),
+                    dtype=self.R_DTYPE,
+                )
+            except qml.operation.EigvalsUndefinedError as e:
+                raise qml.operation.EigvalsUndefinedError(
+                    f"Cannot compute analytic expectations of {observable.name}."
+                ) from e
+
+            prob = self.probability(wires=observable.wires, circuit_index=circuit_index)
+            # In case of broadcasting, `prob` has two axes and this is a matrix-vector product
+            return self._dot(prob, eigvals)
+
+        # estimate the ev
+        samples = self.sample(observable, shot_range=shot_range, bin_size=bin_size)
+        # With broadcasting, we want to take the mean over axis 1, which is the -1st/-2nd with/
+        # without bin_size. Without broadcasting, axis 0 is the -1st/-2nd with/without bin_size
+        axis = -1 if bin_size is None else -2
+        # TODO: do we need to squeeze here? Maybe remove with new return types
+        return np.squeeze(np.mean(samples, axis=axis))
+
+    def var(self, observable, shot_range=None, bin_size=None, circuit_index=None):
+        # exact variance value
+        if self.shots is None:
+            try:
+                eigvals = self._asarray(
+                    (
+                        observable.eigvals()
+                        if not isinstance(observable, MeasurementValue)
+                        # Indexing a MeasurementValue gives the output of the processing function
+                        # for that index as a binary number.
+                        else [
+                            observable[i]
+                            for i in range(2 ** len(observable.measurements))
+                        ]
+                    ),
+                    dtype=self.R_DTYPE,
+                )
+            except qml.operation.EigvalsUndefinedError as e:
+                # if observable has no info on eigenvalues, we cannot return this measurement
+                raise qml.operation.EigvalsUndefinedError(
+                    f"Cannot compute analytic variance of {observable.name}."
+                ) from e
+
+            prob = self.probability(wires=observable.wires, circuit_index=circuit_index)
+            # In case of broadcasting, `prob` has two axes and these are a matrix-vector products
+            return self._dot(prob, (eigvals**2)) - self._dot(prob, eigvals) ** 2
+
+        # estimate the variance
+        samples = self.sample(observable, shot_range=shot_range, bin_size=bin_size)
+        # With broadcasting, we want to take the variance over axis 1, which is the -1st/-2nd with/
+        # without bin_size. Without broadcasting, axis 0 is the -1st/-2nd with/without bin_size
+        axis = -1 if bin_size is None else -2
+        # TODO: do we need to squeeze here? Maybe remove with new return types
+        return np.squeeze(np.var(samples, axis=axis))
 
 
 class SimulatorDevice(IonQDevice):
@@ -428,10 +575,10 @@ class SimulatorDevice(IonQDevice):
             api_key=api_key,
         )
 
-    def generate_samples(self):
+    def generate_samples(self, circuit_index=None):
         """Generates samples by random sampling with the probabilities returned by the simulator."""
         number_of_states = 2**self.num_wires
-        samples = self.sample_basis_states(number_of_states, self.prob)
+        samples = self.sample_basis_states(number_of_states, self.prob(circuit_index))
         return QubitDevice.states_to_binary(samples, self.num_wires)
 
 
@@ -489,7 +636,7 @@ class QPUDevice(IonQDevice):
             sharpen=sharpen,
         )
 
-    def generate_samples(self):
+    def generate_samples(self, circuit_index=None):
         """Generates samples from the qpu.
 
         Note that the order of the samples returned here is not indicative of the order in which
@@ -498,7 +645,7 @@ class QPUDevice(IonQDevice):
         """
         number_of_states = 2**self.num_wires
         counts = np.rint(
-            self.prob * self.shots,
+            self.prob(circuit_index) * self.shots,
             out=np.zeros(number_of_states, dtype=int),
             casting="unsafe",
         )
