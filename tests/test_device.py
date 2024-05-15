@@ -20,7 +20,7 @@ import requests
 from unittest.mock import PropertyMock, patch
 
 from conftest import shortnames
-from pennylane_ionq.api_client import JobExecutionError, ResourceManager, Job, Field
+from pennylane_ionq.api_client import JobExecutionError, ResourceManager, Job
 from pennylane_ionq.device import QPUDevice, IonQDevice
 from pennylane_ionq.ops import GPI, GPI2, MS
 
@@ -209,7 +209,7 @@ class TestDeviceIntegration:
         """Test that the prob attribute is
         None if no job has yet been run."""
         dev = qml.device(d, wires=1, shots=1)
-        assert dev.prob is None
+        assert dev.prob() is None
 
     def test_probability(self):
         """Test that device.probability works."""
@@ -219,7 +219,7 @@ class TestDeviceIntegration:
 
         uniform_prob = [0.25] * 4
         with patch(
-            "pennylane_ionq.device.SimulatorDevice.prob", new_callable=PropertyMock
+            "pennylane_ionq.device.SimulatorDevice.prob",
         ) as mock_prob:
             mock_prob.return_value = uniform_prob
             assert np.array_equal(dev.probability(), uniform_prob)
