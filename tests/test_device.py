@@ -17,11 +17,11 @@ import numpy as np
 import pennylane as qml
 import pytest
 import requests
-from unittest.mock import PropertyMock, patch
+from unittest.mock import patch
 
 from conftest import shortnames
 from pennylane_ionq.api_client import JobExecutionError, ResourceManager, Job
-from pennylane_ionq.device import QPUDevice, IonQDevice
+from pennylane_ionq.device import QPUDevice, IonQDevice, SimulatorDevice
 from pennylane_ionq.ops import GPI, GPI2, MS
 
 FAKE_API_KEY = "ABC123"
@@ -235,6 +235,22 @@ class TestDeviceIntegration:
         )
         assert dev.backend == backend
 
+    def test_batch_execute(self, requires_api):
+        """Test batch_execute method"""
+        dev = SimulatorDevice(wires=(0, 1, 2), gateset="native", shots=1024)
+        with qml.tape.QuantumTape() as tape1:
+            GPI(0.5, wires=[0])
+            GPI2(0, wires=[1])
+            MS(0, 0.5, wires=[1, 2])
+            qml.probs(wires=[0, 1, 2])
+        with qml.tape.QuantumTape() as tape2:
+            GPI2(0, wires=[0])
+            GPI(0.5, wires=[1])
+            MS(0, 0.5, wires=[1, 2])
+            qml.probs(wires=[0, 1, 2])
+        results = dev.batch_execute([tape1, tape2])
+        assert np.array_equal(results[0], [0., 0., 0., 0., 0.25, 0.25, 0.25, 0.25])
+        assert np.array_equal(results[1], [0., 0.25, 0.25, 0., 0., 0.25, 0.25, 0.])
 
 class TestJobAttribute:
     """Tests job creation with mocked submission."""
