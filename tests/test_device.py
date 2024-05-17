@@ -272,6 +272,8 @@ class TestDeviceIntegration:
         results = dev.batch_execute([tape1, tape2])
         assert np.array_equal(results[0], [0.0, 0.0, 0.0, 0.0, 0.25, 0.25, 0.25, 0.25])
         assert np.array_equal(results[1], [0.0, 0.25, 0.25, 0.0, 0.0, 0.25, 0.25, 0.0])
+        assert np.array_equal(dev.probability(circuit_index=0), [0.0, 0.0, 0.0, 0.0, 0.25, 0.25, 0.25, 0.25])
+        assert np.array_equal(dev.probability(circuit_index=1), [0.0, 0.25, 0.25, 0.0, 0.0, 0.25, 0.25, 0.0])
 
     def test_batch_execute_variance(self, requires_api):
         """Test batch_execute method when computing variance of an observable."""

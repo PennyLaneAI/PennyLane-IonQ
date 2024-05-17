@@ -359,7 +359,7 @@ class IonQDevice(QubitDevice):
         elif par:
             gate["rotation"] = float(par[0])
 
-        if circuit_index is None:
+        if self.no_circuits <= 1:
             self.input["circuit"].append(gate)
         else:
             self.input["circuits"][circuit_index]["circuit"].append(gate)
