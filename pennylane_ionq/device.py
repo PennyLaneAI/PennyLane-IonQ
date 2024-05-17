@@ -18,6 +18,7 @@ import inspect
 import logging
 import warnings
 from time import sleep
+from typing import Union
 
 import numpy as np
 import pennylane as qml
@@ -28,15 +29,19 @@ from pennylane.measurements import (
     ClassicalShadowMP,
     CountsMP,
     ExpectationMP,
+    MeasurementProcess,
     MeasurementValue,
     ProbabilityMP,
+    SampleMeasurement,
     SampleMP,
     ShadowExpvalMP,
     Shots,
+    StateMeasurement,
     VarianceMP,
 )
 from pennylane.resource import Resources
 from pennylane.tape import QuantumTape
+from pennylane.wires import Wires
 
 from .api_client import Job, JobExecutionError
 from ._version import __version__
@@ -146,6 +151,10 @@ class IonQDevice(QubitDevice):
         self.error_mitigation = error_mitigation
         self.sharpen = sharpen
         self._operation_map = _GATESET_OPS[gateset]
+        self.histogram = None
+        self.histograms = None
+        self._samples = None
+        self._samples_array = []
         self.reset()
 
     def reset(self, no_circuits=1):
@@ -153,6 +162,8 @@ class IonQDevice(QubitDevice):
         self.no_circuits = no_circuits
         self.histogram = None
         self.histograms = None
+        self._samples = None
+        self._samples_array = []
         if no_circuits <= 1:
             self.input = {
                 "format": "ionq.circuit.v0",
@@ -222,7 +233,7 @@ class IonQDevice(QubitDevice):
             if self.shots is not None or any(
                 isinstance(m, sample_type) for m in circuit.measurements
             ):
-                self._samples = self.generate_samples(circuit_index)
+                self._samples_array.append(self.generate_samples(circuit_index))
 
             # compute the required statistics
             if self._shot_vector is not None:
@@ -382,6 +393,63 @@ class IonQDevice(QubitDevice):
             for key in job.data.value.keys():
                 self.histograms.append(job.data.value[key])
 
+    def _measure(
+        self,
+        measurement: Union[SampleMeasurement, StateMeasurement],
+        shot_range=None,
+        bin_size=None,
+        circuit_index=None,
+    ):
+        """Compute the corresponding measurement process depending on ``shots`` and the measurement
+        type.
+
+        Args:
+            measurement (Union[SampleMeasurement, StateMeasurement]): measurement process
+            shot_range (tuple[int]): 2-tuple of integers specifying the range of samples
+                to use. If not specified, all samples are used.
+            bin_size (int): Divides the shot range into bins of size ``bin_size``, and
+                returns the measurement statistic separately over each bin. If not
+                provided, the entire shot range is treated as a single bin.
+
+        Raises:
+            ValueError: if the measurement cannot be computed
+
+        Returns:
+            Union[float, dict, list[float]]: result of the measurement
+        """
+        if self.shots is None:
+            if isinstance(measurement, StateMeasurement):
+                return measurement.process_state(
+                    state=self.state, wire_order=self.wires
+                )
+
+            raise ValueError(
+                "Shots must be specified in the device to compute the measurement "
+                f"{measurement.__class__.__name__}"
+            )
+        if isinstance(measurement, StateMeasurement):
+            warnings.warn(
+                f"Requested measurement {measurement.__class__.__name__} with finite shots; the "
+                "returned state information is analytic and is unaffected by sampling. "
+                "To silence this warning, set shots=None on the device.",
+                UserWarning,
+            )
+            return measurement.process_state(state=self.state, wire_order=self.wires)
+        if circuit_index is None:
+            return measurement.process_samples(
+                samples=self._samples,
+                wire_order=self.wires,
+                shot_range=shot_range,
+                bin_size=bin_size,
+            )
+        else:
+            return measurement.process_samples(
+                samples=self._samples_array[circuit_index],
+                wire_order=self.wires,
+                shot_range=shot_range,
+                bin_size=bin_size,
+            )
+
     def prob(self, circuit_index=None):
         """None or array[float]: Array of computational basis state probabilities. If
         no job has been submitted, returns ``None``.
@@ -421,7 +489,7 @@ class IonQDevice(QubitDevice):
             return self.marginal_prob(self.prob(circuit_index), wires)
 
         return self.estimate_probability(
-            wires=wires, shot_range=shot_range, bin_size=bin_size
+            wires=wires, shot_range=shot_range, bin_size=bin_size, circuit_index=circuit_index
         )
 
     def statistics(
@@ -461,6 +529,30 @@ class IonQDevice(QubitDevice):
                     bin_size=bin_size,
                     circuit_index=circuit_index,
                 )
+            elif isinstance(m, SampleMP):
+                samples = self.sample(
+                    obs,
+                    shot_range=shot_range,
+                    bin_size=bin_size,
+                    counts=False,
+                    circuit_index=circuit_index,
+                )
+                result = self._asarray(qml.math.squeeze(samples))
+            elif isinstance(m, CountsMP):
+                result = self.sample(
+                    m,
+                    shot_range=shot_range,
+                    bin_size=bin_size,
+                    counts=True,
+                    circuit_index=circuit_index,
+                )
+            elif isinstance(m, (SampleMeasurement, StateMeasurement)):
+                result = self._measure(
+                    m,
+                    shot_range=shot_range,
+                    bin_size=bin_size,
+                    circuit_index=circuit_index,
+                )
             else:
                 return super().statistics(
                     circuit, shot_range=shot_range, bin_size=bin_size
@@ -475,6 +567,166 @@ class IonQDevice(QubitDevice):
                 results.append(result)
 
         return results
+
+    def estimate_probability(self, wires=None, shot_range=None, bin_size=None, circuit_index=None):
+        """Return the estimated probability of each computational basis state
+        using the generated samples.
+
+        Args:
+            wires (Iterable[Number, str], Number, str, Wires): wires to calculate
+                marginal probabilities for. Wires not provided are traced out of the system.
+            shot_range (tuple[int]): 2-tuple of integers specifying the range of samples
+                to use. If not specified, all samples are used.
+            bin_size (int): Divides the shot range into bins of size ``bin_size``, and
+                returns the measurement statistic separately over each bin. If not
+                provided, the entire shot range is treated as a single bin.
+
+        Returns:
+            array[float]: list of the probabilities
+        """
+
+        wires = wires or self.wires
+        # convert to a Wires object
+        wires = Wires(wires)
+        # translate to wire labels used by device
+        device_wires = self.map_wires(wires)
+        num_wires = len(device_wires)
+
+        if circuit_index is None:
+            stored_samples_prop = self._samples
+        else:
+            stored_samples_prop = self._samples_array[circuit_index]
+
+        if shot_range is None:
+            # The Ellipsis (...) corresponds to broadcasting and shots dimensions or only shots
+            samples = stored_samples_prop[..., device_wires]
+        else:
+            # The Ellipsis (...) corresponds to the broadcasting dimension or no axis at all
+            samples = stored_samples_prop[..., slice(*shot_range), device_wires]
+
+        # convert samples from a list of 0, 1 integers, to base 10 representation
+        powers_of_two = 2 ** np.arange(num_wires)[::-1]
+        indices = samples @ powers_of_two
+
+        # `self._samples` typically has two axes ((shots, wires)) but can also have three with
+        # broadcasting ((batch_size, shots, wires)) so that we simply read out the batch_size.
+        batch_size = stored_samples_prop.shape[0] if np.ndim(stored_samples_prop) == 3 else None
+        dim = 2**num_wires
+        # count the basis state occurrences, and construct the probability vector
+        if bin_size is not None:
+            num_bins = samples.shape[-2] // bin_size
+            prob = self._count_binned_samples(indices, batch_size, dim, bin_size, num_bins)
+        else:
+            prob = self._count_unbinned_samples(indices, batch_size, dim)
+
+        return self._asarray(prob, dtype=self.R_DTYPE)
+
+    def sample(self, observable, shot_range=None, bin_size=None, counts=False, circuit_index=None):
+        """Return samples of an observable.
+
+        Args:
+            observable (Observable): the observable to sample
+            shot_range (tuple[int]): 2-tuple of integers specifying the range of samples
+                to use. If not specified, all samples are used.
+            bin_size (int): Divides the shot range into bins of size ``bin_size``, and
+                returns the measurement statistic separately over each bin. If not
+                provided, the entire shot range is treated as a single bin.
+            counts (bool): whether counts (``True``) or raw samples (``False``)
+                should be returned
+
+        Raises:
+            EigvalsUndefinedError: if no information is available about the
+                eigenvalues of the observable
+
+        Returns:
+            Union[array[float], dict, list[dict]]: samples in an array of
+            dimension ``(shots,)`` or counts
+        """
+        mp = observable
+        no_observable_provided = False
+        if isinstance(mp, MeasurementProcess):
+            if mp.obs is not None:
+                observable = mp.obs
+            elif mp.mv is not None and isinstance(mp.mv, MeasurementValue):
+                observable = mp.mv
+            else:
+                no_observable_provided = True
+
+        # translate to wire labels used by device. observable is list when measuring sequence
+        # of multiple MeasurementValues
+        device_wires = self.map_wires(observable.wires)
+        name = None if no_observable_provided else observable.name
+        # Select the samples from self._samples that correspond to ``shot_range`` if provided
+        if shot_range is None:
+            if circuit_index is None:
+                sub_samples = self._samples
+            else: 
+                sub_samples = self._samples_array[circuit_index]
+        else:
+            # Indexing corresponds to: (potential broadcasting, shots, wires). Note that the last
+            # colon (:) is required because shots is the second-to-last axis and the
+            # Ellipsis (...) otherwise would take up broadcasting and shots axes.
+            if circuit_index is None:
+                sub_samples = self._samples[..., slice(*shot_range), :]
+            else:
+                sub_samples = self._samples_array[circuit_index][..., slice(*shot_range), :]
+
+        if isinstance(name, str) and name in {"PauliX", "PauliY", "PauliZ", "Hadamard"}:
+            # Process samples for observables with eigenvalues {1, -1}
+            samples = 1 - 2 * sub_samples[..., device_wires[0]]
+
+        elif no_observable_provided:
+            # if no observable was provided then return the raw samples
+            if len(observable.wires) != 0:
+                # if wires are provided, then we only return samples from those wires
+                samples = sub_samples[..., np.array(device_wires)]
+            else:
+                samples = sub_samples
+
+        else:
+            # Replace the basis state in the computational basis with the correct eigenvalue.
+            # Extract only the columns of the basis samples required based on ``wires``.
+            samples = sub_samples[
+                ..., np.array(device_wires)
+            ]  # Add np.array here for Jax support.
+            powers_of_two = 2 ** np.arange(samples.shape[-1])[::-1]
+            indices = samples @ powers_of_two
+            indices = np.array(indices)  # Add np.array here for Jax support.
+            if isinstance(observable, MeasurementValue):
+                eigvals = self._asarray(
+                    [observable[i] for i in range(2 ** len(observable.measurements))],
+                    dtype=self.R_DTYPE,
+                )
+                samples = eigvals[indices]
+            else:
+                try:
+                    samples = observable.eigvals()[indices]
+                except qml.operation.EigvalsUndefinedError as e:
+                    # if observable has no info on eigenvalues, we cannot return this measurement
+                    raise qml.operation.EigvalsUndefinedError(
+                        f"Cannot compute samples of {observable.name}."
+                    ) from e
+
+        num_wires = len(device_wires) if len(device_wires) > 0 else self.num_wires
+        if bin_size is None:
+            if counts:
+                return self._samples_to_counts(samples, mp, num_wires)
+            return samples
+
+        if counts:
+            shape = (
+                (-1, bin_size, num_wires) if no_observable_provided else (-1, bin_size)
+            )
+            return [
+                self._samples_to_counts(bin_sample, mp, num_wires)
+                for bin_sample in samples.reshape(shape)
+            ]
+
+        return (
+            samples.T.reshape((num_wires, bin_size, -1))
+            if no_observable_provided
+            else samples.reshape((bin_size, -1))
+        )
 
     def expval(self, observable, shot_range=None, bin_size=None, circuit_index=None):
         # exact expectation value
@@ -503,7 +755,7 @@ class IonQDevice(QubitDevice):
             return self._dot(prob, eigvals)
 
         # estimate the ev
-        samples = self.sample(observable, shot_range=shot_range, bin_size=bin_size)
+        samples = self.sample(observable, shot_range=shot_range, bin_size=bin_size, circuit_index=circuit_index)
         # With broadcasting, we want to take the mean over axis 1, which is the -1st/-2nd with/
         # without bin_size. Without broadcasting, axis 0 is the -1st/-2nd with/without bin_size
         axis = -1 if bin_size is None else -2
@@ -537,7 +789,7 @@ class IonQDevice(QubitDevice):
             return self._dot(prob, (eigvals**2)) - self._dot(prob, eigvals) ** 2
 
         # estimate the variance
-        samples = self.sample(observable, shot_range=shot_range, bin_size=bin_size)
+        samples = self.sample(observable, shot_range=shot_range, bin_size=bin_size, circuit_index=circuit_index)
         # With broadcasting, we want to take the variance over axis 1, which is the -1st/-2nd with/
         # without bin_size. Without broadcasting, axis 0 is the -1st/-2nd with/without bin_size
         axis = -1 if bin_size is None else -2
