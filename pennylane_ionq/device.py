@@ -335,7 +335,7 @@ class IonQDevice(QubitDevice):
 
         self._submit_job()
 
-    def _apply_operation(self, operation, circuit_index=0):
+    def _apply_operation(self, operation, circuit_index=None):
         name = operation.name
         wires = self.map_wires(operation.wires).tolist()
         gate = {"gate": self._operation_map[name]}
@@ -359,9 +359,9 @@ class IonQDevice(QubitDevice):
         elif par:
             gate["rotation"] = float(par[0])
 
-        if self.no_circuits == 1:
+        if circuit_index is None:
             self.input["circuit"].append(gate)
-        elif self.no_circuits > 1:
+        else:
             self.input["circuits"][circuit_index]["circuit"].append(gate)
 
     def _submit_job(self):
