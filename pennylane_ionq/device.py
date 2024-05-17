@@ -507,7 +507,6 @@ class IonQDevice(QubitDevice):
         # With broadcasting, we want to take the mean over axis 1, which is the -1st/-2nd with/
         # without bin_size. Without broadcasting, axis 0 is the -1st/-2nd with/without bin_size
         axis = -1 if bin_size is None else -2
-        # TODO: do we need to squeeze here? Maybe remove with new return types
         return np.squeeze(np.mean(samples, axis=axis))
 
     def var(self, observable, shot_range=None, bin_size=None, circuit_index=None):
@@ -542,7 +541,6 @@ class IonQDevice(QubitDevice):
         # With broadcasting, we want to take the variance over axis 1, which is the -1st/-2nd with/
         # without bin_size. Without broadcasting, axis 0 is the -1st/-2nd with/without bin_size
         axis = -1 if bin_size is None else -2
-        # TODO: do we need to squeeze here? Maybe remove with new return types
         return np.squeeze(np.var(samples, axis=axis))
 
 
