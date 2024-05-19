@@ -157,14 +157,13 @@ class IonQDevice(QubitDevice):
         self._samples_array = []
         self.reset()
 
-    def reset(self, no_circuits=1):
+    def reset(self, circuits_array_length=0):
         """Reset the device"""
-        self.no_circuits = no_circuits
         self.histogram = None
         self.histograms = None
         self._samples = None
         self._samples_array = []
-        if no_circuits <= 1:
+        if circuits_array_length == 0:
             self.input = {
                 "format": "ionq.circuit.v0",
                 "qubits": self.num_wires,
@@ -175,7 +174,7 @@ class IonQDevice(QubitDevice):
             self.input = {
                 "format": "ionq.circuit.v0",
                 "qubits": self.num_wires,
-                "circuits": [{"circuit": []} for _ in range(no_circuits)],
+                "circuits": [{"circuit": []} for _ in range(circuits_array_length)],
                 "gateset": self.gateset,
             }
         self.job = {
@@ -215,7 +214,7 @@ class IonQDevice(QubitDevice):
                 ),
             )
 
-        self.reset(no_circuits=len(circuits))
+        self.reset(circuits_array_length=len(circuits))
 
         for circuit_index, circuit in enumerate(circuits):
             self.check_validity(circuit.operations, circuit.observables)
@@ -359,7 +358,7 @@ class IonQDevice(QubitDevice):
         elif par:
             gate["rotation"] = float(par[0])
 
-        if self.no_circuits <= 1:
+        if "circuit" in self.input:
             self.input["circuit"].append(gate)
         else:
             self.input["circuits"][circuit_index]["circuit"].append(gate)
@@ -386,12 +385,13 @@ class IonQDevice(QubitDevice):
         # state (as a base-10 integer string) to the probability
         # as a floating point value between 0 and 1.
         # e.g., {"0": 0.413, "9": 0.111, "17": 0.476}
-        if self.no_circuits <= 1:
-            self.histogram = job.data.value
-        else:
+        some_inner_value = next(iter(job.data.value.values()))
+        if isinstance(some_inner_value, dict):
             self.histograms = []
             for key in job.data.value.keys():
                 self.histograms.append(job.data.value[key])
+        else:
+            self.histogram = job.data.value
 
     def _measure(
         self,
