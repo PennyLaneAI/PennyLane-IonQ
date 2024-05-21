@@ -331,6 +331,7 @@ class TestDeviceIntegration:
         assert results[1][-1] == pytest.approx(512, abs=100)
 
     def test_sample_measurements(self, requires_api):
+        """ Test branch of code activated by using SampleMeasurement."""
         class CountState(SampleMeasurement):
             def __init__(self, state: str):
                 self.state = state  # string identifying the state e.g. "0101"
