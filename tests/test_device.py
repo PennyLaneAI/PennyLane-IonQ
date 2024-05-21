@@ -23,6 +23,7 @@ from conftest import shortnames
 from pennylane_ionq.api_client import JobExecutionError, ResourceManager, Job
 from pennylane_ionq.device import QPUDevice, IonQDevice, SimulatorDevice
 from pennylane_ionq.ops import GPI, GPI2, MS
+from pennylane.measurements import SampleMeasurement
 
 FAKE_API_KEY = "ABC123"
 
@@ -328,6 +329,41 @@ class TestDeviceIntegration:
         results = dev.batch_execute([tape1, tape2])
         assert results[0][-1] == 1024
         assert results[1][-1] == pytest.approx(512, abs=100)
+
+    def test_sample_measurements(self, requires_api):
+        class CountState(SampleMeasurement):
+            def __init__(self, state: str):
+                self.state = state  # string identifying the state e.g. "0101"
+                wires = list(range(len(state)))
+                super().__init__(wires=wires)
+
+            def process_samples(self, samples, wire_order, shot_range=None, bin_size=None):
+                counts_mp = qml.counts(wires=self._wires)
+                counts = counts_mp.process_samples(samples, wire_order, shot_range, bin_size)
+                return float(counts.get(self.state, 0))
+
+            def process_counts(self, counts, wire_order):
+                return float(counts.get(self.state, 0))
+
+            def __copy__(self):
+                return CountState(state=self.state)
+
+        dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
+
+        @qml.qnode(dev)
+        def circuit1():
+            GPI(0, wires=[0])
+            return CountState(state="1")
+
+        @qml.qnode(dev)
+        def circuit2():
+            GPI2(0, wires=[0])
+            return CountState(state="1")
+
+        results = [circuit1(), circuit2()]
+        assert results[0] == 1024
+        assert results[1] == pytest.approx(512, abs=100)
+
 
 class TestJobAttribute:
     """Tests job creation with mocked submission."""
