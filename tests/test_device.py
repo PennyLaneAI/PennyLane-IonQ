@@ -301,20 +301,33 @@ class TestDeviceIntegration:
         assert results[0] == pytest.approx(-1, abs=0.1)
         assert results[1] == pytest.approx(0, abs=0.1)
 
-    def test_batch_execute_sample_method(self, requires_api):
+    def test_batch_execute_sample(self, requires_api):
         """Test batch_execute method when computing expectation value of an observable."""
         dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
         with qml.tape.QuantumTape() as tape1:
             GPI(0, wires=[0])
-            qml.expval(qml.PauliZ(0))
+            qml.sample(qml.PauliZ(0))
         with qml.tape.QuantumTape() as tape2:
             GPI2(0, wires=[0])
-            qml.expval(qml.PauliZ(0))
-        dev.batch_execute([tape1, tape2])
+            qml.sample(qml.PauliZ(0))
+        results = dev.batch_execute([tape1, tape2])
         results0 = dev.sample(qml.PauliZ(0), circuit_index=0)
         results1 = dev.sample(qml.PauliZ(0), circuit_index=1)
-        assert set(results0) == {-1}
-        assert set(results1) == {-1, 1}
+        assert set(results[0]) == set(results0) == {-1}
+        assert set(results[1]) == set(results1) == {-1, 1}
+
+    def test_batch_execute_counts(self, requires_api):
+        """Test batch_execute method when computing expectation value of an observable."""
+        dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
+        with qml.tape.QuantumTape() as tape1:
+            GPI(0, wires=[0])
+            qml.counts(qml.PauliZ(0))
+        with qml.tape.QuantumTape() as tape2:
+            GPI2(0, wires=[0])
+            qml.counts(qml.PauliZ(0))
+        results = dev.batch_execute([tape1, tape2])
+        assert results[0][-1] == 1024
+        assert results[1][-1] == pytest.approx(512, abs=100)
 
 class TestJobAttribute:
     """Tests job creation with mocked submission."""
