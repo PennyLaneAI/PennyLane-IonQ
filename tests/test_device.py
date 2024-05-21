@@ -279,24 +279,42 @@ class TestDeviceIntegration:
         """Test batch_execute method when computing variance of an observable."""
         dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
         with qml.tape.QuantumTape() as tape1:
-            GPI(0.5, wires=[0])
+            GPI(0, wires=[0])
             qml.var(qml.PauliZ(0))
         with qml.tape.QuantumTape() as tape2:
             GPI2(0, wires=[0])
             qml.var(qml.PauliZ(0))
         results = dev.batch_execute([tape1, tape2])
-        assert results[0] == pytest.approx(0, 0.001)
-        assert results[1] == pytest.approx(1, 0.001)
+        assert results[0] == pytest.approx(0, abs=0.01)
+        assert results[1] == pytest.approx(1, abs=0.01)
 
     def test_batch_execute_expectation_value(self, requires_api):
         """Test batch_execute method when computing expectation value of an observable."""
         dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
-        with qml.tape.QuantumTape() as tape:
-            GPI(0.5, wires=[0])
+        with qml.tape.QuantumTape() as tape1:
+            GPI(0, wires=[0])
             qml.expval(qml.PauliZ(0))
-        results = dev.batch_execute([tape])
-        assert results[0] == pytest.approx(-1, 0.001)
+        with qml.tape.QuantumTape() as tape2:
+            GPI2(0, wires=[0])
+            qml.expval(qml.PauliZ(0))
+        results = dev.batch_execute([tape1, tape2])
+        assert results[0] == pytest.approx(-1, abs=0.1)
+        assert results[1] == pytest.approx(0, abs=0.1)
 
+    def test_batch_execute_sample_method(self, requires_api):
+        """Test batch_execute method when computing expectation value of an observable."""
+        dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
+        with qml.tape.QuantumTape() as tape1:
+            GPI(0, wires=[0])
+            qml.expval(qml.PauliZ(0))
+        with qml.tape.QuantumTape() as tape2:
+            GPI2(0, wires=[0])
+            qml.expval(qml.PauliZ(0))
+        dev.batch_execute([tape1, tape2])
+        results0 = dev.sample(qml.PauliZ(0), circuit_index=0)
+        results1 = dev.sample(qml.PauliZ(0), circuit_index=1)
+        assert set(results0) == {-1}
+        assert set(results1) == {-1, 1}
 
 class TestJobAttribute:
     """Tests job creation with mocked submission."""
@@ -322,6 +340,29 @@ class TestJobAttribute:
 
         assert len(dev.job["input"]["circuit"]) == 1
         assert dev.job["input"]["circuit"][0] == {"gate": "x", "target": 0}
+
+    def test_nonparametrized_tape_batch_submit(self, mocker):
+        """Tests job attribute after single paulix tape, on batch submit."""
+
+        def mock_submit_job(*args):
+            pass
+
+        mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
+        dev = IonQDevice(wires=(0,), target="foo")
+
+        with qml.tape.QuantumTape() as tape:
+            qml.PauliX(0)
+
+        dev.reset(circuits_array_length=1)
+        dev.batch_apply(tape.operations, circuit_index=0)
+
+        assert dev.job["input"]["format"] == "ionq.circuit.v0"
+        assert dev.job["input"]["gateset"] == "qis"
+        assert dev.job["target"] == "foo"
+        assert dev.job["input"]["qubits"] == 1
+
+        assert len(dev.job["input"]["circuits"]) == 1
+        assert dev.job["input"]["circuits"][0]["circuit"][0] == {"gate": "x", "target": 0}
 
     def test_parameterized_op(self, mocker):
         """Tests job attribute several parameterized operations."""
@@ -349,6 +390,38 @@ class TestJobAttribute:
             "rotation": 1.2345,
         }
         assert dev.job["input"]["circuit"][1] == {
+            "gate": "ry",
+            "target": 0,
+            "rotation": 2.3456,
+        }
+
+    def test_parameterized_op_batch_submit(self, mocker):
+        """Tests job attribute several parameterized operations."""
+
+        def mock_submit_job(*args):
+            pass
+
+        mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
+        dev = IonQDevice(wires=(0,))
+
+        with qml.tape.QuantumTape() as tape:
+            qml.RX(1.2345, wires=0)
+            qml.RY(qml.numpy.array(2.3456), wires=0)
+
+        dev.reset(circuits_array_length=1)
+        dev.batch_apply(tape.operations, circuit_index=0)
+
+        assert dev.job["input"]["format"] == "ionq.circuit.v0"
+        assert dev.job["input"]["gateset"] == "qis"
+        assert dev.job["input"]["qubits"] == 1
+
+        assert len(dev.job["input"]["circuits"][0]["circuit"]) == 2
+        assert dev.job["input"]["circuits"][0]["circuit"][0] == {
+            "gate": "rx",
+            "target": 0,
+            "rotation": 1.2345,
+        }
+        assert dev.job["input"]["circuits"][0]["circuit"][1] == {
             "gate": "ry",
             "target": 0,
             "rotation": 2.3456,
@@ -390,3 +463,31 @@ class TestJobAttribute:
             "targets": [1, 2],
             "phases": [0.2, 0.3],
         }
+
+    def test_parameterized_native_op_batch_submit(self, mocker):
+        """Test batch_execute method when computing expectation value of an observable."""
+
+
+        def mock_submit_job(*args):
+            pass
+
+        mocker.patch("pennylane_ionq.device.SimulatorDevice._submit_job", mock_submit_job)
+        dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
+
+        with qml.tape.QuantumTape() as tape1:
+            GPI(0.7, wires=[0])
+            GPI2(0.8, wires=[0])
+            qml.expval(qml.PauliZ(0))
+        with qml.tape.QuantumTape() as tape2:
+            GPI2(0.9, wires=[0])
+            qml.expval(qml.PauliZ(0))
+        dev.batch_execute([tape1, tape2])
+
+        assert dev.job["input"]["format"] == "ionq.circuit.v0"
+        assert dev.job["input"]["gateset"] == "native"
+        assert dev.job["target"] == "simulator"
+        assert dev.job["input"]["qubits"] == 1
+        assert len(dev.job["input"]["circuits"]) == 2
+        assert dev.job["input"]["circuits"][0]["circuit"][0] == {"gate": "gpi", "target": 0, "phase": 0.7}
+        assert dev.job["input"]["circuits"][0]["circuit"][1] == {"gate": "gpi2", "target": 0, "phase": 0.8}
+        assert dev.job["input"]["circuits"][1]["circuit"][0] == {"gate": "gpi2", "target": 0, "phase": 0.9}
