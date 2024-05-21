@@ -351,17 +351,15 @@ class TestDeviceIntegration:
 
         dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
 
-        @qml.qnode(dev)
-        def circuit1():
+        with qml.tape.QuantumTape() as tape1:
             GPI(0, wires=[0])
-            return CountState(state="1")
+            CountState(state="1")
 
-        @qml.qnode(dev)
-        def circuit2():
+        with qml.tape.QuantumTape() as tape2:
             GPI2(0, wires=[0])
-            return CountState(state="1")
+            CountState(state="1")
 
-        results = [circuit1(), circuit2()]
+        results = dev.batch_execute([tape1, tape2])
         assert results[0] == 1024
         assert results[1] == pytest.approx(512, abs=100)
 
