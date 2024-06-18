@@ -303,7 +303,7 @@ class TestDeviceIntegration:
         assert results[1] == pytest.approx(0, abs=0.1)
 
     def test_batch_execute_sample(self, requires_api):
-        """Test batch_execute method when computing expectation value of an observable."""
+        """Test batch_execute method when sampling."""
         dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
         with qml.tape.QuantumTape() as tape1:
             GPI(0, wires=[0])
@@ -318,7 +318,7 @@ class TestDeviceIntegration:
         assert set(results[1]) == set(results1) == {-1, 1}
 
     def test_batch_execute_counts(self, requires_api):
-        """Test batch_execute method when computing expectation value of an observable."""
+        """Test batch_execute method when computing counts."""
         dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
         with qml.tape.QuantumTape() as tape1:
             GPI(0, wires=[0])
@@ -488,6 +488,7 @@ class TestJobAttribute:
             GPI(0.1, wires=[0])
             GPI2(0.2, wires=[1])
             MS(0.2, 0.3, wires=[1, 2])
+            MS(0.4, 0.5, 0.1, wires=[1, 2])
 
         dev.apply(tape.operations)
 
@@ -495,7 +496,7 @@ class TestJobAttribute:
         assert dev.job["input"]["gateset"] == "native"
         assert dev.job["input"]["qubits"] == 3
 
-        assert len(dev.job["input"]["circuit"]) == 3
+        assert len(dev.job["input"]["circuit"]) == 4
         assert dev.job["input"]["circuit"][0] == {
             "gate": "gpi",
             "target": 0,
@@ -510,14 +511,23 @@ class TestJobAttribute:
             "gate": "ms",
             "targets": [1, 2],
             "phases": [0.2, 0.3],
+            "angle": 0.25,
+        }
+        assert dev.job["input"]["circuit"][3] == {
+            "gate": "ms",
+            "targets": [1, 2],
+            "phases": [0.4, 0.5],
+            "angle": 0.1,
         }
 
     def test_parameterized_native_op_batch_submit(self, mocker):
-        """Test batch_execute method when computing expectation value of an observable."""
+        """Tests job attribute for several parameterized native operations with batch_execute."""
 
+        class StopExecute(Exception):
+            pass
 
         def mock_submit_job(*args):
-            pass
+            raise StopExecute()
 
         mocker.patch("pennylane_ionq.device.SimulatorDevice._submit_job", mock_submit_job)
         dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
@@ -529,7 +539,11 @@ class TestJobAttribute:
         with qml.tape.QuantumTape() as tape2:
             GPI2(0.9, wires=[0])
             qml.expval(qml.PauliZ(0))
-        dev.batch_execute([tape1, tape2])
+
+        try:
+            dev.batch_execute([tape1, tape2])
+        except StopExecute:
+            pass
 
         assert dev.job["input"]["format"] == "ionq.circuit.v0"
         assert dev.job["input"]["gateset"] == "native"
@@ -539,3 +553,41 @@ class TestJobAttribute:
         assert dev.job["input"]["circuits"][0]["circuit"][0] == {"gate": "gpi", "target": 0, "phase": 0.7}
         assert dev.job["input"]["circuits"][0]["circuit"][1] == {"gate": "gpi2", "target": 0, "phase": 0.8}
         assert dev.job["input"]["circuits"][1]["circuit"][0] == {"gate": "gpi2", "target": 0, "phase": 0.9}
+
+    @pytest.mark.parametrize(
+        "phi0, phi1, theta",
+        [
+            (0.1, 0.2, 0.25),  # Default fully entangling case
+            (0, 0.3, 0.1),  # Partially entangling case
+            (1.5, 2.7, 0),  # No entanglement case
+        ],
+    )
+    def test_ms_gate_theta_variation(self, phi0, phi1, theta, tol=1e-6):
+        """Test MS gate with different theta values to ensure correct entanglement behavior."""
+        ms_gate = MS(phi0, phi1, theta, wires=[0, 1])
+
+        # Compute the matrix representation of the gate
+        computed_matrix = ms_gate.compute_matrix(*ms_gate.data)
+
+        # Expected matrix
+        cos = np.cos(theta / 2)
+        exp = np.exp
+        pi = np.pi
+        i = 1j
+        expected_matrix = (
+            1
+            / np.sqrt(2)
+            * np.array(
+                [
+                    [cos, 0, 0, -i * exp(-2 * pi * i * (phi0 + phi1))],
+                    [0, cos, -i * exp(-2 * pi * i * (phi0 - phi1)), 0],
+                    [0, -i * exp(2 * pi * i * (phi0 - phi1)), cos, 0],
+                    [-i * exp(2 * pi * i * (phi0 + phi1)), 0, 0, cos],
+                ]
+            )
+        )
+
+        assert list(ms_gate.data) == [phi0, phi1, theta]
+        assert np.allclose(
+            computed_matrix, expected_matrix, atol=tol
+        ), "Computed matrix does not match the expected matrix"
