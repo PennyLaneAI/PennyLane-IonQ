@@ -273,8 +273,14 @@ class TestDeviceIntegration:
         results = dev.batch_execute([tape1, tape2])
         assert np.array_equal(results[0], [0.0, 0.0, 0.0, 0.0, 0.25, 0.25, 0.25, 0.25])
         assert np.array_equal(results[1], [0.0, 0.25, 0.25, 0.0, 0.0, 0.25, 0.25, 0.0])
-        assert np.array_equal(dev.probability(circuit_index=0), [0.0, 0.0, 0.0, 0.0, 0.25, 0.25, 0.25, 0.25])
-        assert np.array_equal(dev.probability(circuit_index=1), [0.0, 0.25, 0.25, 0.0, 0.0, 0.25, 0.25, 0.0])
+        assert np.array_equal(
+            dev.probability(circuit_index=0),
+            [0.0, 0.0, 0.0, 0.0, 0.25, 0.25, 0.25, 0.25],
+        )
+        assert np.array_equal(
+            dev.probability(circuit_index=1),
+            [0.0, 0.25, 0.25, 0.0, 0.0, 0.25, 0.25, 0.0],
+        )
 
     def test_batch_execute_variance(self, requires_api):
         """Test batch_execute method when computing variance of an observable."""
@@ -331,16 +337,21 @@ class TestDeviceIntegration:
         assert results[1][-1] == pytest.approx(512, abs=100)
 
     def test_sample_measurements(self, requires_api):
-        """ Test branch of code activated by using SampleMeasurement."""
+        """Test branch of code activated by using SampleMeasurement."""
+
         class CountState(SampleMeasurement):
             def __init__(self, state: str):
                 self.state = state  # string identifying the state e.g. "0101"
                 wires = list(range(len(state)))
                 super().__init__(wires=wires)
 
-            def process_samples(self, samples, wire_order, shot_range=None, bin_size=None):
+            def process_samples(
+                self, samples, wire_order, shot_range=None, bin_size=None
+            ):
                 counts_mp = qml.counts(wires=self._wires)
-                counts = counts_mp.process_samples(samples, wire_order, shot_range, bin_size)
+                counts = counts_mp.process_samples(
+                    samples, wire_order, shot_range, bin_size
+                )
                 return float(counts.get(self.state, 0))
 
             def process_counts(self, counts, wire_order):
@@ -410,7 +421,10 @@ class TestJobAttribute:
         assert dev.job["input"]["qubits"] == 1
 
         assert len(dev.job["input"]["circuits"]) == 1
-        assert dev.job["input"]["circuits"][0]["circuit"][0] == {"gate": "x", "target": 0}
+        assert dev.job["input"]["circuits"][0]["circuit"][0] == {
+            "gate": "x",
+            "target": 0,
+        }
 
     def test_parameterized_op(self, mocker):
         """Tests job attribute several parameterized operations."""
@@ -529,7 +543,9 @@ class TestJobAttribute:
         def mock_submit_job(*args):
             raise StopExecute()
 
-        mocker.patch("pennylane_ionq.device.SimulatorDevice._submit_job", mock_submit_job)
+        mocker.patch(
+            "pennylane_ionq.device.SimulatorDevice._submit_job", mock_submit_job
+        )
         dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
 
         with qml.tape.QuantumTape() as tape1:
@@ -550,9 +566,21 @@ class TestJobAttribute:
         assert dev.job["target"] == "simulator"
         assert dev.job["input"]["qubits"] == 1
         assert len(dev.job["input"]["circuits"]) == 2
-        assert dev.job["input"]["circuits"][0]["circuit"][0] == {"gate": "gpi", "target": 0, "phase": 0.7}
-        assert dev.job["input"]["circuits"][0]["circuit"][1] == {"gate": "gpi2", "target": 0, "phase": 0.8}
-        assert dev.job["input"]["circuits"][1]["circuit"][0] == {"gate": "gpi2", "target": 0, "phase": 0.9}
+        assert dev.job["input"]["circuits"][0]["circuit"][0] == {
+            "gate": "gpi",
+            "target": 0,
+            "phase": 0.7,
+        }
+        assert dev.job["input"]["circuits"][0]["circuit"][1] == {
+            "gate": "gpi2",
+            "target": 0,
+            "phase": 0.8,
+        }
+        assert dev.job["input"]["circuits"][1]["circuit"][0] == {
+            "gate": "gpi2",
+            "target": 0,
+            "phase": 0.9,
+        }
 
     @pytest.mark.parametrize(
         "phi0, phi1, theta",

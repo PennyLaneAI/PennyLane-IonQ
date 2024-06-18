@@ -41,7 +41,7 @@ from pennylane.measurements import (
     StateMeasurement,
     StateMP,
     VarianceMP,
-    VnEntropyMP
+    VnEntropyMP,
 )
 from pennylane.resource import Resources
 from pennylane.tape import QuantumTape
@@ -495,7 +495,10 @@ class IonQDevice(QubitDevice):
             return self.marginal_prob(self.prob(circuit_index), wires)
 
         return self.estimate_probability(
-            wires=wires, shot_range=shot_range, bin_size=bin_size, circuit_index=circuit_index
+            wires=wires,
+            shot_range=shot_range,
+            bin_size=bin_size,
+            circuit_index=circuit_index,
         )
 
     def statistics(
@@ -505,13 +508,13 @@ class IonQDevice(QubitDevice):
 
         This includes returning expectation values, variance, samples, probabilities, states, and
         density matrices. Overwrites the method in QubiDevice class to accomodate batch submission
-        of circuits. Please check the base class for explanatory comments on how this function 
+        of circuits. Please check the base class for explanatory comments on how this function
         should be working.
 
         """
         if circuit_index is None:
             return super().statistics(circuit, shot_range=shot_range, bin_size=bin_size)
-    
+
         measurements = circuit.measurements
         results = []
 
@@ -532,20 +535,47 @@ class IonQDevice(QubitDevice):
             # 1. Based on the measurement type, compute statistics
             # Pass instances directly
             elif isinstance(m, ExpectationMP):
-                result = self.expval(obs, shot_range=shot_range, bin_size=bin_size, circuit_index=circuit_index)
+                result = self.expval(
+                    obs,
+                    shot_range=shot_range,
+                    bin_size=bin_size,
+                    circuit_index=circuit_index,
+                )
 
             elif isinstance(m, VarianceMP):
-                result = self.var(obs, shot_range=shot_range, bin_size=bin_size, circuit_index=circuit_index)
+                result = self.var(
+                    obs,
+                    shot_range=shot_range,
+                    bin_size=bin_size,
+                    circuit_index=circuit_index,
+                )
 
             elif isinstance(m, SampleMP):
-                samples = self.sample(obs, shot_range=shot_range, bin_size=bin_size, counts=False, circuit_index=circuit_index)
+                samples = self.sample(
+                    obs,
+                    shot_range=shot_range,
+                    bin_size=bin_size,
+                    counts=False,
+                    circuit_index=circuit_index,
+                )
                 result = self._asarray(qml.math.squeeze(samples))
 
             elif isinstance(m, CountsMP):
-                result = self.sample(m, shot_range=shot_range, bin_size=bin_size, counts=True, circuit_index=circuit_index)
+                result = self.sample(
+                    m,
+                    shot_range=shot_range,
+                    bin_size=bin_size,
+                    counts=True,
+                    circuit_index=circuit_index,
+                )
 
             elif isinstance(m, ProbabilityMP):
-                result = self.probability(wires=m.wires, shot_range=shot_range, bin_size=bin_size, circuit_index=circuit_index)
+                result = self.probability(
+                    wires=m.wires,
+                    shot_range=shot_range,
+                    bin_size=bin_size,
+                    circuit_index=circuit_index,
+                )
 
             elif isinstance(m, StateMP):
                 if len(measurements) > 1:
@@ -606,7 +636,9 @@ class IonQDevice(QubitDevice):
                         UserWarning,
                     )
                 wires0, wires1 = obs.raw_wires
-                result = self.mutual_info(wires0=wires0, wires1=wires1, log_base=obs.log_base)
+                result = self.mutual_info(
+                    wires0=wires0, wires1=wires1, log_base=obs.log_base
+                )
 
             elif isinstance(m, ClassicalShadowMP):
                 if len(measurements) > 1:
@@ -628,10 +660,19 @@ class IonQDevice(QubitDevice):
                 result = m.process(tape=circuit, device=self)
 
             elif isinstance(m, (SampleMeasurement, StateMeasurement)):
-                result = self._measure(m, shot_range=shot_range, bin_size=bin_size, circuit_index=circuit_index)
+                result = self._measure(
+                    m,
+                    shot_range=shot_range,
+                    bin_size=bin_size,
+                    circuit_index=circuit_index,
+                )
 
             elif m.return_type is not None:
-                name = obs.name if isinstance(obs, qml.operation.Operator) else type(obs).__name__
+                name = (
+                    obs.name
+                    if isinstance(obs, qml.operation.Operator)
+                    else type(obs).__name__
+                )
                 raise qml.QuantumFunctionError(
                     f"Unsupported return type specified for observable {name}"
                 )
@@ -673,10 +714,12 @@ class IonQDevice(QubitDevice):
 
         return results
 
-    def estimate_probability(self, wires=None, shot_range=None, bin_size=None, circuit_index=None):
+    def estimate_probability(
+        self, wires=None, shot_range=None, bin_size=None, circuit_index=None
+    ):
         """Return the estimated probability of each computational basis state
-        using the generated samples. Overwrites the method in QubiDevice class 
-        to accomodate batch submission of circuits. 
+        using the generated samples. Overwrites the method in QubiDevice class
+        to accomodate batch submission of circuits.
 
         Args:
             wires (Iterable[Number, str], Number, str, Wires): wires to calculate
@@ -716,22 +759,33 @@ class IonQDevice(QubitDevice):
 
         # `self._samples` typically has two axes ((shots, wires)) but can also have three with
         # broadcasting ((batch_size, shots, wires)) so that we simply read out the batch_size.
-        batch_size = stored_samples_prop.shape[0] if np.ndim(stored_samples_prop) == 3 else None
+        batch_size = (
+            stored_samples_prop.shape[0] if np.ndim(stored_samples_prop) == 3 else None
+        )
         dim = 2**num_wires
         # count the basis state occurrences, and construct the probability vector
         if bin_size is not None:
             num_bins = samples.shape[-2] // bin_size
-            prob = self._count_binned_samples(indices, batch_size, dim, bin_size, num_bins)
+            prob = self._count_binned_samples(
+                indices, batch_size, dim, bin_size, num_bins
+            )
         else:
             prob = self._count_unbinned_samples(indices, batch_size, dim)
 
         return self._asarray(prob, dtype=self.R_DTYPE)
 
-    def sample(self, observable, shot_range=None, bin_size=None, counts=False, circuit_index=None):
+    def sample(
+        self,
+        observable,
+        shot_range=None,
+        bin_size=None,
+        counts=False,
+        circuit_index=None,
+    ):
         """Return samples of an observable.
 
         Overwrites the method in QubiDevice class to accomodate batch submission
-        of circuits. 
+        of circuits.
 
         Args:
             observable (Observable): the observable to sample
@@ -769,7 +823,7 @@ class IonQDevice(QubitDevice):
         if shot_range is None:
             if circuit_index is None:
                 sub_samples = self._samples
-            else: 
+            else:
                 sub_samples = self._samples_array[circuit_index]
         else:
             # Indexing corresponds to: (potential broadcasting, shots, wires). Note that the last
@@ -778,7 +832,9 @@ class IonQDevice(QubitDevice):
             if circuit_index is None:
                 sub_samples = self._samples[..., slice(*shot_range), :]
             else:
-                sub_samples = self._samples_array[circuit_index][..., slice(*shot_range), :]
+                sub_samples = self._samples_array[circuit_index][
+                    ..., slice(*shot_range), :
+                ]
 
         if isinstance(name, str) and name in {"PauliX", "PauliY", "PauliZ", "Hadamard"}:
             # Process samples for observables with eigenvalues {1, -1}
@@ -840,8 +896,8 @@ class IonQDevice(QubitDevice):
     def expval(self, observable, shot_range=None, bin_size=None, circuit_index=None):
         """
         Overwrites the method in QubiDevice class to accomodate batch submission
-        of circuits. 
-        """        
+        of circuits.
+        """
         # exact expectation value
         if self.shots is None:
             try:
@@ -868,7 +924,12 @@ class IonQDevice(QubitDevice):
             return self._dot(prob, eigvals)
 
         # estimate the ev
-        samples = self.sample(observable, shot_range=shot_range, bin_size=bin_size, circuit_index=circuit_index)
+        samples = self.sample(
+            observable,
+            shot_range=shot_range,
+            bin_size=bin_size,
+            circuit_index=circuit_index,
+        )
         # With broadcasting, we want to take the mean over axis 1, which is the -1st/-2nd with/
         # without bin_size. Without broadcasting, axis 0 is the -1st/-2nd with/without bin_size
         axis = -1 if bin_size is None else -2
@@ -877,7 +938,7 @@ class IonQDevice(QubitDevice):
     def var(self, observable, shot_range=None, bin_size=None, circuit_index=None):
         """
         Overwrites the method in QubiDevice class to accomodate batch submission
-        of circuits. 
+        of circuits.
         """
         # exact variance value
         if self.shots is None:
@@ -906,7 +967,12 @@ class IonQDevice(QubitDevice):
             return self._dot(prob, (eigvals**2)) - self._dot(prob, eigvals) ** 2
 
         # estimate the variance
-        samples = self.sample(observable, shot_range=shot_range, bin_size=bin_size, circuit_index=circuit_index)
+        samples = self.sample(
+            observable,
+            shot_range=shot_range,
+            bin_size=bin_size,
+            circuit_index=circuit_index,
+        )
         # With broadcasting, we want to take the variance over axis 1, which is the -1st/-2nd with/
         # without bin_size. Without broadcasting, axis 0 is the -1st/-2nd with/without bin_size
         axis = -1 if bin_size is None else -2
