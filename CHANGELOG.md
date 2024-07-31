@@ -1,4 +1,4 @@
-# Release 0.35.0-dev
+# Release 0.37.0-dev
 
 ### New features since last release
 
@@ -15,6 +15,23 @@
 ### Contributors ✍️
 
 This release contains contributions from (in alphabetical order):
+
+---
+# Release 0.36.0
+
+### New features since last release
+
+* Added an optional `theta` parameter to the MS gate to enable partially entangling gates, providing more control over qubit entanglement. This feature allows for finer adjustments in quantum algorithms without affecting existing implementations. [#101](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/101)
+
+### Documentation 📝
+
+* Updated the docstring for the MS operation to include the new `theta` parameter, explaining its use and effects on the gate operation.
+
+### Contributors ✍️
+
+This release contains contributions from (in alphabetical order):
+
+Spencer Churchill
 
 ---
 # Release 0.34.0
