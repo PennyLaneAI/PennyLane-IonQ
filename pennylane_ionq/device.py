@@ -433,9 +433,9 @@ class IonQDevice(QubitDevice):
         Returns the expectation value of a Hamiltonian observable.
         Overwrites the method in QubitDevice class to accomodate batch submission of circuits.
         When invoking this method after submitting circuits using any other method than 
-        QubitDevice.execute() method, self_current_circuit_index and self._samples should be 
-        initialized using the circuit which is targeted out of  one or potentially several circuits submitted 
-        in a batch. This is likely not very good design but the alternative would be to create
+        QubitDevice.execute() method, self_current_circuit_index should be 
+        initialized pointing to the circuit which is targeted out of one or potentially several circuits submitted 
+        in a batch. This is not very good design but the alternative would be to create
         huge amounts of code duplication with respect to the Pennylane base code.
 
         Args:
@@ -448,9 +448,13 @@ class IonQDevice(QubitDevice):
 
         """
         try:
-            return super().expval(observable, shot_range, bin_size)
+            self._samples = self.generate_samples()
+            result = super().expval(observable, shot_range, bin_size)
+            self._samples = None
+            return result
         except TypeError as e:
-            e.args = ("When invoking this method after submitting circuits using any other method than QubitDevice.execute() method, self_current_circuit_index and self._samples should be initialized using the circuit which is targeted out of  one or potentially several circuits submitted in a batch.", *e.args)
+            self._samples = None
+            e.args = ("When invoking this method after submitting circuits using any other method than QubitDevice.execute() method, self_current_circuit_index should be initialized pointing to the circuit which is targeted out of one or potentially several circuits submitted in a batch.", *e.args)
             raise
 
     def estimate_probability(
@@ -460,14 +464,14 @@ class IonQDevice(QubitDevice):
         using the generated samples. Overwrites the method in QubitDevice class
         to accomodate batch submission of circuits. When invoking this method after 
         submitting circuits using any other method than QubitDevice.execute() 
-        method, self_current_circuit_index and self._samples should be initialized to the 
-        circuit which is targeted out of  one or potentially several circuits submitted in a batch.
-        This is likely not very good design but the alternative would be to create
+        method, self_current_circuit_index should be initialized to the 
+        circuit which is targeted out of one or potentially several circuits submitted in a batch.
+        This is not very good design but the alternative would be to create
         huge amounts of code duplication with respect to the Pennylane base code.
 
         Args:
             wires (Iterable[Number, str], Number, str, Wires): wires to calculate
-                marginal probabilities for. Wires not provided are traced out of  one or the system.
+                marginal probabilities for. Wires not provided are traced out of one or the system.
             shot_range (tuple[int]): 2-tuple of integers specifying the range of samples
                 to use. If not specified, all samples are used.
             bin_size (int): Divides the shot range into bins of size ``bin_size``, and
@@ -478,9 +482,13 @@ class IonQDevice(QubitDevice):
             array[float]: list of the probabilities
         """
         try:
-            return super().estimate_probability(wires, shot_range, bin_size)
+            self._samples = self.generate_samples()
+            result = super().estimate_probability(wires, shot_range, bin_size)
+            self._samples = None
+            return result
         except TypeError as e:
-            e.args = ("When invoking this method after submitting circuits using any other method than QubitDevice.execute() method, self_current_circuit_index and self._samples should be initialized using the circuit which is targeted out of  one or potentially several circuits submitted in a batch.", *e.args)
+            self._samples = None
+            e.args = ("When invoking this method after submitting circuits using any other method than QubitDevice.execute() method, self_current_circuit_index should be initialized pointing to the circuit which is targeted out of one or potentially several circuits submitted in a batch.", *e.args)
             raise
 
     def sample(
@@ -493,9 +501,9 @@ class IonQDevice(QubitDevice):
         """Return samples of an observable. Overwrites the method in QubitDevice class
         to accomodate batch submission of circuits. When invoking this method after submitting 
         circuits using any other method than QubitDevice.execute() method, 
-        self_current_circuit_index and self._samples should be initialized using the circuit which 
-        is targeted out of  one or potentially several circuits submitted in a batch.
-        This is likely not very good design but the alternative would be to create
+        self_current_circuit_index should be initialized pointing to the circuit which 
+        is targeted out of one or potentially several circuits submitted in a batch.
+        This is not very good design but the alternative would be to create
         huge amounts of code duplication with respect to the Pennylane base code.
 
         Args:
@@ -518,9 +526,13 @@ class IonQDevice(QubitDevice):
             dimension ``(shots,)`` or counts
         """
         try:
-            return super().sample(observable, shot_range, bin_size, counts)
+            self._samples = self.generate_samples()
+            result = super().sample(observable, shot_range, bin_size, counts)
+            self._samples = None
+            return result
         except TypeError as e:
-            e.args = ("When invoking this method after submitting circuits using any other method than QubitDevice.execute() method self_current_circuit_index and self._samples should be initialized using the circuit which is targeted out of  one or potentially several circuits submitted in a batch.", *e.args)
+            self._samples = None
+            e.args = ("When invoking this method after submitting circuits using any other method than QubitDevice.execute() method self_current_circuit_index should be initialized pointing to the circuit which is targeted out of one or potentially several circuits submitted in a batch.", *e.args)
             raise
 
     def _measure(
@@ -532,8 +544,8 @@ class IonQDevice(QubitDevice):
         """Compute the corresponding measurement process depending on ``shots`` and the measurement
         type. Overwrites the method in QubitDevice class to accomodate batch submission of circuits.
         When invoking this method after submitting circuits using any other method than QubitDevice.execute() 
-        method, self_current_circuit_index and self._samples should be initialized using the circuit which 
-        is targeted out of  one or potentially several circuits submitted in a batch. This is likely not very good 
+        method, self_current_circuit_index should be initialized pointing to the circuit which 
+        is targeted out of one or potentially several circuits submitted in a batch. This is not very good 
         design but the alternative would be to create huge amounts of code duplication with respect to the 
         Pennylane base code.
 
@@ -552,9 +564,13 @@ class IonQDevice(QubitDevice):
             Union[float, dict, list[float]]: result of the measurement
         """
         try:
-            return super()._measure(measurement, shot_range, bin_size)
+            self._samples = self.generate_samples()
+            result = super()._measure(measurement, shot_range, bin_size)
+            self._samples = None
+            return result
         except TypeError as e:
-            e.args = ("When invoking this method after submitting circuits using any other method than QubitDevice.execute() method, self_current_circuit_index and self._samples should be initialized using the circuit which is targeted out of  one or potentially several circuits submitted in a batch. ", *e.args)
+            self._samples = None
+            e.args = ("When invoking this method after submitting circuits using any other method than QubitDevice.execute() method, self_current_circuit_index should be initialized pointing to the circuit which is targeted out of one or potentially several circuits submitted in a batch. ", *e.args)
             raise
 
 class SimulatorDevice(IonQDevice):
