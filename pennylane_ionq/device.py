@@ -27,22 +27,13 @@ from pennylane import QubitDevice, DeviceError
 from pennylane.measurements import (
     ClassicalShadowMP,
     CountsMP,
-    ExpectationMP,
-    MeasurementTransform,
-    MeasurementValue,
-    MutualInfoMP,
-    ProbabilityMP,
     SampleMeasurement,
     SampleMP,
     ShadowExpvalMP,
     Shots,
     StateMeasurement,
-    StateMP,
-    VarianceMP,
-    VnEntropyMP,
 )
 from pennylane.resource import Resources
-from pennylane.tape import QuantumTape
 
 from .api_client import Job, JobExecutionError
 from ._version import __version__
