@@ -151,7 +151,6 @@ class IonQDevice(QubitDevice):
         self._current_circuit_index = None
         self.histogram = None
         self.histograms = None
-        self._prob_array = None
         if circuits_array_length == 0:
             self.input = {
                 "format": "ionq.circuit.v0",
@@ -401,27 +400,26 @@ class IonQDevice(QubitDevice):
         if self.histogram is None:
             return None
 
-        if self._prob_array is None:
-            # The IonQ API returns basis states using little-endian ordering.
-            # Here, we rearrange the states to match the big-endian ordering
-            # expected by PennyLane.
-            basis_states = (
-                int(bin(int(k))[2:].rjust(self.num_wires, "0")[::-1], 2) for k in self.histogram
-            )
-            idx = np.fromiter(basis_states, dtype=int)
+        # The IonQ API returns basis states using little-endian ordering.
+        # Here, we rearrange the states to match the big-endian ordering
+        # expected by PennyLane.
+        basis_states = (
+            int(bin(int(k))[2:].rjust(self.num_wires, "0")[::-1], 2) for k in self.histogram
+        )
+        idx = np.fromiter(basis_states, dtype=int)
 
-            # convert the sparse probs into a probability array
-            self._prob_array = np.zeros([2**self.num_wires])
+        # convert the sparse probs into a probability array
+        prob_array = np.zeros([2**self.num_wires])
 
-            # histogram values don't always perfectly sum to exactly one
-            histogram_values = self.histogram.values()
-            norm = sum(histogram_values)
-            self._prob_array[idx] = np.fromiter(histogram_values, float) / norm
+        # histogram values don't always perfectly sum to exactly one
+        histogram_values = self.histogram.values()
+        norm = sum(histogram_values)
+        prob_array[idx] = np.fromiter(histogram_values, float) / norm
 
         if self._current_circuit_index is not None:
             self.histogram = None
 
-        return self._prob_array
+        return prob_array
 
     def estimate_probability(
         self, wires=None, shot_range=None, bin_size=None
@@ -539,6 +537,14 @@ class IonQDevice(QubitDevice):
             self._samples = None
             e.args = ("When invoking QubitDevice _measure() method after submitting circuits using any other method than QubitDevice.execute() method, current circuit index should be set via set_current_circuit_index() method pointing to index of the circuit which is targeted out of one or potentially several circuits submitted in a batch. ", *e.args)
             raise
+
+    def probability(self, wires=None, shot_range=None, bin_size=None):
+        wires = wires or self.wires
+
+        if shot_range is None and bin_size is None:
+            return self.marginal_prob(self.prob, wires)
+
+        return self.estimate_probability(wires=wires, shot_range=shot_range, bin_size=bin_size)
 
 
 class SimulatorDevice(IonQDevice):
