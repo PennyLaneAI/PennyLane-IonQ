@@ -244,7 +244,7 @@ class TestDeviceIntegration:
             assert np.array_equal(dev.probability(), uniform_prob)
 
     @pytest.mark.parametrize(
-        "backend", ["harmony", "aria-1", "aria-2", "forte-1", None]
+        "backend", ["aria-1", "aria-2", "forte-1", None]
     )
     def test_backend_initialization(self, backend):
         """Test that the device initializes with the correct backend."""
