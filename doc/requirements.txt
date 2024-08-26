@@ -15,7 +15,7 @@ MarkupSafe==2.1.1
 networkx==2.6.0
 ninja==1.10.2.3
 numpy==1.22.4
-packaging==21.3
+packaging>=24
 PennyLane==0.24.0
 PennyLane-Lightning==0.24.0
 Pygments==2.15.0
