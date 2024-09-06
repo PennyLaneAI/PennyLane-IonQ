@@ -36,9 +36,7 @@ U = np.array(
 U2 = np.array([[0, 1, 1, 1], [1, 0, 1, -1], [1, -1, 0, 1], [1, 1, -1, 0]]) / np.sqrt(3)
 
 # single qubit Hermitian observable
-A = np.array(
-    [[1.02789352, 1.61296440 - 0.3498192j], [1.61296440 + 0.3498192j, 1.23920938 + 0j]]
-)
+A = np.array([[1.02789352, 1.61296440 - 0.3498192j], [1.61296440 + 0.3498192j, 1.23920938 + 0j]])
 
 
 # ==========================================================
@@ -51,7 +49,7 @@ analytic_devices = []
 # List of all devices that do *not* support analytic expectation
 # value computation. This generally includes hardware devices
 # and hardware simulators.
-hw_devices = [SimulatorDevice]
+hw_devices = [SimulatorDevice, QPUDevice]
 
 # List of all device shortnames
 shortnames = [d.short_name for d in analytic_devices + hw_devices]

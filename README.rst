@@ -38,7 +38,7 @@ company offering access to quantum computing devices over the cloud.
 
 .. header-end-inclusion-marker-do-not-remove
 
-The plugin documentation can be found `here <https://pennylane-ionq.readthedocs.io/en/latest/>`__.
+The plugin documentation can be found `here <https://docs.pennylane.ai/projects/ionq>`__.
 
 Features
 ========
@@ -108,7 +108,7 @@ You can instantiate the IonQ devices for PennyLane as follows:
 
     import pennylane as qml
     dev1 = qml.device('ionq.simulator', wires=2, shots=1000)
-    dev2 = qml.device('ionq.qpu', wires=2, shots=1000)
+    dev2 = qml.device('ionq.qpu', backend='aria-1', wires=2, shots=1000)
 
 These devices can then be used just like other devices for the definition and evaluation of
 quantum circuits within PennyLane. For more details and ideas, see the
@@ -119,7 +119,7 @@ to the `PennyLane documentation <https://pennylane.readthedocs.io>`_.
 Contributing
 ============
 
-We welcome contributions—simply fork the PennyLane-IonQ repository, and then make a
+We welcome contributions-simply fork the PennyLane-IonQ repository, and then make a
 `pull request <https://help.github.com/articles/about-pull-requests/>`_ containing your contribution.
 All contributers to PennyLane-IonQ will be listed as contributors on the releases.
 

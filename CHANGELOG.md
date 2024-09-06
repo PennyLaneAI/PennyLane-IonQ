@@ -1,4 +1,4 @@
-# Release 0.33.0-dev
+# Release 0.37.0-dev
 
 ### New features since last release
 
@@ -15,6 +15,58 @@
 ### Contributors ✍️
 
 This release contains contributions from (in alphabetical order):
+
+---
+# Release 0.36.0
+
+### New features since last release
+
+* Added an optional `theta` parameter to the MS gate to enable partially entangling gates, providing more control over qubit entanglement. This feature allows for finer adjustments in quantum algorithms without affecting existing implementations. [#101](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/101)
+
+### Documentation 📝
+
+* Updated the docstring for the MS operation to include the new `theta` parameter, explaining its use and effects on the gate operation.
+
+### Contributors ✍️
+
+This release contains contributions from (in alphabetical order):
+
+Spencer Churchill
+
+---
+# Release 0.34.0
+
+### New features since last release
+
+* Application of debiasing and sharpening for error mitigation is made available, with parameters set on device initialization. Error mitigation strategies that 
+  need to be set at runtime are defined in the `error_mitigation` dictionary (currently a single strategy, `debias`, is available). Whether or not to
+  apply sharpening to the returned results is set via the parameter `sharpen`. A device using debiasing and sharpening to mitigate errors can be initialized as:
+  
+  ```python
+  import pennylane as qml
+
+  dev = qml.device("ionq.qpu", wires=2, error_mitigation={"debias": True}, sharpen=True)
+  ```
+
+  For more details, see the [IonQ Guide on sharpening and debiasing](https://ionq.com/resources/debiasing-and-sharpening), or refer to the publication <https://arxiv.org/pdf/2301.07233.pdf>
+  [(#75)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/75)
+  [(#96)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/96)
+
+### Improvements 🛠
+
+* The IonQ API version accessed via the plugin is updated from 0.1 to 0.3
+  [(#75)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/75)
+  [(#96)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/96)
+  
+* Use new `backend` field to specify `qpu`.
+  [(#81)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/81)
+
+### Contributors ✍️
+
+This release contains contributions from (in alphabetical order):
+
+Spencer Churchill
+Lillian Frederiksen
 
 ---
 # Release 0.32.0
