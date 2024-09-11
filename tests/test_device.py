@@ -67,7 +67,7 @@ class TestDeviceIntegration:
         """Test that the device loads correctly"""
         dev = qml.device(d, wires=2, shots=1024)
         assert dev.num_wires == 2
-        assert dev.shots == 1024
+        assert dev.shots.total_shots == 1024
         assert dev.short_name == d
 
     @pytest.mark.parametrize("d", shortnames)
