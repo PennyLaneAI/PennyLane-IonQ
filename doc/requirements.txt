@@ -16,8 +16,8 @@ networkx==2.6.0
 ninja==1.10.2.3
 numpy==1.22.4
 packaging>22.0
-PennyLane==0.24.0
-PennyLane-Lightning==0.24.0
+PennyLane
+PennyLane-Lightning
 Pygments==2.15.0
 pyparsing==3.0.9
 python-dateutil==2.8.2
