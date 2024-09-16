@@ -52,15 +52,11 @@ class TestDevice:
 
         unique_outcomes1 = np.unique(sample1, axis=0)
         unique_outcomes2 = np.unique(sample2, axis=0)
-        assert np.all(
-            unique_outcomes1 == unique_outcomes2
-        )  # possible outcomes are the same
+        assert np.all(unique_outcomes1 == unique_outcomes2)  # possible outcomes are the same
 
         sorted_outcomes1 = np.sort(sample1, axis=0)
         sorted_outcomes2 = np.sort(sample2, axis=0)
-        assert np.all(
-            sorted_outcomes1 == sorted_outcomes2
-        )  # set of outcomes is the same
+        assert np.all(sorted_outcomes1 == sorted_outcomes2)  # set of outcomes is the same
 
 
 class TestDeviceIntegration:
@@ -71,7 +67,7 @@ class TestDeviceIntegration:
         """Test that the device loads correctly"""
         dev = qml.device(d, wires=2, shots=1024)
         assert dev.num_wires == 2
-        assert dev.shots == 1024
+        assert dev.shots.total_shots == 1024
         assert dev.short_name == d
 
     @pytest.mark.parametrize("d", shortnames)
@@ -100,9 +96,7 @@ class TestDeviceIntegration:
         monkeypatch.setattr(
             requests, "post", lambda url, timeout, data, headers: (url, data, headers)
         )
-        monkeypatch.setattr(
-            ResourceManager, "handle_response", lambda self, response: None
-        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", False)
         monkeypatch.setattr(Job, "is_failed", True)
 
@@ -117,17 +111,13 @@ class TestDeviceIntegration:
         monkeypatch.setattr(
             requests, "post", lambda url, timeout, data, headers: (url, data, headers)
         )
-        monkeypatch.setattr(
-            ResourceManager, "handle_response", lambda self, response: None
-        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
         def fake_response(self, resource_id=None, params=None):
             """Return fake response data"""
             fake_json = {"0": 1}
-            setattr(
-                self.resource, "data", type("data", tuple(), {"value": fake_json})()
-            )
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
@@ -143,26 +133,20 @@ class TestDeviceIntegration:
         circuit()
         assert json.loads(spy.call_args[1]["data"])["shots"] == shots
 
-    @pytest.mark.parametrize(
-        "error_mitigation", [None, {"debias": True}, {"debias": False}]
-    )
+    @pytest.mark.parametrize("error_mitigation", [None, {"debias": True}, {"debias": False}])
     def test_error_mitigation(self, error_mitigation, monkeypatch, mocker):
         """Test that shots are correctly specified when submitting a job to the API."""
 
         monkeypatch.setattr(
             requests, "post", lambda url, timeout, data, headers: (url, data, headers)
         )
-        monkeypatch.setattr(
-            ResourceManager, "handle_response", lambda self, response: None
-        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
         def fake_response(self, resource_id=None, params=None):
             """Return fake response data"""
             fake_json = {"0": 1}
-            setattr(
-                self.resource, "data", type("data", tuple(), {"value": fake_json})()
-            )
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
@@ -183,10 +167,7 @@ class TestDeviceIntegration:
         spy = mocker.spy(requests, "post")
         circuit()
         if error_mitigation is not None:
-            assert (
-                json.loads(spy.call_args[1]["data"])["error_mitigation"]
-                == error_mitigation
-            )
+            assert json.loads(spy.call_args[1]["data"])["error_mitigation"] == error_mitigation
         else:
             with pytest.raises(KeyError, match="error_mitigation"):
                 json.loads(spy.call_args[1]["data"])["error_mitigation"]
@@ -233,7 +214,7 @@ class TestDeviceIntegration:
     def test_probability(self):
         """Test that device.probability works."""
         dev = qml.device("ionq.simulator", wires=2)
-        dev._samples = np.array([[1, 1], [1, 1], [0, 0], [0, 0]])
+        dev.target_device._samples = np.array([[1, 1], [1, 1], [0, 0], [0, 0]])
         assert np.array_equal(dev.probability(shot_range=(0, 2)), [0, 0, 0, 1])
 
         uniform_prob = [0.25] * 4
@@ -243,9 +224,7 @@ class TestDeviceIntegration:
             mock_prob.return_value = uniform_prob
             assert np.array_equal(dev.probability(), uniform_prob)
 
-    @pytest.mark.parametrize(
-        "backend", ["harmony", "aria-1", "aria-2", "forte-1", None]
-    )
+    @pytest.mark.parametrize("backend", ["harmony", "aria-1", "aria-2", "forte-1", None])
     def test_backend_initialization(self, backend):
         """Test that the device initializes with the correct backend."""
         dev = qml.device(
