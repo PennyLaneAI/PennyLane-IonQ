@@ -2,7 +2,7 @@ appdirs==1.4.4
 autograd==1.5
 autoray==0.3.2
 cachetools==5.2.0
-certifi==2023.7.22
+certifi==2024.7.4
 charset-normalizer==2.0.12
 future==0.18.3
 idna==3.3
