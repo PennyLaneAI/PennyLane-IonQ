@@ -22,7 +22,8 @@ from time import sleep
 
 import numpy as np
 
-from pennylane import QubitDevice, DeviceError
+from pennylane import DeviceError
+from pennylane.devices import QubitDevice
 
 from pennylane.measurements import (
     ClassicalShadowMP,
