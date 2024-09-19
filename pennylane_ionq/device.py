@@ -224,11 +224,7 @@ class IonQDevice(QubitDevice):
         results = []
         for circuit_index, circuit in enumerate(circuits):
             self.set_current_circuit_index(circuit_index)
-            sample_type = (SampleMP, CountsMP, ClassicalShadowMP, ShadowExpvalMP)
-            if self.shots is not None or any(
-                isinstance(m, sample_type) for m in circuit.measurements
-            ):
-                self._samples = self.generate_samples()
+            self._samples = self.generate_samples()
 
             # compute the required statistics
             if self._shot_vector is not None:
