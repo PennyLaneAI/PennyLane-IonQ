@@ -145,6 +145,7 @@ class IonQDevice(QubitDevice):
         self._operation_map = _GATESET_OPS[gateset]
         self.histogram = None
         self.histograms = None
+        self._samples = None
         self.reset()
 
     def reset(self, circuits_array_length=0):
@@ -271,6 +272,8 @@ class IonQDevice(QubitDevice):
         return results
 
     def batch_apply(self, operations, circuit_index, **kwargs):
+
+        "Apply circuit operations when submitting for execution a batch of circuits."
 
         rotations = kwargs.pop("rotations", [])
 
