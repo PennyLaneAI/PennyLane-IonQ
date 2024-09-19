@@ -486,7 +486,6 @@ class IonQDevice(QubitDevice):
                 provided, the entire shot range is treated as a single bin.
             counts (bool): whether counts (``True``) or raw samples (``False``)
                 should be returned
-            circuit_index (int): index of circuit in case of batch circuit submission
 
         Raises:
             EigvalsUndefinedError: if no information is available about the
