@@ -133,7 +133,9 @@ class IonQDevice(QubitDevice):
         sharpen=False,
     ):
         if shots is None:
-            raise ValueError("The ionq device does not support analytic expectation values.")
+            raise ValueError(
+                "The ionq device does not support analytic expectation values."
+            )
 
         super().__init__(wires=wires, shots=shots)
         self._current_circuit_index = None
@@ -311,7 +313,9 @@ class IonQDevice(QubitDevice):
         rotations = kwargs.pop("rotations", [])
 
         if len(operations) == 0 and len(rotations) == 0:
-            warnings.warn("Circuit is empty. Empty circuits return failures. Submitting anyway.")
+            warnings.warn(
+                "Circuit is empty. Empty circuits return failures. Submitting anyway."
+            )
 
         for i, operation in enumerate(operations):
             if i > 0 and operation.name in {
@@ -408,7 +412,8 @@ class IonQDevice(QubitDevice):
         # Here, we rearrange the states to match the big-endian ordering
         # expected by PennyLane.
         basis_states = (
-            int(bin(int(k))[2:].rjust(self.num_wires, "0")[::-1], 2) for k in self.histogram
+            int(bin(int(k))[2:].rjust(self.num_wires, "0")[::-1], 2)
+            for k in self.histogram
         )
         idx = np.fromiter(basis_states, dtype=int)
 
@@ -425,16 +430,14 @@ class IonQDevice(QubitDevice):
 
         return prob_array
 
-    def estimate_probability(
-        self, wires=None, shot_range=None, bin_size=None
-    ):
+    def estimate_probability(self, wires=None, shot_range=None, bin_size=None):
         """Return the estimated probability of each computational basis state
         using the generated samples. Overwrites the method in QubitDevice class
-        to accomodate batch submission of circuits. When invoking this method after 
-        submitting circuits using any other method than QubitDevice.execute() 
-        method, current circuit index should be set via set_current_circuit_index() 
-        method to the circuit which is targeted out of one or potentially several 
-        circuits submitted in a batch. This is not very good design but the 
+        to accomodate batch submission of circuits. When invoking this method after
+        submitting circuits using any other method than QubitDevice.execute()
+        method, current circuit index should be set via set_current_circuit_index()
+        method to the circuit which is targeted out of one or potentially several
+        circuits submitted in a batch. This is not very good design but the
         alternative would be to create huge amounts of code duplication with respect
         to the Pennylane base code.
 
@@ -457,7 +460,10 @@ class IonQDevice(QubitDevice):
             return result
         except TypeError as e:
             self._samples = None
-            e.args = ("When invoking QubitDevice estimate_probability() method after submitting circuits using any other method than QubitDevice.execute() method, current circuit index should be set via set_current_circuit_index() method pointing to index of the circuit which is targeted out of one or potentially several circuits submitted in a batch.", *e.args)
+            e.args = (
+                "When invoking QubitDevice estimate_probability() method after submitting circuits using any other method than QubitDevice.execute() method, current circuit index should be set via set_current_circuit_index() method pointing to index of the circuit which is targeted out of one or potentially several circuits submitted in a batch.",
+                *e.args,
+            )
             raise
 
     def sample(
@@ -468,11 +474,11 @@ class IonQDevice(QubitDevice):
         counts=False,
     ):
         """Return samples of an observable. Overwrites the method in QubitDevice class
-        to accomodate batch submission of circuits. When invoking this method after submitting 
-        circuits using any other method than QubitDevice.execute() method, current circuit 
-        index should be set via set_current_circuit_index() method pointing to index of the 
+        to accomodate batch submission of circuits. When invoking this method after submitting
+        circuits using any other method than QubitDevice.execute() method, current circuit
+        index should be set via set_current_circuit_index() method pointing to index of the
         circuit which is targeted out of one or potentially several circuits submitted in a batch.
-        This is not very good design but the alternative would be to create huge amounts of 
+        This is not very good design but the alternative would be to create huge amounts of
         code duplication with respect to the Pennylane base code.
 
         Args:
@@ -501,7 +507,10 @@ class IonQDevice(QubitDevice):
             return result
         except TypeError as e:
             self._samples = None
-            e.args = ("When invoking QubitDevice sample() method after submitting circuits using any other method than QubitDevice.execute() method current circuit index should be set via set_current_circuit_index() method pointing to index of the circuit which is targeted out of one or potentially several circuits submitted in a batch.", *e.args)
+            e.args = (
+                "When invoking QubitDevice sample() method after submitting circuits using any other method than QubitDevice.execute() method current circuit index should be set via set_current_circuit_index() method pointing to index of the circuit which is targeted out of one or potentially several circuits submitted in a batch.",
+                *e.args,
+            )
             raise
 
     def _measure(
@@ -512,10 +521,10 @@ class IonQDevice(QubitDevice):
     ):
         """Compute the corresponding measurement process depending on ``shots`` and the measurement
         type. Overwrites the method in QubitDevice class to accomodate batch submission of circuits.
-        When invoking this method after submitting circuits using any other method than QubitDevice.execute() 
-        method, current circuit index should be set via set_current_circuit_index() method pointing to index 
-        of the circuit which is targeted out of one or potentially several circuits submitted in a batch. 
-        This is not very good design but the alternative would be to create huge amounts of code duplication 
+        When invoking this method after submitting circuits using any other method than QubitDevice.execute()
+        method, current circuit index should be set via set_current_circuit_index() method pointing to index
+        of the circuit which is targeted out of one or potentially several circuits submitted in a batch.
+        This is not very good design but the alternative would be to create huge amounts of code duplication
         with respect to the Pennylane base code.
 
         Args:
@@ -539,7 +548,10 @@ class IonQDevice(QubitDevice):
             return result
         except TypeError as e:
             self._samples = None
-            e.args = ("When invoking QubitDevice _measure() method after submitting circuits using any other method than QubitDevice.execute() method, current circuit index should be set via set_current_circuit_index() method pointing to index of the circuit which is targeted out of one or potentially several circuits submitted in a batch. ", *e.args)
+            e.args = (
+                "When invoking QubitDevice _measure() method after submitting circuits using any other method than QubitDevice.execute() method, current circuit index should be set via set_current_circuit_index() method pointing to index of the circuit which is targeted out of one or potentially several circuits submitted in a batch. ",
+                *e.args,
+            )
             raise
 
     def probability(self, wires=None, shot_range=None, bin_size=None):
@@ -548,7 +560,9 @@ class IonQDevice(QubitDevice):
         if shot_range is None and bin_size is None:
             return self.marginal_prob(self.prob, wires)
 
-        return self.estimate_probability(wires=wires, shot_range=shot_range, bin_size=bin_size)
+        return self.estimate_probability(
+            wires=wires, shot_range=shot_range, bin_size=bin_size
+        )
 
 
 class SimulatorDevice(IonQDevice):
