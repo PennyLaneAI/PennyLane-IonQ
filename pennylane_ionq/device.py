@@ -335,7 +335,7 @@ class QPUDevice(IonQDevice):
         *,
         gateset="qis",
         shots=1024,
-        backend=None,
+        backend="aria-1",
         error_mitigation=None,
         sharpen=None,
         api_key=None,
