@@ -19,7 +19,8 @@ from time import sleep
 
 import numpy as np
 
-from pennylane import QubitDevice, DeviceError
+from pennylane import DeviceError
+from pennylane.devices import QubitDevice
 
 from .api_client import Job, JobExecutionError
 from ._version import __version__
