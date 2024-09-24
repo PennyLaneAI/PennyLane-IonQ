@@ -145,16 +145,14 @@ class IonQDevice(QubitDevice):
         self.error_mitigation = error_mitigation
         self.sharpen = sharpen
         self._operation_map = _GATESET_OPS[gateset]
-        self.histogram = None
-        self.histograms = None
+        self.histograms = []
         self._samples = None
         self.reset()
 
     def reset(self, circuits_array_length=0):
         """Reset the device"""
         self._current_circuit_index = None
-        self.histogram = None
-        self.histograms = None
+        self.histograms = []
         if circuits_array_length == 0:
             self.input = {
                 "format": "ionq.circuit.v0",
@@ -391,7 +389,6 @@ class IonQDevice(QubitDevice):
         else:
             self.histograms = []
             self.histograms.append(job.data.value)
-            self.histogram = job.data.value
 
     @property
     def prob(self):
@@ -399,17 +396,19 @@ class IonQDevice(QubitDevice):
         no job has been submitted, returns ``None``.
         """
         if self._current_circuit_index is not None:
-            self.histogram = self.histograms[self._current_circuit_index]
-
-        if self.histogram is None:
-            return None
+            histogram = self.histograms[self._current_circuit_index]
+        else:
+            try:
+                histogram = self.histograms[0]
+            except IndexError:
+                return None            
 
         # The IonQ API returns basis states using little-endian ordering.
         # Here, we rearrange the states to match the big-endian ordering
         # expected by PennyLane.
         basis_states = (
             int(bin(int(k))[2:].rjust(self.num_wires, "0")[::-1], 2)
-            for k in self.histogram
+            for k in histogram
         )
         idx = np.fromiter(basis_states, dtype=int)
 
@@ -417,12 +416,9 @@ class IonQDevice(QubitDevice):
         prob_array = np.zeros([2**self.num_wires])
 
         # histogram values don't always perfectly sum to exactly one
-        histogram_values = self.histogram.values()
+        histogram_values = histogram.values()
         norm = sum(histogram_values)
         prob_array[idx] = np.fromiter(histogram_values, float) / norm
-
-        if self._current_circuit_index is not None:
-            self.histogram = None
 
         return prob_array
 

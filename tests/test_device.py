@@ -43,10 +43,10 @@ class TestDevice:
         """Test that the generate_samples method for QPUDevices shuffles the samples between calls."""
 
         dev = QPUDevice(wires, shots=1024, api_key=FAKE_API_KEY)
-        dev.histogram = histogram
+        dev.histograms = [histogram]
 
         sample1 = dev.generate_samples()
-        assert dev.histogram == histogram  # make sure histogram is still the same
+        assert dev.histograms[0] == histogram  # make sure histogram is still the same
         sample2 = dev.generate_samples()
         assert not np.all(sample1 == sample2)  # some rows are different
 
