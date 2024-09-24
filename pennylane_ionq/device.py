@@ -149,24 +149,16 @@ class IonQDevice(QubitDevice):
         self._samples = None
         self.reset()
 
-    def reset(self, circuits_array_length=0):
+    def reset(self, circuits_array_length=1):
         """Reset the device"""
         self._current_circuit_index = None
         self.histograms = []
-        if circuits_array_length == 0:
-            self.input = {
-                "format": "ionq.circuit.v0",
-                "qubits": self.num_wires,
-                "circuit": [],
-                "gateset": self.gateset,
-            }
-        else:
-            self.input = {
-                "format": "ionq.circuit.v0",
-                "qubits": self.num_wires,
-                "circuits": [{"circuit": []} for _ in range(circuits_array_length)],
-                "gateset": self.gateset,
-            }
+        self.input = {
+            "format": "ionq.circuit.v0",
+            "qubits": self.num_wires,
+            "circuits": [{"circuit": []} for _ in range(circuits_array_length)],
+            "gateset": self.gateset,
+        }
         self.job = {
             "input": self.input,
             "target": self.target,
@@ -328,7 +320,7 @@ class IonQDevice(QubitDevice):
 
         self._submit_job()
 
-    def _apply_operation(self, operation, circuit_index=None):
+    def _apply_operation(self, operation, circuit_index=0):
         name = operation.name
         wires = self.map_wires(operation.wires).tolist()
         gate = {"gate": self._operation_map[name]}
@@ -354,10 +346,7 @@ class IonQDevice(QubitDevice):
         elif par:
             gate["rotation"] = float(par[0])
 
-        if "circuit" in self.input:
-            self.input["circuit"].append(gate)
-        else:
-            self.input["circuits"][circuit_index]["circuit"].append(gate)
+        self.input["circuits"][circuit_index]["circuit"].append(gate)
 
     def _submit_job(self):
         job = Job(api_key=self.api_key)

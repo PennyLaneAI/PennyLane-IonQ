@@ -366,8 +366,8 @@ class TestJobAttribute:
         assert dev.job["target"] == "foo"
         assert dev.job["input"]["qubits"] == 1
 
-        assert len(dev.job["input"]["circuit"]) == 1
-        assert dev.job["input"]["circuit"][0] == {"gate": "x", "target": 0}
+        assert len(dev.job["input"]["circuits"][0]) == 1
+        assert dev.job["input"]["circuits"][0]["circuit"][0] == {"gate": "x", "target": 0}
 
     def test_nonparametrized_tape_batch_submit(self, mocker):
         """Tests job attribute after single paulix tape, on batch submit."""
@@ -414,13 +414,13 @@ class TestJobAttribute:
         assert dev.job["input"]["gateset"] == "qis"
         assert dev.job["input"]["qubits"] == 1
 
-        assert len(dev.job["input"]["circuit"]) == 2
-        assert dev.job["input"]["circuit"][0] == {
+        assert len(dev.job["input"]["circuits"][0]["circuit"]) == 2
+        assert dev.job["input"]["circuits"][0]["circuit"][0] == {
             "gate": "rx",
             "target": 0,
             "rotation": 1.2345,
         }
-        assert dev.job["input"]["circuit"][1] == {
+        assert dev.job["input"]["circuits"][0]["circuit"][1] == {
             "gate": "ry",
             "target": 0,
             "rotation": 2.3456,
@@ -479,24 +479,24 @@ class TestJobAttribute:
         assert dev.job["input"]["gateset"] == "native"
         assert dev.job["input"]["qubits"] == 3
 
-        assert len(dev.job["input"]["circuit"]) == 4
-        assert dev.job["input"]["circuit"][0] == {
+        assert len(dev.job["input"]["circuits"][0]["circuit"]) == 4
+        assert dev.job["input"]["circuits"][0]["circuit"][0] == {
             "gate": "gpi",
             "target": 0,
             "phase": 0.1,
         }
-        assert dev.job["input"]["circuit"][1] == {
+        assert dev.job["input"]["circuits"][0]["circuit"][1] == {
             "gate": "gpi2",
             "target": 1,
             "phase": 0.2,
         }
-        assert dev.job["input"]["circuit"][2] == {
+        assert dev.job["input"]["circuits"][0]["circuit"][2] == {
             "gate": "ms",
             "targets": [1, 2],
             "phases": [0.2, 0.3],
             "angle": 0.25,
         }
-        assert dev.job["input"]["circuit"][3] == {
+        assert dev.job["input"]["circuits"][0]["circuit"][3] == {
             "gate": "ms",
             "targets": [1, 2],
             "phases": [0.4, 0.5],
