@@ -449,18 +449,10 @@ class IonQDevice(QubitDevice):
         Returns:
             array[float]: list of the probabilities
         """
-        try:
-            self._samples = self.generate_samples()
-            result = super().estimate_probability(wires, shot_range, bin_size)
-            self._samples = None
-            return result
-        except TypeError as e:
-            self._samples = None
-            e.args = (
-                "When invoking QubitDevice estimate_probability() method after submitting circuits using any other method than QubitDevice.execute() method, current circuit index should be set via set_current_circuit_index() method pointing to index of the circuit which is targeted out of one or potentially several circuits submitted in a batch.",
-                *e.args,
-            )
-            raise
+        self._samples = self.generate_samples()
+        result = super().estimate_probability(wires, shot_range, bin_size)
+        self._samples = None
+        return result
 
     def sample(
         self,
@@ -495,18 +487,11 @@ class IonQDevice(QubitDevice):
             Union[array[float], dict, list[dict]]: samples in an array of
             dimension ``(shots,)`` or counts
         """
-        try:
-            self._samples = self.generate_samples()
-            result = super().sample(observable, shot_range, bin_size, counts)
-            self._samples = None
-            return result
-        except TypeError as e:
-            self._samples = None
-            e.args = (
-                "When invoking QubitDevice sample() method after submitting circuits using any other method than QubitDevice.execute() method current circuit index should be set via set_current_circuit_index() method pointing to index of the circuit which is targeted out of one or potentially several circuits submitted in a batch.",
-                *e.args,
-            )
-            raise
+        self._samples = self.generate_samples()
+        result = super().sample(observable, shot_range, bin_size, counts)
+        self._samples = None
+        return result
+
 
     def _measure(
         self,
@@ -536,18 +521,11 @@ class IonQDevice(QubitDevice):
         Returns:
             Union[float, dict, list[float]]: result of the measurement
         """
-        try:
-            self._samples = self.generate_samples()
-            result = super()._measure(measurement, shot_range, bin_size)
-            self._samples = None
-            return result
-        except TypeError as e:
-            self._samples = None
-            e.args = (
-                "When invoking QubitDevice _measure() method after submitting circuits using any other method than QubitDevice.execute() method, current circuit index should be set via set_current_circuit_index() method pointing to index of the circuit which is targeted out of one or potentially several circuits submitted in a batch. ",
-                *e.args,
-            )
-            raise
+        self._samples = self.generate_samples()
+        result = super()._measure(measurement, shot_range, bin_size)
+        self._samples = None
+        return result
+
 
     def probability(self, wires=None, shot_range=None, bin_size=None):
         wires = wires or self.wires
