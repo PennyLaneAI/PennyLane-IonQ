@@ -20,7 +20,7 @@ import requests
 
 from conftest import shortnames
 from pennylane_ionq.api_client import JobExecutionError, ResourceManager, Job
-from pennylane_ionq.device import QPUDevice, IonQDevice, SimulatorDevice
+from pennylane_ionq.device import QPUDevice, IonQDevice, SimulatorDevice, CircuitIndexNotSetException
 from pennylane_ionq.ops import GPI, GPI2, MS
 from pennylane.measurements import SampleMeasurement
 
@@ -222,6 +222,22 @@ class TestDeviceIntegration:
         )
         assert dev.backend == backend
 
+    def test_batch_execute_probabilities_raises (self, requires_api):
+        """Test invoking probability() method raises exception if circuit index not
+            previously set when multiple circuits are submitted in one job.
+        """
+        dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
+        with qml.tape.QuantumTape() as tape1:
+            GPI(0.5, wires=[0])
+            qml.probs(wires=[0])
+        dev.batch_execute([tape1, tape1])
+        with pytest.raises(
+            CircuitIndexNotSetException,
+            match="Because multiple circuits have been submitted in this job, the index of the circuit \
+you want to acces must be first set via the set_current_circuit_index device method."
+            ):
+            dev.probability() 
+
     def test_batch_execute_probabilities(self, requires_api):
         """Test batch_execute method when computing circuit probabilities."""
         dev = SimulatorDevice(wires=(0, 1, 2), gateset="native", shots=1024)
@@ -275,6 +291,22 @@ class TestDeviceIntegration:
         assert results[0] == pytest.approx(-1, abs=0.1)
         assert results[1] == pytest.approx(0, abs=0.1)
 
+    def test_batch_execute_sample_raises (self, requires_api):
+        """Test invoking sample() method raises exception if circuit index not
+            previously set when multiple circuits are submitted in one job.
+        """
+        dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
+        with qml.tape.QuantumTape() as tape1:
+            GPI(0.5, wires=[0])
+            qml.probs(wires=[0])
+        dev.batch_execute([tape1, tape1])
+        with pytest.raises(
+            CircuitIndexNotSetException,
+            match="Because multiple circuits have been submitted in this job, the index of the circuit \
+you want to acces must be first set via the set_current_circuit_index device method."
+            ):
+            dev.sample(qml.PauliZ(0))
+
     def test_batch_execute_sample(self, requires_api):
         """Test batch_execute method when sampling."""
         dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
@@ -291,6 +323,79 @@ class TestDeviceIntegration:
         results1 = dev.sample(qml.PauliZ(0))
         assert set(results[0]) == set(results0) == {-1}
         assert set(results[1]) == set(results1) == {-1, 1}
+
+    def test_batch_execute_estimate_probability_raises (self, requires_api):
+        """Test invoking estimate_probability() method raises exception if circuit index not
+            previously set when multiple circuits are submitted in one job.
+        """
+        dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
+        with qml.tape.QuantumTape() as tape1:
+            GPI(0, wires=[0])
+            qml.probs(wires=[0])
+        with qml.tape.QuantumTape() as tape2:
+            GPI2(0, wires=[0])
+            qml.probs(wires=[0])
+        dev.batch_execute([tape1, tape2])
+        with pytest.raises(
+            CircuitIndexNotSetException,
+            match="Because multiple circuits have been submitted in this job, the index of the circuit \
+you want to acces must be first set via the set_current_circuit_index device method."
+            ):
+            dev.estimate_probability()
+
+    def test_batch_execute_estimate_probability(self, requires_api):
+        """Test batch_execute method with invoking estimate_probability method."""
+        dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
+        with qml.tape.QuantumTape() as tape1:
+            GPI(0, wires=[0])
+            qml.sample(qml.PauliZ(0))
+        with qml.tape.QuantumTape() as tape2:
+            GPI2(0, wires=[0])
+            qml.sample(qml.PauliZ(0))
+        dev.batch_execute([tape1, tape2])
+        dev.set_current_circuit_index(0)
+        prob0 = dev.estimate_probability()
+        dev.set_current_circuit_index(1)
+        prob1 = dev.estimate_probability()
+        np.testing.assert_array_almost_equal(prob0, [0., 1.], decimal = 1)
+        np.testing.assert_array_almost_equal(prob1, [0.5, 0.5], decimal = 1)
+
+
+    def test_batch_execute_invoking_prob_property_raises (self, requires_api):
+        """Test invoking prob device property raises exception if circuit index not
+            previously set when multiple circuits are submitted in one job.
+        """
+        dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
+        with qml.tape.QuantumTape() as tape1:
+            GPI(0, wires=[0])
+            qml.probs(wires=[0])
+        with qml.tape.QuantumTape() as tape2:
+            GPI2(0, wires=[0])
+            qml.probs(wires=[0])
+        dev.batch_execute([tape1, tape2])
+        with pytest.raises(
+            CircuitIndexNotSetException,
+            match="Because multiple circuits have been submitted in this job, the index of the circuit \
+you want to acces must be first set via the set_current_circuit_index device method."
+            ):
+            dev.prob
+
+    def test_batch_execute_prob_property(self, requires_api):
+        """Test batch_execute method with invoking invoking prob device property."""
+        dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
+        with qml.tape.QuantumTape() as tape1:
+            GPI(0, wires=[0])
+            qml.sample(qml.PauliZ(0))
+        with qml.tape.QuantumTape() as tape2:
+            GPI2(0, wires=[0])
+            qml.sample(qml.PauliZ(0))
+        dev.batch_execute([tape1, tape2])
+        dev.set_current_circuit_index(0)
+        prob0 = dev.prob
+        dev.set_current_circuit_index(1)
+        prob1 = dev.prob
+        np.testing.assert_array_almost_equal(prob0, [0., 1.], decimal = 1)
+        np.testing.assert_array_almost_equal(prob1, [0.5, 0.5], decimal = 1)
 
     def test_batch_execute_counts(self, requires_api):
         """Test batch_execute method when computing counts."""

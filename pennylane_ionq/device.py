@@ -76,6 +76,16 @@ _GATESET_OPS = {
     "qis": _qis_operation_map,
 }
 
+class CircuitIndexNotSetException(Exception):
+    """Raised when after submitting multiple circuits circuit index is not set
+       before the user want to access implementation methods of IonQDevice
+       like probability(), estimate_probability(), sample() or the prob property.
+    """
+    
+    def __init__(self):
+        self.message = "Because multiple circuits have been submitted in this job, the index of the circuit \
+you want to acces must be first set via the set_current_circuit_index device method."
+        super().__init__(self.message)
 
 class IonQDevice(QubitDevice):
     r"""IonQ device for PennyLane.
@@ -384,6 +394,9 @@ class IonQDevice(QubitDevice):
         """None or array[float]: Array of computational basis state probabilities. If
         no job has been submitted, returns ``None``.
         """
+        if self._current_circuit_index is None and len(self.histograms) > 1:
+            raise CircuitIndexNotSetException()
+
         if self._current_circuit_index is not None:
             histogram = self.histograms[self._current_circuit_index]
         else:
