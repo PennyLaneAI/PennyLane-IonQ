@@ -162,6 +162,7 @@ class IonQDevice(QubitDevice):
     def reset(self, circuits_array_length=1):
         """Reset the device"""
         self._current_circuit_index = None
+        self._samples = None
         self.histograms = []
         self.input = {
             "format": "ionq.circuit.v0",
