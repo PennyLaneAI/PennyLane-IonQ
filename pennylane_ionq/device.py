@@ -308,6 +308,9 @@ class IonQDevice(QubitDevice):
         return set(self._operation_map.keys())
 
     def apply(self, operations, **kwargs):
+        
+        "Implementation of abstract method apply method."
+
         self.reset()
         rotations = kwargs.pop("rotations", [])
 
