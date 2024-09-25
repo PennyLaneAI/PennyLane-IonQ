@@ -309,7 +309,7 @@ class IonQDevice(QubitDevice):
 
     def apply(self, operations, **kwargs):
         
-        "Implementation of abstract method apply method."
+        "Implementation of QubitDevice abstract method apply."
 
         self.reset()
         rotations = kwargs.pop("rotations", [])
@@ -371,6 +371,7 @@ class IonQDevice(QubitDevice):
         self.input["circuits"][circuit_index]["circuit"].append(gate)
 
     def _submit_job(self):
+
         job = Job(api_key=self.api_key)
 
         # send job for exection
