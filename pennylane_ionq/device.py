@@ -26,11 +26,7 @@ from pennylane import DeviceError
 from pennylane.devices import QubitDevice
 
 from pennylane.measurements import (
-    ClassicalShadowMP,
-    CountsMP,
     SampleMeasurement,
-    SampleMP,
-    ShadowExpvalMP,
     Shots,
     StateMeasurement,
 )
