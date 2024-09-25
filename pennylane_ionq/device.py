@@ -184,6 +184,10 @@ class IonQDevice(QubitDevice):
             )
 
     def set_current_circuit_index(self, circuit_index):
+        """Sets the index of the current circuit for which operations are applied upon.
+        In case of multiple circuits being submitted via batch_execute method
+        self._current_circuit_index tracks the index of the current circuit.
+        """
         self._current_circuit_index = circuit_index
 
     def batch_execute(self, circuits):
@@ -330,6 +334,12 @@ class IonQDevice(QubitDevice):
         self._submit_job()
 
     def _apply_operation(self, operation, circuit_index=0):
+        """Applies operations to the internal device state.
+
+        Args:
+            operation (.Operation): operation to apply on the device
+            circuit_index: index of the circuit to apply operation to
+        """
         name = operation.name
         wires = self.map_wires(operation.wires).tolist()
         gate = {"gate": self._operation_map[name]}
