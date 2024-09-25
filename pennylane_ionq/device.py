@@ -76,16 +76,18 @@ _GATESET_OPS = {
     "qis": _qis_operation_map,
 }
 
+
 class CircuitIndexNotSetException(Exception):
     """Raised when after submitting multiple circuits circuit index is not set
-       before the user want to access implementation methods of IonQDevice
-       like probability(), estimate_probability(), sample() or the prob property.
+    before the user want to access implementation methods of IonQDevice
+    like probability(), estimate_probability(), sample() or the prob property.
     """
-    
+
     def __init__(self):
         self.message = "Because multiple circuits have been submitted in this job, the index of the circuit \
 you want to acces must be first set via the set_current_circuit_index device method."
         super().__init__(self.message)
+
 
 class IonQDevice(QubitDevice):
     r"""IonQ device for PennyLane.
@@ -404,14 +406,13 @@ class IonQDevice(QubitDevice):
             try:
                 histogram = self.histograms[0]
             except IndexError:
-                return None            
+                return None
 
         # The IonQ API returns basis states using little-endian ordering.
         # Here, we rearrange the states to match the big-endian ordering
         # expected by PennyLane.
         basis_states = (
-            int(bin(int(k))[2:].rjust(self.num_wires, "0")[::-1], 2)
-            for k in histogram
+            int(bin(int(k))[2:].rjust(self.num_wires, "0")[::-1], 2) for k in histogram
         )
         idx = np.fromiter(basis_states, dtype=int)
 
@@ -491,7 +492,6 @@ class IonQDevice(QubitDevice):
         self._samples = None
         return result
 
-
     def _measure(
         self,
         measurement: Union[SampleMeasurement, StateMeasurement],
@@ -524,7 +524,6 @@ class IonQDevice(QubitDevice):
         result = super()._measure(measurement, shot_range, bin_size)
         self._samples = None
         return result
-
 
     def probability(self, wires=None, shot_range=None, bin_size=None):
         wires = wires or self.wires
