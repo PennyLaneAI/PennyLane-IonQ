@@ -27,7 +27,7 @@ from pennylane_ionq.device import (
     CircuitIndexNotSetException,
 )
 from pennylane_ionq.ops import GPI, GPI2, MS
-from pennylane.measurements import SampleMeasurement
+from pennylane.measurements import SampleMeasurement, ShotCopies
 
 FAKE_API_KEY = "ABC123"
 
@@ -290,6 +290,16 @@ you want to acces must be first set via the set_current_circuit_index device met
             dev.probability(),
             [0.0, 0.25, 0.25, 0.0, 0.0, 0.25, 0.25, 0.0],
         )
+
+    def test_batch_execute_probabilities_with_shot_vector(self, requires_api):
+        """Test batch_execute method with shot vector."""
+        dev = SimulatorDevice(wires=(0, 1, 2), gateset="native", shots=1024)
+        dev._shot_vector = (ShotCopies(1, 3),)
+        with qml.tape.QuantumTape() as tape1:
+            GPI(0, wires=[0])
+            qml.probs(wires=[0])
+        results = dev.batch_execute([tape1])
+        assert(len(results[0]) == 3)
 
     def test_batch_execute_variance(self, requires_api):
         """Test batch_execute method when computing variance of an observable."""
