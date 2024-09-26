@@ -299,7 +299,7 @@ you want to acces must be first set via the set_current_circuit_index device met
             GPI(0, wires=[0])
             qml.probs(wires=[0])
         results = dev.batch_execute([tape1])
-        assert(len(results[0]) == 3)
+        assert len(results[0]) == 3
 
     def test_batch_execute_variance(self, requires_api):
         """Test batch_execute method when computing variance of an observable."""
@@ -325,6 +325,21 @@ you want to acces must be first set via the set_current_circuit_index device met
             qml.expval(qml.PauliZ(0))
         results = dev.batch_execute([tape1, tape2])
         assert results[0] == pytest.approx(-1, abs=0.1)
+        assert results[1] == pytest.approx(0, abs=0.1)
+
+    def test_batch_execute_expectation_value_with_diagonalization_rotations(
+        self, requires_api
+    ):
+        """Test batch_execute method when computing expectation value of an
+        observable that requires rotations for diagonalization."""
+        dev = SimulatorDevice(wires=(0,), gateset="qis", shots=1024)
+        with qml.tape.QuantumTape() as tape1:
+            qml.Hadamard(0)
+            qml.expval(qml.PauliX(0))
+        with qml.tape.QuantumTape() as tape2:
+            qml.expval(qml.PauliX(0))
+        results = dev.batch_execute([tape1, tape2])
+        assert results[0] == pytest.approx(1, abs=0.1)
         assert results[1] == pytest.approx(0, abs=0.1)
 
     def test_batch_execute_sample_raises(self, requires_api):
