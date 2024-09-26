@@ -13,6 +13,7 @@
 # limitations under the License.
 """Tests that plugin devices are accessible and integrate with PennyLane"""
 import json
+import logging
 import numpy as np
 import pennylane as qml
 import pytest
@@ -28,6 +29,7 @@ from pennylane_ionq.device import (
 )
 from pennylane_ionq.ops import GPI, GPI2, MS
 from pennylane.measurements import SampleMeasurement, ShotCopies
+from unittest import mock
 
 FAKE_API_KEY = "ABC123"
 
@@ -293,6 +295,23 @@ class TestDeviceIntegration:
             match="Circuit is empty. Empty circuits return failures. Submitting anyway.",
         ):
             dev.batch_execute([tape1])
+
+    @mock.patch("logging.Logger.isEnabledFor", return_value=True)
+    @mock.patch("logging.Logger.debug")
+    def test_batch_execute_logging_when_enabled(
+        self,
+        mock_logging_debug_method,
+        mock_logging_is_enabled_for_method,
+    ):
+        """Test logging invoked in batch_execute method."""
+        dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
+        with qml.tape.QuantumTape() as tape1:
+            GPI(0, wires=[0])
+            qml.probs(wires=[0])
+        dev.batch_execute([tape1])
+        assert mock_logging_is_enabled_for_method.called
+        assert mock_logging_is_enabled_for_method.call_args[0][0] == logging.DEBUG
+        mock_logging_debug_method.assert_called()
 
     def test_batch_execute_probabilities_raises(self, requires_api):
         """Test invoking probability() method raises exception if circuit index not
