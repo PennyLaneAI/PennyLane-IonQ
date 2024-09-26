@@ -248,6 +248,52 @@ class TestDeviceIntegration:
         )
         assert dev.backend == backend
 
+    def test_recording_when_pennylane_tracker_active(self):
+        """Test recording device execution history via pennnylane tracker class."""
+        dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
+        dev.tracker = qml.Tracker()
+        dev.tracker.active = True
+        dev.tracker.reset()
+        with qml.tape.QuantumTape() as tape1:
+            GPI(0, wires=[0])
+            qml.probs(wires=[0])
+        dev.batch_execute([tape1, tape1])
+        assert dev.tracker.history["executions"] == [1, 1]
+        assert dev.tracker.history["shots"] == [1024, 1024]
+        assert dev.tracker.history["batches"] == [1]
+        assert dev.tracker.history["batch_len"] == [2]
+        assert len(dev.tracker.history["resources"]) == 2
+        assert dev.tracker.history["resources"][0].num_wires == 1
+        assert dev.tracker.history["resources"][0].num_gates == 1
+        assert dev.tracker.history["resources"][0].depth == 1
+        assert dev.tracker.history["resources"][0].gate_types == {"GPI": 1}
+        assert dev.tracker.history["resources"][0].gate_sizes == {1: 1}
+        assert dev.tracker.history["resources"][0].shots.total_shots == 1024
+        assert len(dev.tracker.history["results"]) == 2
+
+    def test_not_recording_when_pennylane_tracker_not_active(self):
+        """Test recording device not executed when tracker is inactive."""
+        dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
+        dev.tracker = qml.Tracker()
+        dev.tracker.active = False
+        dev.tracker.reset()
+        with qml.tape.QuantumTape() as tape1:
+            GPI(0, wires=[0])
+            qml.probs(wires=[0])
+        dev.batch_execute([tape1])
+        assert dev.tracker.history == {}
+
+    def test_warning_on_empty_circuit(self):
+        """Test warning are shown when circuit is empty."""
+        dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
+        with qml.tape.QuantumTape() as tape1:
+            qml.probs(wires=[0])
+        with pytest.warns(
+            UserWarning,
+            match="Circuit is empty. Empty circuits return failures. Submitting anyway.",
+        ):
+            dev.batch_execute([tape1])
+
     def test_batch_execute_probabilities_raises(self, requires_api):
         """Test invoking probability() method raises exception if circuit index not
         previously set when multiple circuits are submitted in one job.
