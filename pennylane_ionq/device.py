@@ -502,39 +502,6 @@ class IonQDevice(QubitDevice):
         self._samples = None
         return result
 
-    def _measure(
-        self,
-        measurement: Union[SampleMeasurement, StateMeasurement],
-        shot_range=None,
-        bin_size=None,
-    ):
-        """Compute the corresponding measurement process depending on ``shots`` and the measurement
-        type. Overwrites the method in QubitDevice class to accomodate batch submission of circuits.
-        When invoking this method after submitting circuits using any other method than QubitDevice.execute()
-        method, current circuit index should be set via set_current_circuit_index() method pointing to index
-        of the circuit which is targeted out of one or potentially several circuits submitted in a batch.
-        This is not very good design but the alternative would be to create huge amounts of code duplication
-        with respect to the Pennylane base code.
-
-        Args:
-            measurement (Union[SampleMeasurement, StateMeasurement]): measurement process
-            shot_range (tuple[int]): 2-tuple of integers specifying the range of samples
-                to use. If not specified, all samples are used.
-            bin_size (int): Divides the shot range into bins of size ``bin_size``, and
-                returns the measurement statistic separately over each bin. If not
-                provided, the entire shot range is treated as a single bin.
-
-        Raises:
-            ValueError: if the measurement cannot be computed
-
-        Returns:
-            Union[float, dict, list[float]]: result of the measurement
-        """
-        self._samples = self.generate_samples()
-        result = super()._measure(measurement, shot_range, bin_size)
-        self._samples = None
-        return result
-
     def probability(self, wires=None, shot_range=None, bin_size=None):
         wires = wires or self.wires
 
