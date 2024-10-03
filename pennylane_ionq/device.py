@@ -16,7 +16,6 @@ This module contains the device class for constructing IonQ devices for PennyLan
 """
 import inspect
 import logging
-from typing import Union
 import warnings
 from time import sleep
 
