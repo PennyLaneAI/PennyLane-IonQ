@@ -59,15 +59,11 @@ class TestDevice:
 
         unique_outcomes1 = np.unique(sample1, axis=0)
         unique_outcomes2 = np.unique(sample2, axis=0)
-        assert np.all(
-            unique_outcomes1 == unique_outcomes2
-        )  # possible outcomes are the same
+        assert np.all(unique_outcomes1 == unique_outcomes2)  # possible outcomes are the same
 
         sorted_outcomes1 = np.sort(sample1, axis=0)
         sorted_outcomes2 = np.sort(sample2, axis=0)
-        assert np.all(
-            sorted_outcomes1 == sorted_outcomes2
-        )  # set of outcomes is the same
+        assert np.all(sorted_outcomes1 == sorted_outcomes2)  # set of outcomes is the same
 
 
 class TestDeviceIntegration:
@@ -107,9 +103,7 @@ class TestDeviceIntegration:
         monkeypatch.setattr(
             requests, "post", lambda url, timeout, data, headers: (url, data, headers)
         )
-        monkeypatch.setattr(
-            ResourceManager, "handle_response", lambda self, response: None
-        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", False)
         monkeypatch.setattr(Job, "is_failed", True)
 
@@ -124,17 +118,13 @@ class TestDeviceIntegration:
         monkeypatch.setattr(
             requests, "post", lambda url, timeout, data, headers: (url, data, headers)
         )
-        monkeypatch.setattr(
-            ResourceManager, "handle_response", lambda self, response: None
-        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
         def fake_response(self, resource_id=None, params=None):
             """Return fake response data"""
             fake_json = {"0": 1}
-            setattr(
-                self.resource, "data", type("data", tuple(), {"value": fake_json})()
-            )
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
@@ -150,26 +140,20 @@ class TestDeviceIntegration:
         circuit()
         assert json.loads(spy.call_args[1]["data"])["shots"] == shots
 
-    @pytest.mark.parametrize(
-        "error_mitigation", [None, {"debias": True}, {"debias": False}]
-    )
+    @pytest.mark.parametrize("error_mitigation", [None, {"debias": True}, {"debias": False}])
     def test_error_mitigation(self, error_mitigation, monkeypatch, mocker):
         """Test that shots are correctly specified when submitting a job to the API."""
 
         monkeypatch.setattr(
             requests, "post", lambda url, timeout, data, headers: (url, data, headers)
         )
-        monkeypatch.setattr(
-            ResourceManager, "handle_response", lambda self, response: None
-        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
         def fake_response(self, resource_id=None, params=None):
             """Return fake response data"""
             fake_json = {"0": 1}
-            setattr(
-                self.resource, "data", type("data", tuple(), {"value": fake_json})()
-            )
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
@@ -190,10 +174,7 @@ class TestDeviceIntegration:
         spy = mocker.spy(requests, "post")
         circuit()
         if error_mitigation is not None:
-            assert (
-                json.loads(spy.call_args[1]["data"])["error_mitigation"]
-                == error_mitigation
-            )
+            assert json.loads(spy.call_args[1]["data"])["error_mitigation"] == error_mitigation
         else:
             with pytest.raises(KeyError, match="error_mitigation"):
                 json.loads(spy.call_args[1]["data"])["error_mitigation"]
@@ -237,9 +218,7 @@ class TestDeviceIntegration:
         dev = qml.device(d, wires=1, shots=1)
         assert dev.prob is None
 
-    @pytest.mark.parametrize(
-        "backend", ["harmony", "aria-1", "aria-2", "forte-1", None]
-    )
+    @pytest.mark.parametrize("backend", ["harmony", "aria-1", "aria-2", "forte-1", None])
     def test_backend_initialization(self, backend):
         """Test that the device initializes with the correct backend."""
         dev = qml.device(
@@ -250,7 +229,7 @@ class TestDeviceIntegration:
         )
         assert dev.backend == backend
 
-    def test_recording_when_pennylane_tracker_active(self):
+    def test_recording_when_pennylane_tracker_active(self, requires_api):
         """Test recording device execution history via pennnylane tracker class."""
         dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
         dev.tracker = qml.Tracker()
@@ -273,7 +252,7 @@ class TestDeviceIntegration:
         assert dev.tracker.history["resources"][0].shots.total_shots == 1024
         assert len(dev.tracker.history["results"]) == 2
 
-    def test_not_recording_when_pennylane_tracker_not_active(self):
+    def test_not_recording_when_pennylane_tracker_not_active(self, requires_api):
         """Test recording device not executed when tracker is inactive."""
         dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
         dev.tracker = qml.Tracker()
@@ -285,7 +264,7 @@ class TestDeviceIntegration:
         dev.batch_execute([tape1])
         assert dev.tracker.history == {}
 
-    def test_warning_on_empty_circuit(self):
+    def test_warning_on_empty_circuit(self, requires_api):
         """Test warning are shown when circuit is empty."""
         dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
         with qml.tape.QuantumTape() as tape1:
@@ -299,9 +278,7 @@ class TestDeviceIntegration:
     @mock.patch("logging.Logger.isEnabledFor", return_value=True)
     @mock.patch("logging.Logger.debug")
     def test_batch_execute_logging_when_enabled(
-        self,
-        mock_logging_debug_method,
-        mock_logging_is_enabled_for_method,
+        self, mock_logging_debug_method, mock_logging_is_enabled_for_method, requires_api
     ):
         """Test logging invoked in batch_execute method."""
         dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
@@ -392,9 +369,7 @@ you want to acces must be first set via the set_current_circuit_index device met
         assert results[0] == pytest.approx(-1, abs=0.1)
         assert results[1] == pytest.approx(0, abs=0.1)
 
-    def test_batch_execute_expectation_value_with_diagonalization_rotations(
-        self, requires_api
-    ):
+    def test_batch_execute_expectation_value_with_diagonalization_rotations(self, requires_api):
         """Test batch_execute method when computing expectation value of an
         observable that requires rotations for diagonalization."""
         dev = SimulatorDevice(wires=(0,), gateset="qis", shots=1024)
@@ -534,13 +509,9 @@ you want to acces must be first set via the set_current_circuit_index device met
                 wires = list(range(len(state)))
                 super().__init__(wires=wires)
 
-            def process_samples(
-                self, samples, wire_order, shot_range=None, bin_size=None
-            ):
+            def process_samples(self, samples, wire_order, shot_range=None, bin_size=None):
                 counts_mp = qml.counts(wires=self._wires)
-                counts = counts_mp.process_samples(
-                    samples, wire_order, shot_range, bin_size
-                )
+                counts = counts_mp.process_samples(samples, wire_order, shot_range, bin_size)
                 return float(counts.get(self.state, 0))
 
             def process_counts(self, counts, wire_order):
@@ -735,9 +706,7 @@ class TestJobAttribute:
         def mock_submit_job(*args):
             raise StopExecute()
 
-        mocker.patch(
-            "pennylane_ionq.device.SimulatorDevice._submit_job", mock_submit_job
-        )
+        mocker.patch("pennylane_ionq.device.SimulatorDevice._submit_job", mock_submit_job)
         dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
 
         with qml.tape.QuantumTape() as tape1:

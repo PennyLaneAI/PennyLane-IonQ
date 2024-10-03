@@ -80,8 +80,10 @@ class CircuitIndexNotSetException(Exception):
     """
 
     def __init__(self):
-        self.message = "Because multiple circuits have been submitted in this job, the index of the circuit \
-you want to acces must be first set via the set_current_circuit_index device method."
+        self.message = (
+            "Because multiple circuits have been submitted in this job, the index of the circuit "
+            "you want to access must be first set via the set_current_circuit_index device method."
+        )
         super().__init__(self.message)
 
 
@@ -141,9 +143,7 @@ class IonQDevice(QubitDevice):
         sharpen=False,
     ):
         if shots is None:
-            raise ValueError(
-                "The ionq device does not support analytic expectation values."
-            )
+            raise ValueError("The ionq device does not support analytic expectation values.")
 
         super().__init__(wires=wires, shots=shots)
         self._current_circuit_index = None
@@ -207,8 +207,7 @@ class IonQDevice(QubitDevice):
                 """Entry with args=(circuits=%s) called by=%s""",
                 circuits,
                 "::L".join(
-                    str(i)
-                    for i in inspect.getouterframes(inspect.currentframe(), 2)[1][1:3]
+                    str(i) for i in inspect.getouterframes(inspect.currentframe(), 2)[1][1:3]
                 ),
             )
 
@@ -247,9 +246,7 @@ class IonQDevice(QubitDevice):
 
         if self.tracker.active:
             for circuit in circuits:
-                shots_from_dev = (
-                    self._shots if not self.shot_vector else self._raw_shot_sequence
-                )
+                shots_from_dev = self._shots if not self.shot_vector else self._raw_shot_sequence
                 tape_resources = circuit.specs["resources"]
 
                 resources = Resources(  # temporary until shots get updated on tape !
@@ -279,9 +276,7 @@ class IonQDevice(QubitDevice):
         rotations = kwargs.pop("rotations", [])
 
         if len(operations) == 0 and len(rotations) == 0:
-            warnings.warn(
-                "Circuit is empty. Empty circuits return failures. Submitting anyway."
-            )
+            warnings.warn("Circuit is empty. Empty circuits return failures. Submitting anyway.")
 
         for i, operation in enumerate(operations):
             if i > 0 and operation.name in {
@@ -308,16 +303,13 @@ class IonQDevice(QubitDevice):
         return set(self._operation_map.keys())
 
     def apply(self, operations, **kwargs):
-
-        "Implementation of QubitDevice abstract method apply."
+        """Implementation of QubitDevice abstract method apply."""
 
         self.reset()
         rotations = kwargs.pop("rotations", [])
 
         if len(operations) == 0 and len(rotations) == 0:
-            warnings.warn(
-                "Circuit is empty. Empty circuits return failures. Submitting anyway."
-            )
+            warnings.warn("Circuit is empty. Empty circuits return failures. Submitting anyway.")
 
         for i, operation in enumerate(operations):
             if i > 0 and operation.name in {
@@ -421,9 +413,7 @@ class IonQDevice(QubitDevice):
         # The IonQ API returns basis states using little-endian ordering.
         # Here, we rearrange the states to match the big-endian ordering
         # expected by PennyLane.
-        basis_states = (
-            int(bin(int(k))[2:].rjust(self.num_wires, "0")[::-1], 2) for k in histogram
-        )
+        basis_states = (int(bin(int(k))[2:].rjust(self.num_wires, "0")[::-1], 2) for k in histogram)
         idx = np.fromiter(basis_states, dtype=int)
 
         # convert the sparse probs into a probability array
@@ -438,10 +428,10 @@ class IonQDevice(QubitDevice):
 
     def estimate_probability(self, wires=None, shot_range=None, bin_size=None):
         """Return the estimated probability of each computational basis state
-        using the generated samples. Overwrites the method in QubitDevice class
-        to accomodate batch submission of circuits. When invoking this method after
-        submitting circuits using any other method than QubitDevice.execute()
-        method, current circuit index should be set via set_current_circuit_index()
+        using the generated samples. Overwrites the method in ``QubitDevice`` class
+        to accommodate batch submission of circuits. When invoking this method after
+        submitting circuits using any other method than ``QubitDevice.execute()``
+        method, current circuit index should be set via ``set_current_circuit_index()``
         method to the circuit which is targeted out of one or potentially several
         circuits submitted in a batch. This is not very good design but the
         alternative would be to create huge amounts of code duplication with respect
@@ -471,10 +461,10 @@ class IonQDevice(QubitDevice):
         bin_size=None,
         counts=False,
     ):
-        """Return samples of an observable. Overwrites the method in QubitDevice class
-        to accomodate batch submission of circuits. When invoking this method after submitting
-        circuits using any other method than QubitDevice.execute() method, current circuit
-        index should be set via set_current_circuit_index() method pointing to index of the
+        """Return samples of an observable. Overwrites the method in ``QubitDevice`` class
+        to accommodate batch submission of circuits. When invoking this method after submitting
+        circuits using any other method than ``QubitDevice.execute()`` method, current circuit
+        index should be set via ``set_current_circuit_index()`` method pointing to index of the
         circuit which is targeted out of one or potentially several circuits submitted in a batch.
         This is not very good design but the alternative would be to create huge amounts of
         code duplication with respect to the Pennylane base code.
@@ -508,9 +498,7 @@ class IonQDevice(QubitDevice):
         if shot_range is None and bin_size is None:
             return self.marginal_prob(self.prob, wires)
 
-        return self.estimate_probability(
-            wires=wires, shot_range=shot_range, bin_size=bin_size
-        )
+        return self.estimate_probability(wires=wires, shot_range=shot_range, bin_size=bin_size)
 
 
 class SimulatorDevice(IonQDevice):
