@@ -26,9 +26,7 @@ from pennylane import DeviceError
 from pennylane.devices import QubitDevice
 
 from pennylane.measurements import (
-    SampleMeasurement,
     Shots,
-    StateMeasurement,
 )
 from pennylane.resource import Resources
 
