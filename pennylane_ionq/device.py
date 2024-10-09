@@ -21,7 +21,6 @@ from time import sleep
 
 import numpy as np
 
-from pennylane import DeviceError
 from pennylane.devices import QubitDevice
 
 from pennylane.measurements import (
@@ -200,7 +199,7 @@ class IonQDevice(QubitDevice):
             list[array[float]]: list of measured value(s)
         """
         if logger.isEnabledFor(logging.DEBUG):
-            logger.debug(
+            logger.debug(   # pragma: no cover
                 """Entry with args=(circuits=%s) called by=%s""",
                 circuits,
                 "::L".join(
@@ -276,14 +275,6 @@ class IonQDevice(QubitDevice):
             warnings.warn("Circuit is empty. Empty circuits return failures. Submitting anyway.")
 
         for i, operation in enumerate(operations):
-            if i > 0 and operation.name in {
-                "BasisState",
-                "QubitStateVector",
-                "StatePrep",
-            }:
-                raise DeviceError(
-                    f"The operation {operation.name} is only supported at the beginning of a circuit."
-                )
             self._apply_operation(operation, circuit_index)
 
         # diagonalize observables
@@ -309,14 +300,6 @@ class IonQDevice(QubitDevice):
             warnings.warn("Circuit is empty. Empty circuits return failures. Submitting anyway.")
 
         for i, operation in enumerate(operations):
-            if i > 0 and operation.name in {
-                "BasisState",
-                "QubitStateVector",
-                "StatePrep",
-            }:
-                raise DeviceError(
-                    f"The operation {operation.name} is only supported at the beginning of a circuit."
-                )
             self._apply_operation(operation)
 
         # diagonalize observables
