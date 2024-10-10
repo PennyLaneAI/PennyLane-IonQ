@@ -33,9 +33,10 @@ jobs:
           python setup.py bdist_wheel
           pip install dist/PennyLane*.whl
       - name: Run tests
-        run: python -m pytest tests --cov=pennylane_ionq --cov-report=term-missing --cov-report=xml -p no:warnings --tb=native
         env:
           IONQ_API_KEY: ${{ secrets.IONQ_API_KEY }}
+        run: python -m pytest tests --cov=pennylane_ionq --cov-report=term-missing --cov-report=xml -p no:warnings --tb=native
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
