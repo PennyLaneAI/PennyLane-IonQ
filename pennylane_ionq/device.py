@@ -14,16 +14,25 @@
 """
 This module contains the device class for constructing IonQ devices for PennyLane.
 """
+import inspect
+import logging
 import warnings
 from time import sleep
 
 import numpy as np
 
-from pennylane import DeviceError
 from pennylane.devices import QubitDevice
+
+from pennylane.measurements import (
+    Shots,
+)
+from pennylane.resource import Resources
 
 from .api_client import Job, JobExecutionError
 from ._version import __version__
+
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 _qis_operation_map = {
     # native PennyLane operations also native to IonQ
@@ -58,6 +67,20 @@ _GATESET_OPS = {
     "native": _native_operation_map,
     "qis": _qis_operation_map,
 }
+
+
+class CircuitIndexNotSetException(Exception):
+    """Raised when after submitting multiple circuits circuit index is not set
+    before the user want to access implementation methods of IonQDevice
+    like probability(), estimate_probability(), sample() or the prob property.
+    """
+
+    def __init__(self):
+        self.message = (
+            "Because multiple circuits have been submitted in this job, the index of the circuit "
+            "you want to access must be first set via the set_current_circuit_index device method."
+        )
+        super().__init__(self.message)
 
 
 class IonQDevice(QubitDevice):
@@ -119,26 +142,30 @@ class IonQDevice(QubitDevice):
             raise ValueError("The ionq device does not support analytic expectation values.")
 
         super().__init__(wires=wires, shots=shots)
+        self._current_circuit_index = None
         self.target = target
         self.api_key = api_key
         self.gateset = gateset
         self.error_mitigation = error_mitigation
         self.sharpen = sharpen
         self._operation_map = _GATESET_OPS[gateset]
+        self.histograms = []
+        self._samples = None
         self.reset()
 
-    def reset(self):
+    def reset(self, circuits_array_length=1):
         """Reset the device"""
-        self._prob_array = None
-        self.histogram = None
-        self.circuit = {
+        self._current_circuit_index = None
+        self._samples = None
+        self.histograms = []
+        self.input = {
             "format": "ionq.circuit.v0",
             "qubits": self.num_wires,
-            "circuit": [],
+            "circuits": [{"circuit": []} for _ in range(circuits_array_length)],
             "gateset": self.gateset,
         }
         self.job = {
-            "input": self.circuit,
+            "input": self.input,
             "target": self.target,
             "shots": self.shots,
         }
@@ -152,6 +179,108 @@ class IonQDevice(QubitDevice):
                 stacklevel=2,
             )
 
+    def set_current_circuit_index(self, circuit_index):
+        """Sets the index of the current circuit for which operations are applied upon.
+        In case of multiple circuits being submitted via batch_execute method
+        self._current_circuit_index tracks the index of the current circuit.
+        """
+        self._current_circuit_index = circuit_index
+
+    def batch_execute(self, circuits):
+        """Execute a batch of quantum circuits on the device.
+
+        The circuits are represented by tapes, and they are executed one-by-one using the
+        device's ``execute`` method. The results are collected in a list.
+
+        Args:
+            circuits (list[~.tape.QuantumTape]): circuits to execute on the device
+
+        Returns:
+            list[array[float]]: list of measured value(s)
+        """
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(  # pragma: no cover
+                """Entry with args=(circuits=%s) called by=%s""",
+                circuits,
+                "::L".join(
+                    str(i) for i in inspect.getouterframes(inspect.currentframe(), 2)[1][1:3]
+                ),
+            )
+
+        self.reset(circuits_array_length=len(circuits))
+
+        for circuit_index, circuit in enumerate(circuits):
+            self.check_validity(circuit.operations, circuit.observables)
+            self.batch_apply(
+                circuit.operations,
+                rotations=self._get_diagonalizing_gates(circuit),
+                circuit_index=circuit_index,
+            )
+
+        self._submit_job()
+
+        results = []
+        for circuit_index, circuit in enumerate(circuits):
+            self.set_current_circuit_index(circuit_index)
+            self._samples = self.generate_samples()
+
+            # compute the required statistics
+            if self._shot_vector is not None:
+                result = self.shot_vec_statistics(circuit)
+            else:
+                result = self.statistics(circuit)
+                single_measurement = len(circuit.measurements) == 1
+
+                result = result[0] if single_measurement else tuple(result)
+
+            self.set_current_circuit_index(None)
+            self._samples = None
+            results.append(result)
+
+        # increment counter for number of executions of qubit device
+        self._num_executions += 1
+
+        if self.tracker.active:
+            for circuit in circuits:
+                shots_from_dev = self._shots if not self.shot_vector else self._raw_shot_sequence
+                tape_resources = circuit.specs["resources"]
+
+                resources = Resources(  # temporary until shots get updated on tape !
+                    tape_resources.num_wires,
+                    tape_resources.num_gates,
+                    tape_resources.gate_types,
+                    tape_resources.gate_sizes,
+                    tape_resources.depth,
+                    Shots(shots_from_dev),
+                )
+                self.tracker.update(
+                    executions=1,
+                    shots=self._shots,
+                    results=results,
+                    resources=resources,
+                )
+
+            self.tracker.update(batches=1, batch_len=len(circuits))
+            self.tracker.record()
+
+        return results
+
+    def batch_apply(self, operations, circuit_index, **kwargs):
+
+        "Apply circuit operations when submitting for execution a batch of circuits."
+
+        rotations = kwargs.pop("rotations", [])
+
+        if len(operations) == 0 and len(rotations) == 0:
+            warnings.warn("Circuit is empty. Empty circuits return failures. Submitting anyway.")
+
+        for i, operation in enumerate(operations):
+            self._apply_operation(operation, circuit_index)
+
+        # diagonalize observables
+        for operation in rotations:
+            self._apply_operation(operation, circuit_index)
+
     @property
     def operations(self):
         """Get the supported set of operations.
@@ -162,6 +291,8 @@ class IonQDevice(QubitDevice):
         return set(self._operation_map.keys())
 
     def apply(self, operations, **kwargs):
+        """Implementation of QubitDevice abstract method apply."""
+
         self.reset()
         rotations = kwargs.pop("rotations", [])
 
@@ -169,14 +300,6 @@ class IonQDevice(QubitDevice):
             warnings.warn("Circuit is empty. Empty circuits return failures. Submitting anyway.")
 
         for i, operation in enumerate(operations):
-            if i > 0 and operation.name in {
-                "BasisState",
-                "QubitStateVector",
-                "StatePrep",
-            }:
-                raise DeviceError(
-                    f"The operation {operation.name} is only supported at the beginning of a circuit."
-                )
             self._apply_operation(operation)
 
         # diagonalize observables
@@ -185,7 +308,13 @@ class IonQDevice(QubitDevice):
 
         self._submit_job()
 
-    def _apply_operation(self, operation):
+    def _apply_operation(self, operation, circuit_index=0):
+        """Applies operations to the internal device state.
+
+        Args:
+            operation (.Operation): operation to apply on the device
+            circuit_index: index of the circuit to apply operation to
+        """
         name = operation.name
         wires = self.map_wires(operation.wires).tolist()
         gate = {"gate": self._operation_map[name]}
@@ -211,9 +340,10 @@ class IonQDevice(QubitDevice):
         elif par:
             gate["rotation"] = float(par[0])
 
-        self.circuit["circuit"].append(gate)
+        self.input["circuits"][circuit_index]["circuit"].append(gate)
 
     def _submit_job(self):
+
         job = Job(api_key=self.api_key)
 
         # send job for exection
@@ -235,34 +365,46 @@ class IonQDevice(QubitDevice):
         # state (as a base-10 integer string) to the probability
         # as a floating point value between 0 and 1.
         # e.g., {"0": 0.413, "9": 0.111, "17": 0.476}
-        self.histogram = job.data.value
+        some_inner_value = next(iter(job.data.value.values()))
+        if isinstance(some_inner_value, dict):
+            self.histograms = []
+            for key in job.data.value.keys():
+                self.histograms.append(job.data.value[key])
+        else:
+            self.histograms = []
+            self.histograms.append(job.data.value)
 
     @property
     def prob(self):
         """None or array[float]: Array of computational basis state probabilities. If
         no job has been submitted, returns ``None``.
         """
-        if self.histogram is None:
-            return None
+        if self._current_circuit_index is None and len(self.histograms) > 1:
+            raise CircuitIndexNotSetException()
 
-        if self._prob_array is None:
-            # The IonQ API returns basis states using little-endian ordering.
-            # Here, we rearrange the states to match the big-endian ordering
-            # expected by PennyLane.
-            basis_states = (
-                int(bin(int(k))[2:].rjust(self.num_wires, "0")[::-1], 2) for k in self.histogram
-            )
-            idx = np.fromiter(basis_states, dtype=int)
+        if self._current_circuit_index is not None:
+            histogram = self.histograms[self._current_circuit_index]
+        else:
+            try:
+                histogram = self.histograms[0]
+            except IndexError:
+                return None
 
-            # convert the sparse probs into a probability array
-            self._prob_array = np.zeros([2**self.num_wires])
+        # The IonQ API returns basis states using little-endian ordering.
+        # Here, we rearrange the states to match the big-endian ordering
+        # expected by PennyLane.
+        basis_states = (int(bin(int(k))[2:].rjust(self.num_wires, "0")[::-1], 2) for k in histogram)
+        idx = np.fromiter(basis_states, dtype=int)
 
-            # histogram values don't always perfectly sum to exactly one
-            histogram_values = self.histogram.values()
-            norm = sum(histogram_values)
-            self._prob_array[idx] = np.fromiter(histogram_values, float) / norm
+        # convert the sparse probs into a probability array
+        prob_array = np.zeros([2**self.num_wires])
 
-        return self._prob_array
+        # histogram values don't always perfectly sum to exactly one
+        histogram_values = histogram.values()
+        norm = sum(histogram_values)
+        prob_array[idx] = np.fromiter(histogram_values, float) / norm
+
+        return prob_array
 
     def probability(self, wires=None, shot_range=None, bin_size=None):
         wires = wires or self.wires
