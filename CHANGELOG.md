@@ -4,6 +4,9 @@
 
 ### Improvements 🛠
 
+* Enable multi-circuit submission.
+  [(#121)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/121)
+
 ### Breaking changes 💔
 
 ### Deprecations 👋
@@ -12,9 +15,15 @@
 
 ### Bug fixes 🐛
 
+* Fix deprecated import path for `QubitDevice`.
+  [(#122)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/122)
+
 ### Contributors ✍️
 
 This release contains contributions from (in alphabetical order):
+
+Astral Cai
+Radu Marginean
 
 ---
 # Release 0.36.0
