@@ -8,7 +8,7 @@ future==0.18.3
 idna==3.3
 networkx==2.6.0
 ninja==1.10.2.3
-numpy==1.26
+numpy==1.23.5
 PennyLane==0.24.0
 PennyLane-Lightning==0.24.0
 python-dateutil==2.8.2
