@@ -2,3 +2,4 @@ numpy
 pennylane
 python-dateutil
 requests
+setuptools

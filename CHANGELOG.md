@@ -3,7 +3,7 @@
 ### Breaking changes 💔
 
 * Support for Python 3.9 has been removed, and support for 3.12 has been added.
-  [(#119)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/119)
+  [(#127)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/127)
 
 ### Improvements 🛠
 
