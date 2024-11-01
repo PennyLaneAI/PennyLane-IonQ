@@ -1,5 +1,10 @@
 # Release 0.39.0
 
+### Breaking changes 💔
+
+* Support for Python 3.9 has been removed, and support for 3.12 has been added.
+  [(#127)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/127)
+
 ### Improvements 🛠
 
 * Enable multi-circuit submission.
@@ -15,6 +20,7 @@
 This release contains contributions from (in alphabetical order):
 
 Astral Cai
+Pietropaolo Frisoni
 Radu Marginean
 
 ---
