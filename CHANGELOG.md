@@ -1,17 +1,9 @@
-# Release 0.37.0-dev
-
-### New features since last release
+# Release 0.39.0
 
 ### Improvements 🛠
 
 * Enable multi-circuit submission.
   [(#121)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/121)
-
-### Breaking changes 💔
-
-### Deprecations 👋
-
-### Documentation 📝
 
 ### Bug fixes 🐛
 
