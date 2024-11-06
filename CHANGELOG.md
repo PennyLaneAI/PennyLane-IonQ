@@ -6,7 +6,7 @@
   [(#127)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/127)
 
 * Upgrade minimum supported version of PennyLane to 0.38.0.
-  [(#128)]https://github.com/PennyLaneAI/PennyLane-IonQ/pull/128)
+  [(#128)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/128)
 
 ### Improvements 🛠
 
