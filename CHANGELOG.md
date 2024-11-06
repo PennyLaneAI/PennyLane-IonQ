@@ -5,6 +5,9 @@
 * Support for Python 3.9 has been removed, and support for 3.12 has been added.
   [(#127)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/127)
 
+* Upgrade minimum supported version of PennyLane to 0.38.0.
+  [(#128)]https://github.com/PennyLaneAI/PennyLane-IonQ/pull/128)
+
 ### Improvements 🛠
 
 * Enable multi-circuit submission.
@@ -22,6 +25,7 @@ This release contains contributions from (in alphabetical order):
 Astral Cai
 Pietropaolo Frisoni
 Radu Marginean
+Mudit Pandey
 
 ---
 # Release 0.36.0
