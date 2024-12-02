@@ -147,10 +147,14 @@ class IonQDevice(QubitDevice):
         self._current_circuit_index = None
         self.target = target
         self.api_key = api_key
-        self.noise_model = noise_model
         self.gateset = gateset
         self.error_mitigation = error_mitigation
         self.sharpen = sharpen
+        if target != "simulator" and noise_model is not None:
+            warnings.warn("Noise model is only supported for the simulator target.", UserWarning)
+            self.noise_model = None
+        else:
+            self.noise_model = noise_model
         self._operation_map = _GATESET_OPS[gateset]
         self.histograms = []
         self._samples = None
@@ -173,7 +177,7 @@ class IonQDevice(QubitDevice):
             "shots": self.shots,
         }
         if self.noise_model is not None:
-            self.job["noise_model"] = self.noise_model
+            self.job["noise"] = {"model": self.noise_model}
         if self.error_mitigation is not None:
             self.job["error_mitigation"] = self.error_mitigation
         if self.job["target"] == "qpu":
