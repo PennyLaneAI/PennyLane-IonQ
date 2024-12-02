@@ -93,6 +93,7 @@ class IonQDevice(QubitDevice):
 
     Kwargs:
         target (str): the target device, either ``"simulator"`` or ``"qpu"``. Defaults to ``simulator``.
+        noise_model (str): the qpu's noise model. Defaults to ``None``.
         gateset (str): the target gateset, either ``"qis"`` or ``"native"``. Defaults to ``qis``.
         shots (int, list[int]): Number of circuit evaluations/random samples used to estimate
             expectation values of observables. Defaults to 1024.
@@ -132,6 +133,7 @@ class IonQDevice(QubitDevice):
         wires,
         *,
         target="simulator",
+        noise_model=None,
         gateset="qis",
         shots=1024,
         api_key=None,
@@ -145,6 +147,7 @@ class IonQDevice(QubitDevice):
         self._current_circuit_index = None
         self.target = target
         self.api_key = api_key
+        self.noise_model = noise_model
         self.gateset = gateset
         self.error_mitigation = error_mitigation
         self.sharpen = sharpen
@@ -169,6 +172,8 @@ class IonQDevice(QubitDevice):
             "target": self.target,
             "shots": self.shots,
         }
+        if self.noise_model is not None:
+            self.job["noise_model"] = self.noise_model
         if self.error_mitigation is not None:
             self.job["error_mitigation"] = self.error_mitigation
         if self.job["target"] == "qpu":
@@ -422,6 +427,7 @@ class SimulatorDevice(IonQDevice):
         wires (int or Iterable[Number, str]]): Number of wires to initialize the device with,
             or iterable that contains unique labels for the subsystems as numbers (i.e., ``[-1, 0, 2]``)
             or strings (``['ancilla', 'q1', 'q2']``).
+        noise_model (str): the qpu's noise model. Defaults to ``"ideal"``.
         gateset (str): the target gateset, either ``"qis"`` or ``"native"``. Defaults to ``qis``.
         shots (int, list[int], None): Number of circuit evaluations/random samples used to estimate
             expectation values of observables. If ``None``, the device calculates probability, expectation values,
@@ -435,10 +441,11 @@ class SimulatorDevice(IonQDevice):
     name = "IonQ Simulator PennyLane plugin"
     short_name = "ionq.simulator"
 
-    def __init__(self, wires, *, gateset="qis", shots=1024, api_key=None):
+    def __init__(self, wires, *, noise_model="ideal", gateset="qis", shots=1024, api_key=None):
         super().__init__(
             wires=wires,
             target="simulator",
+            noise_model=noise_model,
             gateset=gateset,
             shots=shots,
             api_key=api_key,
