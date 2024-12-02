@@ -464,7 +464,11 @@ you want to access must be first set via the set_current_circuit_index device me
         results = dev.batch_execute([tape1, tape2])
         assert results[0] == 1024
         assert results[1] == pytest.approx(512, abs=100)
-
+    
+    def test_default_noise_model(self, requires_api):
+        """Test that the default noise model is correctly set."""
+        dev = SimulatorDevice(wires=(0,))
+        assert dev.noise_model == "ideal"
 
 class TestJobAttribute:
     """Tests job creation with mocked submission."""
@@ -711,3 +715,20 @@ class TestJobAttribute:
         assert np.allclose(
             computed_matrix, expected_matrix, atol=tol
         ), "Computed matrix does not match the expected matrix"
+    
+    def test_noise_model(self, mocker):
+        """Tests job attribute with noise model."""
+
+        def mock_submit_job(*args):
+            pass
+
+        mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
+        dev = IonQDevice(wires=(0,), noise_model="forte-1")
+
+        with qml.tape.QuantumTape() as tape:
+            qml.Hadamard(0)
+            qml.expval(qml.PauliX(0))
+
+        dev.apply(tape.operations)
+
+        assert dev.job["noise"]["model"] == "forte-1"
