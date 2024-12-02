@@ -468,7 +468,7 @@ you want to access must be first set via the set_current_circuit_index device me
     def test_default_noise_model(self, requires_api):
         """Test that the default noise model is correctly set."""
         dev = SimulatorDevice(wires=(0,))
-        assert dev.noise_model == "ideal"
+        assert dev.job["input"]["noise"]["model"] == "ideal"
 
 class TestJobAttribute:
     """Tests job creation with mocked submission."""
@@ -731,4 +731,4 @@ class TestJobAttribute:
 
         dev.apply(tape.operations)
 
-        assert dev.job["noise"]["model"] == "forte-1"
+        assert dev.job["input"]["noise"]["model"] == "forte-1"
