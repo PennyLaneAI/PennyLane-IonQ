@@ -1,4 +1,4 @@
-# Release 0.37.0-dev
+# Release 0.40.0-dev
 
 ### New features since last release
 
@@ -15,6 +15,36 @@
 ### Contributors ✍️
 
 This release contains contributions from (in alphabetical order):
+
+---
+# Release 0.39.0
+
+### Breaking changes 💔
+
+* Support for Python 3.9 has been removed, and support for 3.12 has been added.
+  [(#127)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/127)
+
+* Upgrade minimum supported version of PennyLane to 0.38.0.
+  [(#128)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/128)
+
+### Improvements 🛠
+
+* Enable multi-circuit submission.
+  [(#121)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/121)
+
+### Bug fixes 🐛
+
+* Fix deprecated import path for `QubitDevice`.
+  [(#122)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/122)
+
+### Contributors ✍️
+
+This release contains contributions from (in alphabetical order):
+
+Astral Cai
+Pietropaolo Frisoni
+Radu Marginean
+Mudit Pandey
 
 ---
 # Release 0.36.0

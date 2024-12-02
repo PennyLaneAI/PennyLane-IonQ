@@ -23,7 +23,7 @@ with open("pennylane_ionq/_version.py") as f:
 # Requirements should be as minimal as possible.
 # Avoid pinning, and use minimum version numbers
 # only where required.
-requirements = ["pennylane>=0.15", "numpy", "python-dateutil", "requests"]
+requirements = ["pennylane>=0.38", "numpy", "python-dateutil", "requests"]
 
 info = {
     # 'name' is the name that will be used by pip for installation
@@ -59,9 +59,9 @@ classifiers = [
     "Programming Language :: Python",
     # Make sure to specify here the versions of Python supported
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3 :: Only",
     "Topic :: Scientific/Engineering :: Physics",
 ]
