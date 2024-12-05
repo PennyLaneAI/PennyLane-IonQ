@@ -128,7 +128,7 @@ class IonQDevice(QubitDevice):
     # and therefore does not support the Hermitian observable.
     observables = {"PauliX", "PauliY", "PauliZ", "Hadamard", "Identity", "Prod"}
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         wires,
         *,
@@ -139,7 +139,7 @@ class IonQDevice(QubitDevice):
         api_key=None,
         error_mitigation=None,
         sharpen=False,
-    ):  # pylint: disable=too-many-arguments
+    ):
         if shots is None:
             raise ValueError("The ionq device does not support analytic expectation values.")
 
@@ -445,9 +445,9 @@ class SimulatorDevice(IonQDevice):
     name = "IonQ Simulator PennyLane plugin"
     short_name = "ionq.simulator"
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
             self, wires, *, noise_model="ideal", gateset="qis", shots=1024, api_key=None
-        ):  # pylint: disable=too-many-arguments
+        ):
         super().__init__(
             wires=wires,
             target="simulator",
