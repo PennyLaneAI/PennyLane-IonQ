@@ -46,7 +46,7 @@ installed, you can use this device directly in PennyLane by specifying ``"ionq.q
     import pennylane as qml
     from pennylane_ionq import ops
 
-    dev = qml.device("ionq.qpu", backend="harmony", wires=2)
+    dev = qml.device("ionq.qpu", backend="aria-1", wires=2)
 
     @qml.qnode(dev)
     def circuit(x, y):

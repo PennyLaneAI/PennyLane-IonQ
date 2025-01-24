@@ -218,7 +218,7 @@ class TestDeviceIntegration:
         dev = qml.device(d, wires=1, shots=1)
         assert dev.prob is None
 
-    @pytest.mark.parametrize("backend", ["harmony", "aria-1", "aria-2", "forte-1", None])
+    @pytest.mark.parametrize("backend", ["harmony", "aria-1", "aria-2", "forte-1", "forte-enterprise-1", "forte-enterprise-2", None])
     def test_backend_initialization(self, backend):
         """Test that the device initializes with the correct backend."""
         dev = qml.device(
