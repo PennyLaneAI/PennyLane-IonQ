@@ -127,6 +127,7 @@ class IonQDevice(QubitDevice):
     # and therefore does not support the Hermitian observable.
     observables = {"PauliX", "PauliY", "PauliZ", "Hadamard", "Identity", "Prod"}
 
+    # pylint: disable=too-many-arguments
     def __init__(
         self,
         wires,
@@ -479,6 +480,7 @@ class QPUDevice(IonQDevice):
     name = "IonQ QPU PennyLane plugin"
     short_name = "ionq.qpu"
 
+    # pylint: disable=too-many-arguments
     def __init__(
         self,
         wires,
