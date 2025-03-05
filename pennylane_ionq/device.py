@@ -271,7 +271,6 @@ class IonQDevice(QubitDevice):
         return results
 
     def batch_apply(self, operations, circuit_index, **kwargs):
-
         "Apply circuit operations when submitting for execution a batch of circuits."
 
         rotations = kwargs.pop("rotations", [])
