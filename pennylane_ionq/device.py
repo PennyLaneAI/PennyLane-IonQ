@@ -14,6 +14,9 @@
 """
 This module contains the device class for constructing IonQ devices for PennyLane.
 """
+
+# pylint: disable=too-many-arguments
+
 import inspect
 import logging
 import warnings
