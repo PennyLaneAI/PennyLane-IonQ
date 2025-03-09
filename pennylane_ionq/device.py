@@ -96,6 +96,7 @@ class IonQDevice(QubitDevice):
 
     Kwargs:
         target (str): the target device, either ``"simulator"`` or ``"qpu"``. Defaults to ``simulator``.
+        noise_model (str): the qpu's noise model. Defaults to ``None``.
         gateset (str): the target gateset, either ``"qis"`` or ``"native"``. Defaults to ``qis``.
         shots (int, list[int]): Number of circuit evaluations/random samples used to estimate
             expectation values of observables. Defaults to 1024.
@@ -130,11 +131,12 @@ class IonQDevice(QubitDevice):
     # and therefore does not support the Hermitian observable.
     observables = {"PauliX", "PauliY", "PauliZ", "Hadamard", "Identity", "Prod"}
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         wires,
         *,
         target="simulator",
+        noise_model=None,
         gateset="qis",
         shots=1024,
         api_key=None,
@@ -151,6 +153,11 @@ class IonQDevice(QubitDevice):
         self.gateset = gateset
         self.error_mitigation = error_mitigation
         self.sharpen = sharpen
+        if target != "simulator" and noise_model is not None:
+            warnings.warn("Noise model is only supported for the simulator target.", UserWarning)
+            self.noise_model = None
+        else:
+            self.noise_model = noise_model
         self._operation_map = _GATESET_OPS[gateset]
         self.histograms = []
         self._samples = None
@@ -172,6 +179,8 @@ class IonQDevice(QubitDevice):
             "target": self.target,
             "shots": self.shots,
         }
+        if self.noise_model is not None:
+            self.job["noise"] = {"model": self.noise_model}
         if self.error_mitigation is not None:
             self.job["error_mitigation"] = self.error_mitigation
         if self.job["target"] == "qpu":
@@ -424,6 +433,7 @@ class SimulatorDevice(IonQDevice):
         wires (int or Iterable[Number, str]]): Number of wires to initialize the device with,
             or iterable that contains unique labels for the subsystems as numbers (i.e., ``[-1, 0, 2]``)
             or strings (``['ancilla', 'q1', 'q2']``).
+        noise_model (str): the qpu's noise model. Defaults to ``"ideal"``.
         gateset (str): the target gateset, either ``"qis"`` or ``"native"``. Defaults to ``qis``.
         shots (int, list[int], None): Number of circuit evaluations/random samples used to estimate
             expectation values of observables. If ``None``, the device calculates probability, expectation values,
@@ -437,10 +447,13 @@ class SimulatorDevice(IonQDevice):
     name = "IonQ Simulator PennyLane plugin"
     short_name = "ionq.simulator"
 
-    def __init__(self, wires, *, gateset="qis", shots=1024, api_key=None):
+    def __init__(  # pylint: disable=too-many-arguments
+            self, wires, *, noise_model="ideal", gateset="qis", shots=1024, api_key=None
+        ):
         super().__init__(
             wires=wires,
             target="simulator",
+            noise_model=noise_model,
             gateset=gateset,
             shots=shots,
             api_key=api_key,
