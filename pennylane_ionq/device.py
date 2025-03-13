@@ -21,12 +21,17 @@ from time import sleep
 
 import numpy as np
 
+from pennylane import pauli_decompose, SparseHamiltonian
 from pennylane.devices import QubitDevice
+from pennylane.ops import PauliX, PauliY, PauliZ
+from pennylane.ops.op_math.prod import Prod
+from pennylane.pauli import PauliWord
 
 from pennylane.measurements import (
     Shots,
 )
 from pennylane.resource import Resources
+from pennylane.ops.op_math.linear_combination import LinearCombination
 
 from .api_client import Job, JobExecutionError
 from ._version import __version__
@@ -41,6 +46,9 @@ _qis_operation_map = {
     "PauliZ": "z",
     "Hadamard": "h",
     "CNOT": "cnot",
+    "Exp": "pauliexp",
+    "Evolution": "pauliexp",
+    "ParametrizedEvolution": "pauliexp",
     "SWAP": "swap",
     "RX": "rx",
     "RY": "ry",
@@ -139,7 +147,9 @@ class IonQDevice(QubitDevice):
         sharpen=False,
     ):
         if shots is None:
-            raise ValueError("The ionq device does not support analytic expectation values.")
+            raise ValueError(
+                "The ionq device does not support analytic expectation values."
+            )
 
         super().__init__(wires=wires, shots=shots)
         self._current_circuit_index = None
@@ -203,7 +213,8 @@ class IonQDevice(QubitDevice):
                 """Entry with args=(circuits=%s) called by=%s""",
                 circuits,
                 "::L".join(
-                    str(i) for i in inspect.getouterframes(inspect.currentframe(), 2)[1][1:3]
+                    str(i)
+                    for i in inspect.getouterframes(inspect.currentframe(), 2)[1][1:3]
                 ),
             )
 
@@ -216,7 +227,6 @@ class IonQDevice(QubitDevice):
                 rotations=self._get_diagonalizing_gates(circuit),
                 circuit_index=circuit_index,
             )
-
         self._submit_job()
 
         results = []
@@ -242,7 +252,9 @@ class IonQDevice(QubitDevice):
 
         if self.tracker.active:
             for circuit in circuits:
-                shots_from_dev = self._shots if not self.shot_vector else self._raw_shot_sequence
+                shots_from_dev = (
+                    self._shots if not self.shot_vector else self._raw_shot_sequence
+                )
                 tape_resources = circuit.specs["resources"]
 
                 resources = Resources(  # temporary until shots get updated on tape !
@@ -266,13 +278,14 @@ class IonQDevice(QubitDevice):
         return results
 
     def batch_apply(self, operations, circuit_index, **kwargs):
-
         "Apply circuit operations when submitting for execution a batch of circuits."
 
         rotations = kwargs.pop("rotations", [])
 
         if len(operations) == 0 and len(rotations) == 0:
-            warnings.warn("Circuit is empty. Empty circuits return failures. Submitting anyway.")
+            warnings.warn(
+                "Circuit is empty. Empty circuits return failures. Submitting anyway."
+            )
 
         for i, operation in enumerate(operations):
             self._apply_operation(operation, circuit_index)
@@ -297,7 +310,9 @@ class IonQDevice(QubitDevice):
         rotations = kwargs.pop("rotations", [])
 
         if len(operations) == 0 and len(rotations) == 0:
-            warnings.warn("Circuit is empty. Empty circuits return failures. Submitting anyway.")
+            warnings.warn(
+                "Circuit is empty. Empty circuits return failures. Submitting anyway."
+            )
 
         for i, operation in enumerate(operations):
             self._apply_operation(operation)
@@ -307,6 +322,60 @@ class IonQDevice(QubitDevice):
             self._apply_operation(operation)
 
         self._submit_job()
+
+    def _map_op_base_to_terms(self, op_base, wires):
+        """Map Penylane operator base to IonQ accepted terms."""
+
+        def map_operand_to_term(operand):
+            if operand.name == "PauliX":
+                return "X"
+            elif operand.name == "PauliY":
+                return "Y"
+            elif operand.name == "PauliZ":
+                return "Z"
+            else:
+                # TODO: try to avoid this exception being raised
+                raise ValueError(
+                    f"Operator {operand.name} is not supported for Exp or Evolution gate."
+                )
+
+        if type(op_base) == LinearCombination:
+            op_prod_list = op_base.ops
+        elif type(op_base) == SparseHamiltonian:
+            dense_mat = op_base.H.toarray()
+            pauli_rep = pauli_decompose(dense_mat, wire_order=wires, pauli=True)
+            op_prod_list = []
+            for item in pauli_rep.items():
+                op_prod_list.append(item[0])
+        else:
+            # TODO: review
+            raise Exception("Unsupported base type.")
+
+        ionq_terms = []
+        for elem in op_prod_list:
+            terms = {}
+            if type(elem) == PauliWord:
+                # TODO: what if pauli word has only one term?
+                wires = elem.keys()
+                for wire in wires:
+                    term_name = elem[wire]
+                    term_wire = wire
+                    terms[term_wire] = term_name
+            elif type(elem) == Prod:
+                for operand in elem.operands:
+                    term_name = map_operand_to_term(operand)
+                    term_wire = operand.wires[0]
+                    terms[term_wire] = term_name
+            elif type(elem) in [PauliX, PauliY, PauliZ]:
+                term_name = map_operand_to_term(elem)
+                term_wire = elem.wires[0]
+                terms[term_wire] = term_name
+
+            ionq_term = ""
+            for wire in wires:
+                ionq_term += terms.get(wire, "I")
+            ionq_terms.append(ionq_term)
+        return ionq_terms
 
     def _apply_operation(self, operation, circuit_index=0):
         """Applies operations to the internal device state.
@@ -318,29 +387,57 @@ class IonQDevice(QubitDevice):
         name = operation.name
         wires = self.map_wires(operation.wires).tolist()
         gate = {"gate": self._operation_map[name]}
-        par = operation.parameters
-
-        if len(wires) == 2:
-            if name in {"SWAP", "XX", "YY", "ZZ", "MS"}:
-                # these gates takes two targets
-                gate["targets"] = wires
-            else:
-                gate["control"] = wires[0]
-                gate["target"] = wires[1]
+        params = operation.parameters
+        if name == "Exp":
+            # for the moment this just some placeholder code
+            gate["targets"] = wires
+            gate["terms"] = ["XX", "YY", "ZZ"]
+            gate["coefficients"] = [0.1, 0.2, 0.3]
+            gate["time"] = 0.2
+        elif name == "Evolution":
+            gate["targets"] = wires
+            gate["terms"] = self._map_op_base_to_terms(operation.base, wires)
+            if type(operation.base) == LinearCombination:
+                gate["coefficients"] = operation.base.coeffs
+            elif type(operation.base) == SparseHamiltonian:
+                dense_mat = operation.base.H.toarray()
+                pauli_rep = pauli_decompose(dense_mat, wire_order=wires, pauli=True)
+                gate["coefficients"] = [float(v) for v in pauli_rep.values()]
+            gate["time"] = operation.param
+            if type(operation.param) == complex:
+                # TODO: check with IonQ if they allow complex time evolution parameters
+                raise ValueError("Complex time evolution parameter is not supported.")
+        elif name == "ParametrizedEvolution":
+            # for the moment this just some placeholder code
+            gate["targets"] = wires
+            # gate["terms"] = [op.name for op in operation.H.ops]
+            gate["terms"] = ["XX", "YY", "ZZ"]
+            gate["coefficients"] = [float(param) for param in params]
+            gate["time"] = 0.2
         else:
-            gate["target"] = wires[0]
-
-        if self.gateset == "native":
-            if len(par) > 1:
-                gate["phases"] = [float(v) for v in par[:2]]
-                if len(par) > 2:
-                    gate["angle"] = float(par[2])
+            if len(wires) == 2:
+                if name in {"SWAP", "XX", "YY", "ZZ", "MS"}:
+                    # these gates takes two targets
+                    gate["targets"] = wires
+                else:
+                    gate["control"] = wires[0]
+                    gate["target"] = wires[1]
             else:
-                gate["phase"] = float(par[0])
-        elif par:
-            gate["rotation"] = float(par[0])
+                gate["target"] = wires[0]
+
+            if self.gateset == "native":
+                if len(params) > 1:
+                    gate["phases"] = [float(v) for v in params[:2]]
+                    if len(params) > 2:
+                        gate["angle"] = float(params[2])
+                else:
+                    gate["phase"] = float(params[0])
+            elif params:
+                gate["rotation"] = float(params[0])
 
         self.input["circuits"][circuit_index]["circuit"].append(gate)
+        print("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+        print(gate)
 
     def _submit_job(self):
 
@@ -393,7 +490,9 @@ class IonQDevice(QubitDevice):
         # The IonQ API returns basis states using little-endian ordering.
         # Here, we rearrange the states to match the big-endian ordering
         # expected by PennyLane.
-        basis_states = (int(bin(int(k))[2:].rjust(self.num_wires, "0")[::-1], 2) for k in histogram)
+        basis_states = (
+            int(bin(int(k))[2:].rjust(self.num_wires, "0")[::-1], 2) for k in histogram
+        )
         idx = np.fromiter(basis_states, dtype=int)
 
         # convert the sparse probs into a probability array
@@ -412,7 +511,9 @@ class IonQDevice(QubitDevice):
         if shot_range is None and bin_size is None:
             return self.marginal_prob(self.prob, wires)
 
-        return self.estimate_probability(wires=wires, shot_range=shot_range, bin_size=bin_size)
+        return self.estimate_probability(
+            wires=wires, shot_range=shot_range, bin_size=bin_size
+        )
 
 
 class SimulatorDevice(IonQDevice):
