@@ -19,6 +19,7 @@ This module contains the device class for constructing IonQ devices for PennyLan
 
 import inspect
 import logging
+from typing import List
 import warnings
 from time import sleep
 
@@ -26,7 +27,7 @@ import numpy as np
 
 from pennylane import pauli_decompose, Hamiltonian, SparseHamiltonian
 from pennylane.devices import QubitDevice
-from pennylane.ops.op_math import Sum, SProd
+from pennylane.ops.op_math import Exp, Sum, SProd
 from pennylane.ops import Identity, PauliX, PauliY, PauliZ
 from pennylane.ops.op_math.prod import Prod
 from pennylane.pauli import PauliWord
@@ -50,7 +51,6 @@ _qis_operation_map = {
     "PauliZ": "z",
     "Hadamard": "h",
     "CNOT": "cnot",
-    "Exp": "pauliexp",
     "Evolution": "pauliexp",
     "ParametrizedEvolution": "pauliexp",
     "SWAP": "swap",
@@ -80,6 +80,12 @@ _GATESET_OPS = {
     "qis": _qis_operation_map,
 }
 
+PAULI_MAP = {
+    "PauliX": "X",
+    "PauliY": "Y",
+    "PauliZ": "Z",
+    "Identity": "I"
+}
 
 class CircuitIndexNotSetException(Exception):
     """Raised when after submitting multiple circuits circuit index is not set
@@ -92,6 +98,15 @@ class CircuitIndexNotSetException(Exception):
             "Because multiple circuits have been submitted in this job, the index of the circuit "
             "you want to access must be first set via the set_current_circuit_index device method."
         )
+        super().__init__(self.message)
+
+
+class NotSupportedEvolutionOperationGenerator(Exception):
+    """Raised when Evolution operation generator is not yet supported and is not converted to
+    pauliexp IonQ gate.
+    """
+
+    def __init__(self):
         super().__init__(self.message)
 
 
@@ -340,7 +355,9 @@ class IonQDevice(QubitDevice):
         params = operation.parameters
         if name == "Evolution":
             gate["targets"] = wires
-            gate["coefficients"] = self._extract_evolution_coefficients(operation, wires)
+            gate["coefficients"] = self._extract_evolution_coefficients(
+                operation, wires
+            )
             gate["terms"] = self._extract_evolution_pauli_terms(operation, wires)
             gate["time"] = operation.param
             if type(operation.param) == complex:
@@ -376,86 +393,115 @@ class IonQDevice(QubitDevice):
 
         self.input["circuits"][circuit_index]["circuit"].append(gate)
 
-    def _extract_evolution_coefficients(self, operation, wires):
+    # TODO: can Prod, Sum appear here as type of generator?
+    def _extract_evolution_coefficients(
+        self, operation, wires: List[int]
+    ) -> List[float]:
         operation_generator = operation.generator()
         if isinstance(operation_generator, LinearCombination):
             return operation_generator.coeffs.tolist()
         elif isinstance(operation_generator, SparseHamiltonian):
             dense_matrix = operation_generator.H.toarray()
-            linear_combination = pauli_decompose(dense_matrix, wire_order=wires, pauli=False)
+            linear_combination = pauli_decompose(
+                dense_matrix, wire_order=wires, pauli=False
+            )
             return linear_combination.coeffs.tolist()
         elif isinstance(operation_generator, SProd):
-            if type(operation_generator.base) in [Identity, PauliX, PauliY, PauliZ]:
+            if isinstance(operation_generator.base, (PauliX, PauliY, PauliZ, Identity)):
                 return [operation_generator.scalar]
+            elif isinstance(operation_generator.base, Exp):
+               pass #TODO: implement
             else:
-                return [operation_generator.scalar * float(c) for c in operation_generator.base.coeffs]
+                return [
+                    operation_generator.scalar * float(c)
+                    for c in operation_generator.base.coeffs
+                ]
         elif isinstance(operation_generator, Hamiltonian):
             dense_matrix = operation_generator.H.toarray()
-            linear_combination = pauli_decompose(dense_matrix, wire_order=wires, pauli=False)
+            linear_combination = pauli_decompose(
+                dense_matrix, wire_order=wires, pauli=False
+            )
             return linear_combination.coeffs.tolist()
         else:
-            raise Exception(f"Evolution operation generated via the {type(operation_generator)} operator is not supported at this moment.")
+            raise NotSupportedEvolutionOperationGenerator(
+                f"Evolution operation generated via the {type(operation_generator)} operator is not supported at this moment."
+            )
 
-    def _extract_evolution_pauli_terms(self, operation, wires):
-
-        def map_operand_to_term(operand):
-            if operand.name == "PauliX":
-                return "X"
-            elif operand.name == "PauliY":
-                return "Y"
-            elif operand.name == "PauliZ":
-                return "Z"
-            elif operand.name == "Identity":
-                return "I"
-            else:
-                raise ValueError(
-                    f"Operator {operand.name} is not supported for Evolution gate."
-                )
-
+    def _extract_evolution_pauli_terms(self, operation, wires: List[int]) -> List[str]:
         operation_generator = operation.generator()
         if isinstance(operation_generator, LinearCombination):
-            ops_list = operation_generator.ops
+            ops = operation_generator.ops
         elif isinstance(operation_generator, SparseHamiltonian):
             dense_mat = operation_generator.H.toarray()
             pauli_rep = pauli_decompose(dense_mat, wire_order=wires, pauli=False)
-            ops_list = pauli_rep.ops
+            ops = pauli_rep.ops
         elif isinstance(operation_generator, SProd):
-            if type(operation_generator.base) in [Identity, PauliX, PauliY, PauliZ]:
-                ops_list = [operation_generator.base]
+            if isinstance(operation_generator.base, (PauliX, PauliY, PauliZ, Identity)):
+                ops = [operation_generator.base]
+            elif isinstance(operation_generator.base, Exp):
+                op_base = operation_generator.base.base
+                if isinstance(op_base, (PauliX, PauliY, PauliZ, Identity)):
+                    ops = [operation_generator.base.base]
+                elif isinstance(op_base, Sum):
+                    ops = operation_generator.base.base.operands
+                else:
+                    raise ValueError(f"Unsupported base operator inside Exp: {op_base}")
             else:
-                ops_list = operation_generator.base.ops
+                ops = operation_generator.base.ops
+        elif isinstance(operation_generator, Prod):
+            #TODO: test is this is possible
+            ops = operation_generator.operands
+        elif isinstance(operation_generator, Sum):
+            #TODO: test is this is possible
+            ops = operation_generator.operands
         elif isinstance(operation_generator, Hamiltonian):
             dense_matrix = operation_generator.H.toarray()
-            linear_combination = pauli_decompose(dense_matrix, wire_order=wires, pauli=False)
-            ops_list = linear_combination.ops
+            linear_combination = pauli_decompose(
+                dense_matrix, wire_order=wires, pauli=False
+            )
+            ops = linear_combination.ops
         else:
-            raise Exception(f"Evolution operation generated via the {type(operation_generator)} operator is not supported at this moment.")
+            raise NotSupportedEvolutionOperationGenerator(
+                f"Evolution operation generated via the {type(operation_generator)} operator is not supported at this moment."
+            )
+        return self._operations_to_ionq_pauli_names(ops, wires)
 
+    def _operations_to_ionq_pauli_names(self, ops, wires) -> List[str]:
+        """Converts a list of operations to a list of IonQ compatible Pauli matrice names."""
+
+        def map_operand_to_term(operand):
+            try:
+                return PAULI_MAP[operand.name]
+            except KeyError:
+                supported = ", ".join(PAULI_MAP.keys())
+                raise ValueError(
+                    f"Operator {operand.name} is not supported for Evolution gate. "
+                    f"Supported operators: {supported}"
+                )
+    
         ionq_terms = []
-        for op in ops_list:
+        for op in ops:
             terms = {}
-            if type(op) == PauliWord:
-                # TODO: what if pauli word has only one term?
+            if isinstance(op, PauliWord):
                 for wire in op.keys():
                     term_name = op[wire]
                     term_wire = wire
                     terms[term_wire] = term_name
-            elif type(op) == Prod:
+            elif isinstance(op, Prod):
                 for operand in op.operands:
                     term_name = map_operand_to_term(operand)
                     term_wire = operand.wires[0]
                     terms[term_wire] = term_name
-            elif type(op) in [PauliX, PauliY, PauliZ, Identity]:
+            elif isinstance(op, (PauliX, PauliY, PauliZ, Identity)):
                 term_name = map_operand_to_term(op)
                 term_wire = op.wires[0]
                 terms[term_wire] = term_name
+            else:
+                raise ValueError(f"Unsupported base operator inside Exp: {op}")
 
-            ionq_term = ""
-            for wire in wires:
-                ionq_term += terms.get(wire, "I")
-            ionq_terms.append(ionq_term)
+            ionq_terms.append("".join(terms.get(wire, "I") for wire in wires))
         return ionq_terms
-
+    
     def _submit_job(self):
 
         job = Job(api_key=self.api_key)
