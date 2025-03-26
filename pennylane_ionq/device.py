@@ -80,12 +80,8 @@ _GATESET_OPS = {
     "qis": _qis_operation_map,
 }
 
-PAULI_MAP = {
-    "PauliX": "X",
-    "PauliY": "Y",
-    "PauliZ": "Z",
-    "Identity": "I"
-}
+PAULI_MAP = {"PauliX": "X", "PauliY": "Y", "PauliZ": "Z", "Identity": "I"}
+
 
 class CircuitIndexNotSetException(Exception):
     """Raised when after submitting multiple circuits circuit index is not set
@@ -355,9 +351,8 @@ class IonQDevice(QubitDevice):
         params = operation.parameters
         if name == "Evolution":
             gate["targets"] = wires
-            gate["coefficients"] = self._extract_evolution_coefficients(
-                operation, wires
-            )
+            coeffs = self._extract_evolution_coefficients(operation, wires)
+            gate["coefficients"] = [-1 * float(v) for v in coeffs]
             gate["terms"] = self._extract_evolution_pauli_terms(operation, wires)
             gate["time"] = operation.param
             if type(operation.param) == complex:
@@ -410,7 +405,7 @@ class IonQDevice(QubitDevice):
             if isinstance(operation_generator.base, (PauliX, PauliY, PauliZ, Identity)):
                 return [operation_generator.scalar]
             elif isinstance(operation_generator.base, Exp):
-               pass #TODO: implement
+                pass  # TODO: implement
             else:
                 return [
                     operation_generator.scalar * float(c)
@@ -449,10 +444,10 @@ class IonQDevice(QubitDevice):
             else:
                 ops = operation_generator.base.ops
         elif isinstance(operation_generator, Prod):
-            #TODO: test is this is possible
+            # TODO: test is this is possible
             ops = operation_generator.operands
         elif isinstance(operation_generator, Sum):
-            #TODO: test is this is possible
+            # TODO: test is this is possible
             ops = operation_generator.operands
         elif isinstance(operation_generator, Hamiltonian):
             dense_matrix = operation_generator.H.toarray()
@@ -478,7 +473,7 @@ class IonQDevice(QubitDevice):
                     f"Operator {operand.name} is not supported for Evolution gate. "
                     f"Supported operators: {supported}"
                 )
-    
+
         ionq_terms = []
         for op in ops:
             terms = {}
@@ -499,9 +494,11 @@ class IonQDevice(QubitDevice):
             else:
                 raise ValueError(f"Unsupported base operator inside Exp: {op}")
 
-            ionq_terms.append("".join(terms.get(wire, "I") for wire in wires))
+            big_endian_term = "".join(terms.get(wire, "I") for wire in wires)
+            little_endian_term = big_endian_term[::-1]
+            ionq_terms.append(little_endian_term)
         return ionq_terms
-    
+
     def _submit_job(self):
 
         job = Job(api_key=self.api_key)
