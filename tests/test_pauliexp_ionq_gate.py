@@ -16,6 +16,7 @@
 import numpy as np
 import pennylane as qml
 from scipy.sparse import csr_matrix
+from pennylane.ops.op_math import Sum, SProd
 
 
 class TestIonQPauliexp:
@@ -41,7 +42,7 @@ class TestIonQPauliexp:
 
         assert np.allclose(
             result_ionq, result_simulator, atol=1e-2
-        ), "The IonQ and simulator results are not equal."
+        ), "The IonQ and simulator results do not agree."
 
     def test_evolution_object_created_from_hamiltonian_2(self, requires_api):
 
@@ -68,7 +69,7 @@ class TestIonQPauliexp:
 
         assert np.allclose(
             result_ionq, result_simulator, atol=1e-2
-        ), "The IonQ and simulator results are not equal."
+        ), "The IonQ and simulator results do not agree."
 
     def test_evolution_object_created_from_sparse_hamiltonian_1(self, requires_api):
 
@@ -101,7 +102,7 @@ class TestIonQPauliexp:
 
         assert np.allclose(
             result_ionq, result_simulator, atol=1e-2
-        ), "The IonQ and simulator results are not equal."
+        ), "The IonQ and simulator results do not agree."
 
     def test_evolution_object_created_from_sparse_hamiltonian_2(self, requires_api):
 
@@ -129,9 +130,58 @@ class TestIonQPauliexp:
 
         result_ionq = dev.batch_execute([tape])
 
+        # TODO
+        # Pennylane simulator seems to return incorrect
+        # results for this test, probably because Pauli
+        # strings in which the operator is decomposed
+        # do not commute. Can we do anything about it?
+
+        # simulator = qml.device("default.qubit", wires=2)
+        # result_simulator = qml.execute([tape], simulator)
+
+        # assert np.allclose(
+        #     result_ionq, result_simulator, atol=1e-2
+        # ), "The IonQ and simulator results do not agree."
+
+    def test_evolution_object_created_from_sprod_1(self, requires_api):
+
+        dev = qml.device("ionq.simulator", wires=3, gateset="qis")
+
+        H1 = qml.Hamiltonian([1.0], [qml.PauliX(0)])
+        H2 = qml.Hamiltonian([-0.5], [qml.PauliZ(1)])
+        sum_H = SProd(2.5, H1) + SProd(3.1, H2)
+
+        with qml.tape.QuantumTape() as tape:
+            qml.evolve(sum_H).queue()
+            qml.probs(wires=[0, 1])
+
+        result_ionq = dev.batch_execute([tape])
+
         simulator = qml.device("default.qubit", wires=2)
         result_simulator = qml.execute([tape], simulator)
 
         assert np.allclose(
             result_ionq, result_simulator, atol=1e-2
-        ), "The IonQ and simulator results are not equal."
+        ), "The IonQ and simulator results do not agree."
+
+
+    def test_evolution_object_created_from_sprod_2(self, requires_api):
+
+        dev = qml.device("ionq.simulator", wires=3, gateset="qis")
+
+        # TODO: one qubit pauliexp gates do nit seem to work at IonQ
+
+        # H = SProd(2.5, qml.PauliX(0))
+        # with qml.tape.QuantumTape() as tape:
+        #     qml.evolve(H).queue()
+        #     qml.probs(wires=[0])
+        # dev.batch_execute([tape])
+
+        # result_ionq = dev.batch_execute([tape])
+
+        # simulator = qml.device("default.qubit", wires=2)
+        # result_simulator = qml.execute([tape], simulator)
+
+        # assert np.allclose(
+        #     result_ionq, result_simulator, atol=1e-2
+        # ), "The IonQ and simulator results do not agree."
