@@ -12,12 +12,13 @@ class CircuitIndexNotSetException(Exception):
         super().__init__(self.message)
 
 
-class NotSupportedEvolutionOperationGenerator(Exception):
+class NotSupportedEvolutionInstance(Exception):
     """Raised when Evolution operation generator is not yet supported and is not converted to
     pauliexp IonQ gate.
     """
 
     def __init__(self):
+        self.message = "The current instance of Evolution gate is not supported."
         super().__init__(self.message)
 
 
@@ -25,4 +26,5 @@ class ComplexEvolutionCoefficientsNotSupported(Exception):
     """Raised when a coeffcient in Evolution gate is complex."""
 
     def __init__(self):
+        self.message = "Complex coefficients in Evolution gate are not supported."
         super().__init__(self.message)
