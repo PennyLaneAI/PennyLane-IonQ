@@ -27,6 +27,7 @@ import numpy as np
 
 from pennylane import pauli_decompose, Hamiltonian, SparseHamiltonian
 from pennylane.devices import QubitDevice
+from pennylane.ops.qubit.observables import Hermitian
 from pennylane.ops.op_math import Exp, Sum, SProd
 from pennylane.ops import Identity, PauliX, PauliY, PauliZ
 from pennylane.ops.op_math.prod import Prod
@@ -43,6 +44,7 @@ from .exceptions import (
     CircuitIndexNotSetException,
     ComplexEvolutionCoefficientsNotSupported,
     NotSupportedEvolutionInstance,
+    OperatorNotSupportedInEvolutionGateGenerator,
 )
 from ._version import __version__
 
@@ -332,8 +334,8 @@ class IonQDevice(QubitDevice):
         gate = {"gate": self._operation_map[name]}
         params = operation.parameters
         if name == "Evolution":
-            coefficients = self._extract_evolution_coefficients(operation, wires)
             terms = self._extract_evolution_pauli_terms(operation, wires)
+            coefficients = self._extract_evolution_coefficients(operation, wires)
             terms, coefficients = self.remove_trivial_terms(terms, coefficients)
             if len(terms) > 0:
                 gate["targets"] = wires
@@ -387,7 +389,6 @@ class IonQDevice(QubitDevice):
             cleaned_up_coefficients.append(coefficients[i])
         return cleaned_up_terms, cleaned_up_coefficients
 
-    # TODO: can Prod, Sum appear here as type of generator?
     def _extract_evolution_coefficients(
         self, operation, wires: List[int]
     ) -> List[float]:
@@ -420,18 +421,6 @@ class IonQDevice(QubitDevice):
                         operation_generator.base.scalar * float(c)
                         for c in operation_generator.base.base.terms()[0]
                     ]
-        elif isinstance(operation_generator, Prod):
-            # TODO: test is this branch is possible
-            pass
-        elif isinstance(operation_generator, Sum):
-            # TODO: test is this branch is possible
-            pass
-        elif isinstance(operation_generator, Hamiltonian):
-            dense_matrix = operation_generator.H.toarray()
-            linear_combination = pauli_decompose(
-                dense_matrix, wire_order=wires, pauli=False
-            )
-            coefficients = linear_combination.coeffs.tolist()
 
         if coefficients is None:
             raise NotSupportedEvolutionInstance()
@@ -463,18 +452,6 @@ class IonQDevice(QubitDevice):
                     ops = [operation_generator.base.base]
                 elif isinstance(op_base, (Sum, Prod)):
                     ops = operation_generator.base.base.terms()[1]
-        elif isinstance(operation_generator, Prod):
-            # TODO: test is this branch is possible
-            ops = operation_generator.operands
-        elif isinstance(operation_generator, Sum):
-            # TODO: test is this branch is possible
-            ops = operation_generator.operands
-        elif isinstance(operation_generator, Hamiltonian):
-            dense_matrix = operation_generator.H.toarray()
-            linear_combination = pauli_decompose(
-                dense_matrix, wire_order=wires, pauli=False
-            )
-            ops = linear_combination.ops
 
         if ops is None:
             raise NotSupportedEvolutionInstance()
@@ -490,9 +467,15 @@ class IonQDevice(QubitDevice):
             except KeyError:
                 supported = ", ".join(PAULI_MAP.keys())
                 raise ValueError(
-                    f"Operator {operand.name} is not supported for Evolution gate. "
-                    f"Supported operators: {supported}"
+                    f"Operand {operand.name} is not supported for Evolution gate. "
+                    f"Supported operands: {supported}."
                 )
+
+        def join_terms(terms, wires):
+            """Pennylane uses big-endian ordering, IonQ uses little-endian ordering."""
+            big_endian_term = "".join(terms.get(wire, "I") for wire in wires)
+            little_endian_term = big_endian_term[::-1]
+            return little_endian_term
 
         ionq_terms = []
         for op in ops:
@@ -502,21 +485,35 @@ class IonQDevice(QubitDevice):
                     term_name = op[wire]
                     term_wire = wire
                     terms[term_wire] = term_name
+                ionq_terms.append(join_terms(terms, wires))
             elif isinstance(op, Prod):
                 for operand in op.operands:
                     term_name = map_operand_to_term(operand)
                     term_wire = operand.wires[0]
                     terms[term_wire] = term_name
-            elif isinstance(op, (PauliX, PauliY, PauliZ, Identity)):
+                ionq_terms.append(join_terms(terms, wires))
+            elif isinstance(op, (PauliX, PauliY, PauliZ)):
                 term_name = map_operand_to_term(op)
                 term_wire = op.wires[0]
                 terms[term_wire] = term_name
+                ionq_terms.append(join_terms(terms, wires))
+            elif isinstance(op, Identity):
+                ionq_terms.append(join_terms(terms, wires))
+            elif isinstance(op, Hermitian):
+                matrix = op.matrix()
+                linear_combination = pauli_decompose(
+                    matrix, wire_order=wires, pauli=False
+                )
+                for prod in linear_combination.ops:
+                    pass
+                    # TODO
+                    # term_name = map_operand_to_term(op)
+                    # term_wire = op.wires[0]
+                    # terms[term_wire] = term_name
             else:
-                raise ValueError(f"Unsupported base operator inside Exp: {op}")
-
-            big_endian_term = "".join(terms.get(wire, "I") for wire in wires)
-            little_endian_term = big_endian_term[::-1]
-            ionq_terms.append(little_endian_term)
+                raise OperatorNotSupportedInEvolutionGateGenerator(
+                    f"Unsupported operator in generator of Evolution gate: {op}"
+                )
         return ionq_terms
 
     def _submit_job(self):

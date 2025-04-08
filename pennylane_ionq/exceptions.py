@@ -22,6 +22,16 @@ class NotSupportedEvolutionInstance(Exception):
         super().__init__(self.message)
 
 
+class OperatorNotSupportedInEvolutionGateGenerator(Exception):
+    """Raised when Evolution gate is generated from a generator constructed with operator that
+    is not supported.
+    """
+
+    def __init__(self, message):
+        self.message = message
+        super().__init__(self.message)
+
+
 class ComplexEvolutionCoefficientsNotSupported(Exception):
     """Raised when a coeffcient in Evolution gate is complex."""
 
