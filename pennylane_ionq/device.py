@@ -395,7 +395,21 @@ class IonQDevice(QubitDevice):
         coefficients = None
         operation_generator = operation.generator()
         if isinstance(operation_generator, LinearCombination):
-            coefficients = operation_generator.coeffs.tolist()
+            coefficients = []
+            coeffs = operation_generator.coeffs.tolist()
+            operations = operation_generator.ops
+            for i, _ in enumerate(operations):
+                operation = coeffs[i] * operations[i]
+                if isinstance(
+                    operations[i], (Sum, Prod, PauliX, PauliY, PauliZ, Identity)
+                ):
+                    coefficients.extend(operation.terms()[0])
+                else:
+                    op_wires = operation.wires.tolist()
+                    pauli_decomp = pauli_decompose(
+                        operation.matrix(), wire_order=op_wires, pauli=False
+                    )
+                    coefficients.extend(pauli_decomp.coeffs.tolist())
         elif isinstance(operation_generator, SparseHamiltonian):
             dense_matrix = operation_generator.H.toarray()
             linear_combination = pauli_decompose(
@@ -434,7 +448,21 @@ class IonQDevice(QubitDevice):
         ops = None
         operation_generator = operation.generator()
         if isinstance(operation_generator, LinearCombination):
-            ops = operation_generator.ops
+            ops = []
+            coeffs = operation_generator.coeffs.tolist()
+            operations = operation_generator.ops
+            for i, _ in enumerate(operations):
+                operation = coeffs[i] * operations[i]
+                if isinstance(
+                    operations[i], (Sum, Prod, PauliX, PauliY, PauliZ, Identity)
+                ):
+                    ops.extend(operation.terms()[1])
+                else:
+                    op_wires = operation.wires.tolist()
+                    pauli_decomp = pauli_decompose(
+                        operation.matrix(), wire_order=op_wires, pauli=False
+                    )
+                    ops.extend(pauli_decomp.ops)
         elif isinstance(operation_generator, SparseHamiltonian):
             dense_mat = operation_generator.H.toarray()
             pauli_rep = pauli_decompose(dense_mat, wire_order=wires, pauli=False)
@@ -446,7 +474,7 @@ class IonQDevice(QubitDevice):
             elif isinstance(operation_generator.base, (Sum, Prod)):
                 ops = operation_generator.base.terms()[1]
             elif isinstance(operation_generator.base, Exp):
-                # this is not right we need to do exp(exp(pauli))
+                # TODO: this is not right we need to do exp(exp(pauli))
                 op_base = operation_generator.base.base
                 if isinstance(op_base, (PauliX, PauliY, PauliZ, Identity)):
                     ops = [operation_generator.base.base]
@@ -499,17 +527,6 @@ class IonQDevice(QubitDevice):
                 ionq_terms.append(join_terms(terms, wires))
             elif isinstance(op, Identity):
                 ionq_terms.append(join_terms(terms, wires))
-            elif isinstance(op, Hermitian):
-                matrix = op.matrix()
-                linear_combination = pauli_decompose(
-                    matrix, wire_order=wires, pauli=False
-                )
-                for prod in linear_combination.ops:
-                    pass
-                    # TODO
-                    # term_name = map_operand_to_term(op)
-                    # term_wire = op.wires[0]
-                    # terms[term_wire] = term_name
             else:
                 raise OperatorNotSupportedInEvolutionGateGenerator(
                     f"Unsupported operator in generator of Evolution gate: {op}"

@@ -71,10 +71,7 @@ class TestIonQPauliexp:
 
         dev = qml.device("ionq.simulator", wires=2, gateset="qis")
 
-        coeffs = [1]
-        ops = [qml.S(0) @ qml.Identity(1)]
-
-        H = qml.Hamiltonian(coeffs, ops)
+        H = qml.H(0) @ qml.PauliX(1)
 
         time = 1
         with qml.tape.QuantumTape() as tape:
@@ -83,7 +80,7 @@ class TestIonQPauliexp:
 
         with pytest.raises(
             ValueError,
-            match="Operand S is not supported for Evolution gate. Supported operands: PauliX, PauliY, PauliZ, Identity.",
+            match="Operand Hadamard is not supported for Evolution gate. Supported operands: PauliX, PauliY, PauliZ, Identity.",
         ):
             dev.batch_execute([tape])
 
@@ -91,10 +88,7 @@ class TestIonQPauliexp:
 
         dev = qml.device("ionq.simulator", wires=2, gateset="qis")
 
-        coeffs = [1j]
-        ops = [qml.PauliX(0) @ qml.Identity(1)]
-
-        H = qml.Hamiltonian(coeffs, ops)
+        H = SProd(1j, qml.Hamiltonian([1.0], [qml.PauliX(0)]))
 
         time = 1.2
         with qml.tape.QuantumTape() as tape:
@@ -129,12 +123,17 @@ class TestIonQPauliexp:
 
         dev = qml.device("ionq.simulator", wires=2, gateset="qis")
 
-        coeffs = [0.1, 0.2, 0.3]
-        ops = [qml.PauliX(0) @ qml.PauliX(1), qml.PauliX(1), qml.PauliX(0)]
+        coeffs = [0.1, 0.2, 0.3, 0.4]
+        ops = [
+            qml.Identity(0) @ qml.Identity(1),
+            qml.PauliX(0) @ qml.PauliX(1),
+            qml.PauliX(1),
+            qml.PauliX(0),
+        ]
 
         H = qml.Hamiltonian(coeffs, ops)
 
-        time = 0.4
+        time = 7
         with qml.tape.QuantumTape() as tape:
             qml.evolve(H, time, num_steps=1).queue()
             qml.probs(wires=[0, 1])
@@ -225,6 +224,9 @@ class TestIonQPauliexp:
         hermitian_matrix = (dense_matrix + dense_matrix.T.conj()) / 2
         hermitian_sparse = csr_matrix(hermitian_matrix)
 
+        print("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+        print(hermitian_matrix)
+
         H_sparse = qml.SparseHamiltonian(hermitian_sparse, wires=[0, 1])
 
         time = 3
@@ -238,14 +240,13 @@ class TestIonQPauliexp:
         # Pennylane simulator seems to return incorrect
         # results for this test, probably because Pauli
         # strings in which the operator is decomposed
-        # do not commute. Can we do anything about it?
+        # do not commute. 
 
-        # simulator = qml.device("default.qubit", wires=2)
-        # result_simulator = qml.execute([tape], simulator)
+        results_qiskit_statevector_sim = [0.06791753, 0.58025692, 0.30475063, 0.04707491]
 
-        # assert np.allclose(
-        #     result_ionq, result_simulator, atol=1e-2
-        # ), "The IonQ and simulator results do not agree."
+        assert np.allclose(
+            result_ionq, results_qiskit_statevector_sim, atol=1e-2
+        ), "The IonQ and simulator results do not agree."
 
     def test_evolution_object_created_from_sprod_1(self, requires_api):
 
@@ -273,7 +274,7 @@ class TestIonQPauliexp:
 
         dev = qml.device("ionq.simulator", wires=1, gateset="qis")
 
-        # TODO: one qubit pauliexp gates do nit seem to work at IonQ
+        # TODO: one qubit pauliexp gates do not seem to work at IonQ
 
         # H = SProd(2.5, qml.PauliX(0))
         # with qml.tape.QuantumTape() as tape:
@@ -373,30 +374,62 @@ class TestIonQPauliexp:
             result_ionq, result_simulator, atol=1e-2
         ), "The IonQ and simulator results do not agree."
 
-    # def test_evolution_object_created_from_hermitian(self, requires_api):
+    def test_evolution_object_created_from_hermitian_matrix_1(self, requires_api):
 
-    #     dev = qml.device("ionq.simulator", wires=2, gateset="qis")
+        dev = qml.device("ionq.simulator", wires=2, gateset="qis")
 
-    #     H_matrix = np.array([
-    #         [1, 0, 0, 0],
-    #         [0, 0.5, 0.3, 0],
-    #         [0, 0.3, 0.5, 0],
-    #         [0, 0, 0, 1]
-    #     ])
+        H_matrix = np.array(
+            [[1, 1 + 1j, 0, -1j], [1 - 1j, 3, 2, 0], [0, 2, 0, 1j], [1j, 0, -1j, 1]]
+        )
 
-    #     hermitian_op = qml.Hermitian(H_matrix, wires=[0, 1])
+        hermitian_op = qml.Hermitian(H_matrix, wires=[0, 1])
 
-    #     H = qml.Hamiltonian([2.0], [hermitian_op])
+        H = qml.Hamiltonian([2.0], [hermitian_op])
 
-    #     with qml.tape.QuantumTape() as tape:
-    #         qml.evolve(H).queue()
-    #         qml.probs(wires=[0, 1])
+        time = 7
+        with qml.tape.QuantumTape() as tape:
+            qml.evolve(H, time, num_steps=1).queue()
+            qml.probs(wires=[0, 1])
 
-    #     result_ionq = dev.batch_execute([tape])
+        result_ionq = dev.batch_execute([tape])
 
-    #     simulator = qml.device("default.qubit", wires=2)
-    #     result_simulator = qml.execute([tape], simulator)
+        # Pennylane simulator seems to return incorrect
+        # results for this test, probably because Pauli
+        # strings in which the operator is decomposed
+        # do not commute.
+        results_qiskit_statevector_sim = [
+            0.10784311,
+            0.45583129,
+            0.09056136,
+            0.34576424,
+        ]
 
-    #     assert np.allclose(
-    #         result_ionq, result_simulator, atol=1e-2
-    #     ), "The IonQ and simulator results do not agree."
+        assert np.allclose(
+            result_ionq, results_qiskit_statevector_sim, atol=1e-2
+        ), "The IonQ and simulator results do not agree."
+
+    def test_evolution_object_created_from_hermitian_matrix_2(self, requires_api):
+
+        dev = qml.device("ionq.simulator", wires=2, gateset="qis")
+
+        H_matrix = np.array(
+            [[1, 0, 0, 0], [0, 0.5, 0.3, 0], [0, 0.3, 0.5, 0], [0, 0, 0, 1]]
+        )
+
+        hermitian_op = qml.Hermitian(H_matrix, wires=[0, 1])
+
+        H = qml.Hamiltonian([2.0], [hermitian_op])
+
+        time = 7
+        with qml.tape.QuantumTape() as tape:
+            qml.evolve(H, time, num_steps=1).queue()
+            qml.probs(wires=[0, 1])
+
+        result_ionq = dev.batch_execute([tape])
+
+        simulator = qml.device("default.qubit", wires=2)
+        result_simulator = qml.execute([tape], simulator)
+
+        assert np.allclose(
+            result_ionq, result_simulator, atol=1e-2
+        ), "The IonQ and simulator results do not agree."
