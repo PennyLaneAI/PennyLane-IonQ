@@ -22,6 +22,18 @@ class NotSupportedEvolutionInstance(Exception):
         super().__init__(self.message)
 
 
+class NotSupportedParametrizedEvolutionInstance(Exception):
+    """Raised when ParametrizedEvolution operation instance is not yet supported and is not converted to
+    pauliexp IonQ gate.
+    """
+
+    def __init__(self):
+        self.message = (
+            "The current instance of ParametrizedEvolution gate is not supported."
+        )
+        super().__init__(self.message)
+
+
 class OperatorNotSupportedInEvolutionGateGenerator(Exception):
     """Raised when Evolution gate is generated from a generator constructed with operator that
     is not supported.

@@ -44,6 +44,7 @@ from .exceptions import (
     CircuitIndexNotSetException,
     ComplexEvolutionCoefficientsNotSupported,
     NotSupportedEvolutionInstance,
+    NotSupportedParametrizedEvolutionInstance,
     OperatorNotSupportedInEvolutionGateGenerator,
 )
 from ._version import __version__
@@ -345,16 +346,27 @@ class IonQDevice(QubitDevice):
                 gate["time"] = operation.param
                 print(gate)
             else:
-                # TODO: test this branch
-                # also test if gate is Identity, see notebook
                 return
         elif name == "ParametrizedEvolution":
-            # for the moment this just some placeholder code
-            gate["targets"] = wires
-            # gate["terms"] = [op.name for op in operation.H.ops]
-            gate["terms"] = ["XX", "YY", "ZZ"]
-            gate["coefficients"] = [float(param) for param in params]
-            gate["time"] = 0.2
+            time_steps = operation.t.tolist()
+            parameters = operation.parameters
+            ops = operation.H.ops
+            coeffs = operation.H.coeffs.tolist()
+            terms = self._extract_parametrized_evolution_pauli_terms(operation, wires)
+            coefficients = self._extract_parametrized_evolution_coefficients(
+                operation, wires
+            )
+            terms, coefficients = self.remove_trivial_terms(terms, coefficients)
+            if len(terms) > 0:
+                pass
+                # # for the moment this just some placeholder code
+                # gate["targets"] = wires
+                # # gate["terms"] = [op.name for op in operation.H.ops]
+                # gate["terms"] = ["XX", "YY", "ZZ"]
+                # gate["coefficients"] = [float(param) for param in params]
+                # gate["time"] = 0.2
+            else:
+                return
         else:
             if len(wires) == 2:
                 if name in {"SWAP", "XX", "YY", "ZZ", "MS"}:
@@ -388,6 +400,21 @@ class IonQDevice(QubitDevice):
             cleaned_up_terms.append(term)
             cleaned_up_coefficients.append(coefficients[i])
         return cleaned_up_terms, cleaned_up_coefficients
+
+    def _extract_parametrized_evolution_coefficients(
+        self, operation, wires: List[int]
+    ) -> List[float]:
+        coefficients = None
+
+        coefficients = operation.H.coeffs.tolist()
+
+        if coefficients is None:
+            raise NotSupportedParametrizedEvolutionInstance()
+
+        if any(isinstance(c, complex) for c in coefficients):
+            raise ComplexEvolutionCoefficientsNotSupported()
+
+        return [-1 * float(v) for v in coefficients]
 
     def _extract_evolution_coefficients(
         self, operation, wires: List[int]
@@ -426,15 +453,11 @@ class IonQDevice(QubitDevice):
                     for c in operation_generator.base.terms()[0]
                 ]
             elif isinstance(operation_generator.base, Exp):
-                # this is not right we need to do exp(exp(pauli))
-                op_base = operation_generator.base.base
-                if isinstance(op_base, (PauliX, PauliY, PauliZ, Identity)):
-                    coefficients = [operation_generator.base.scalar]
-                elif isinstance(op_base, (Sum, Prod)):
-                    coefficients = [
-                        operation_generator.base.scalar * float(c)
-                        for c in operation_generator.base.base.terms()[0]
-                    ]
+                # can we do anything smarter here?
+                pauli_rep = pauli_decompose(
+                    operation_generator.matrix(), wire_order=wires, pauli=False
+                )
+                coefficients = pauli_rep.coeffs.tolist()
 
         if coefficients is None:
             raise NotSupportedEvolutionInstance()
@@ -443,6 +466,18 @@ class IonQDevice(QubitDevice):
             raise ComplexEvolutionCoefficientsNotSupported()
 
         return [-1 * float(v) for v in coefficients]
+
+    def _extract_parametrized_evolution_pauli_terms(
+        self, operation, wires: List[int]
+    ) -> List[str]:
+        ops = None
+
+        ops = operation.H.ops
+
+        if ops is None:
+            raise NotSupportedParametrizedEvolutionInstance()
+
+        return self._operations_to_ionq_pauli_names(ops, wires)
 
     def _extract_evolution_pauli_terms(self, operation, wires: List[int]) -> List[str]:
         ops = None
@@ -474,12 +509,11 @@ class IonQDevice(QubitDevice):
             elif isinstance(operation_generator.base, (Sum, Prod)):
                 ops = operation_generator.base.terms()[1]
             elif isinstance(operation_generator.base, Exp):
-                # TODO: this is not right we need to do exp(exp(pauli))
-                op_base = operation_generator.base.base
-                if isinstance(op_base, (PauliX, PauliY, PauliZ, Identity)):
-                    ops = [operation_generator.base.base]
-                elif isinstance(op_base, (Sum, Prod)):
-                    ops = operation_generator.base.base.terms()[1]
+                # can we do anything smarter here?
+                pauli_rep = pauli_decompose(
+                    operation_generator.matrix(), wire_order=wires, pauli=False
+                )
+                ops = pauli_rep.ops
 
         if ops is None:
             raise NotSupportedEvolutionInstance()
