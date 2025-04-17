@@ -332,42 +332,44 @@ class IonQDevice(QubitDevice):
         """
         name = operation.name
         wires = self.map_wires(operation.wires).tolist()
-        gate = {"gate": self._operation_map[name]}
         params = operation.parameters
         if name == "Evolution":
             terms = self._extract_evolution_pauli_terms(operation, wires)
             coefficients = self._extract_evolution_coefficients(operation, wires)
             terms, coefficients = self.remove_trivial_terms(terms, coefficients)
             if len(terms) > 0:
+                gate = {"gate": self._operation_map[name]}
                 gate["targets"] = wires
-                gate["terms"], gate["coefficients"] = self.remove_trivial_terms(
-                    terms, coefficients
-                )
+                gate["terms"] = terms
+                gate["coefficients"] = [-1 * float(v) for v in coefficients]
                 gate["time"] = operation.param
+                self.input["circuits"][circuit_index]["circuit"].append(gate)
                 print(gate)
-            else:
-                return
         elif name == "ParametrizedEvolution":
-            time_steps = operation.t.tolist()
-            parameters = operation.parameters
-            ops = operation.H.ops
-            coeffs = operation.H.coeffs.tolist()
             terms = self._extract_parametrized_evolution_pauli_terms(operation, wires)
             coefficients = self._extract_parametrized_evolution_coefficients(
                 operation, wires
             )
             terms, coefficients = self.remove_trivial_terms(terms, coefficients)
             if len(terms) > 0:
-                pass
-                # # for the moment this just some placeholder code
-                # gate["targets"] = wires
-                # # gate["terms"] = [op.name for op in operation.H.ops]
-                # gate["terms"] = ["XX", "YY", "ZZ"]
-                # gate["coefficients"] = [float(param) for param in params]
-                # gate["time"] = 0.2
-            else:
-                return
+                inital_time = operation.t[0]
+                time_steps = operation.t.tolist()[1:]
+                for time_step in time_steps:
+                    time = time_step - inital_time
+                    parameters = operation.parameters
+                    coefficients = [
+                        coeff(*parameters, time) if callable(coeff) else coeff
+                        for coeff in coefficients
+                    ]
+                    gate = {"gate": self._operation_map[name]}
+                    gate["targets"] = wires
+                    gate["terms"] = terms
+                    gate["coefficients"] = [-1 * float(v) for v in coefficients]
+                    gate["time"] = time
+                    self.input["circuits"][circuit_index]["circuit"].append(gate)
+                    print(gate)
         else:
+            gate = {"gate": self._operation_map[name]}
             if len(wires) == 2:
                 if name in {"SWAP", "XX", "YY", "ZZ", "MS"}:
                     # these gates takes two targets
@@ -387,8 +389,7 @@ class IonQDevice(QubitDevice):
                     gate["phase"] = float(params[0])
             elif params:
                 gate["rotation"] = float(params[0])
-
-        self.input["circuits"][circuit_index]["circuit"].append(gate)
+            self.input["circuits"][circuit_index]["circuit"].append(gate)
 
     def remove_trivial_terms(self, terms, coefficients):
         """Removes II..I terms from the list of terms."""
@@ -404,17 +405,56 @@ class IonQDevice(QubitDevice):
     def _extract_parametrized_evolution_coefficients(
         self, operation, wires: List[int]
     ) -> List[float]:
-        coefficients = None
-
-        coefficients = operation.H.coeffs.tolist()
-
-        if coefficients is None:
+        coefficients = []
+        coeffs = operation.H.coeffs
+        for index, op in enumerate(operation.H.ops):
+            if isinstance(op, (PauliX, PauliY, PauliZ, Identity)):
+                coefficients.append(coeffs[index])
+            elif isinstance(op, (Prod, Sum)):
+                coefficients = op.terms()[0]
+                for coefficient in coefficients:
+                    if callable(coeffs[index]):
+                        f = coeffs[index]
+                        coefficients.append(
+                            lambda *args, **kwargs: coefficient * f(*args, **kwargs)
+                        )
+                    else:
+                        coefficients.append(coeffs[index] * coefficient)
+            elif isinstance(op, Hermitian):
+                matrix = op.matrix()
+                pauli_decomp = pauli_decompose(matrix, wire_order=wires, pauli=False)
+                pauli_coeffs = pauli_decomp.coeffs.tolist()
+                for pauli_coeff in pauli_coeffs:
+                    if callable(coeffs[index]):
+                        f = coeffs[index]
+                        coefficients.append(
+                            lambda *args, **kwargs: pauli_coeff * f(*args, **kwargs)
+                        )
+                    else:
+                        coefficients.append(coeffs[index] * pauli_coeff)
+        if coefficients == []:
             raise NotSupportedParametrizedEvolutionInstance()
-
         if any(isinstance(c, complex) for c in coefficients):
             raise ComplexEvolutionCoefficientsNotSupported()
+        return coefficients
 
-        return [-1 * float(v) for v in coefficients]
+    def _extract_parametrized_evolution_pauli_terms(
+        self, operation, wires: List[int]
+    ) -> List[str]:
+        ops = []
+        for op in operation.H.ops:
+            if isinstance(op, (PauliX, PauliY, PauliZ, Identity)):
+                ops.append(op)
+            elif isinstance(op, (Prod, Sum)):
+                ops.extend(op.terms()[1])
+            elif isinstance(op, Hermitian):
+                matrix = op.matrix()
+                pauli_decomp = pauli_decompose(matrix, wire_order=wires, pauli=False)
+                for pauli_op in pauli_decomp.ops:
+                    ops.append(pauli_op)
+        if ops == []:
+            raise NotSupportedParametrizedEvolutionInstance()
+        return self._operations_to_ionq_pauli_names(ops, wires)
 
     def _extract_evolution_coefficients(
         self, operation, wires: List[int]
@@ -465,19 +505,7 @@ class IonQDevice(QubitDevice):
         if any(isinstance(c, complex) for c in coefficients):
             raise ComplexEvolutionCoefficientsNotSupported()
 
-        return [-1 * float(v) for v in coefficients]
-
-    def _extract_parametrized_evolution_pauli_terms(
-        self, operation, wires: List[int]
-    ) -> List[str]:
-        ops = None
-
-        ops = operation.H.ops
-
-        if ops is None:
-            raise NotSupportedParametrizedEvolutionInstance()
-
-        return self._operations_to_ionq_pauli_names(ops, wires)
+        return coefficients
 
     def _extract_evolution_pauli_terms(self, operation, wires: List[int]) -> List[str]:
         ops = None
