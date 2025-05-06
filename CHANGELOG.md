@@ -9,6 +9,9 @@
  ### Deprecations 👋
 
  ### Internal changes ⚙️
+
+* The `readthedocs.yml` action has been updated to work with Ubuntu-24.04
+  [(138)](https://github.com/PennyLaneAI/pennylane/pull/138)
  
  ### Documentation 📝
  
@@ -18,6 +21,7 @@
  
  This release contains contributions from (in alphabetical order):
  
+ Runor Agbaire
  ---
 # Release 0.41.0
 
