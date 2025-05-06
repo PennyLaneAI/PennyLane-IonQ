@@ -9,7 +9,9 @@
  ### Deprecations 👋
 
  ### Internal changes ⚙️
- - Bumped `.readthedocs.yml` up to Ubuntu-24.04
+
+* The `readthedocs.yml` action has been updated to work with Ubuntu-24.04
+  [(138)](https://github.com/PennyLaneAI/pennylane/pull/138)
  
  ### Documentation 📝
  
