@@ -352,21 +352,25 @@ class IonQDevice(QubitDevice):
             )
             terms, coefficients = self.remove_trivial_terms(terms, coefficients)
             if len(terms) > 0:
-                inital_time = operation.t[0]
+                previous_time = operation.t[0]
                 time_steps = operation.t.tolist()[1:]
                 for time_step in time_steps:
-                    time = time_step - inital_time
+                    time_delta = time_step - previous_time
                     parameters = operation.parameters
+                    # TODO: what if the parametrized hamiltonian has a different signature?
+                    # for example first param is time, second is params
+                    # @CODE REVIEWER: any solution recommended for this?
                     coefficients = [
-                        coeff(*parameters, time) if callable(coeff) else coeff
+                        coeff(*parameters, (previous_time + time_delta/2)) if callable(coeff) else coeff
                         for coeff in coefficients
                     ]
                     gate = {"gate": self._operation_map[name]}
                     gate["targets"] = wires
                     gate["terms"] = terms
-                    gate["coefficients"] = [-1 * float(v) for v in coefficients]
-                    gate["time"] = time
+                    gate["coefficients"] = [float(v) for v in coefficients]
+                    gate["time"] = time_delta
                     self.input["circuits"][circuit_index]["circuit"].append(gate)
+                    previous_time = time_step
                     print(gate)
         else:
             gate = {"gate": self._operation_map[name]}
@@ -485,7 +489,6 @@ class IonQDevice(QubitDevice):
             coefficients = linear_combination.coeffs.tolist()
         elif isinstance(operation_generator, SProd):
             if isinstance(operation_generator.base, (PauliX, PauliY, PauliZ, Identity)):
-                # TODO: single Pauli exp not working at IonQ?
                 coefficients = [operation_generator.scalar]
             elif isinstance(operation_generator.base, (Sum, Prod)):
                 coefficients = [

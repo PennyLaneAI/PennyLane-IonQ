@@ -234,7 +234,6 @@ class TestIonQPauliexp:
 
         result_ionq = dev.batch_execute([tape])
 
-        # TODO
         # Pennylane simulator seems to return incorrect
         # results for this test, probably because Pauli
         # strings in which the operator is decomposed
@@ -277,22 +276,20 @@ class TestIonQPauliexp:
 
         dev = qml.device("ionq.simulator", wires=1, gateset="qis")
 
-        # TODO: one qubit pauliexp gates do not seem to work at IonQ
+        H = SProd(2.5, qml.PauliX(0))
+        with qml.tape.QuantumTape() as tape:
+            qml.evolve(H).queue()
+            qml.probs(wires=[0])
+        dev.batch_execute([tape])
 
-        # H = SProd(2.5, qml.PauliX(0))
-        # with qml.tape.QuantumTape() as tape:
-        #     qml.evolve(H).queue()
-        #     qml.probs(wires=[0])
-        # dev.batch_execute([tape])
+        result_ionq = dev.batch_execute([tape])
 
-        # result_ionq = dev.batch_execute([tape])
+        simulator = qml.device("default.qubit", wires=2)
+        result_simulator = qml.execute([tape], simulator)
 
-        # simulator = qml.device("default.qubit", wires=2)
-        # result_simulator = qml.execute([tape], simulator)
-
-        # assert np.allclose(
-        #     result_ionq, result_simulator, atol=1e-2
-        # ), "The IonQ and simulator results do not agree."
+        assert np.allclose(
+            result_ionq, result_simulator, atol=1e-2
+        ), "The IonQ and simulator results do not agree."
 
     def test_evolution_object_created_from_sprod_3(self, requires_api):
 
