@@ -334,17 +334,20 @@ class IonQDevice(QubitDevice):
         wires = self.map_wires(operation.wires).tolist()
         params = operation.parameters
         if name == "Evolution":
+            num_trotter_steps = (
+                operation.num_steps if operation.num_steps is not None else 1
+            )
             terms = self._extract_evolution_pauli_terms(operation, wires)
             coefficients = self._extract_evolution_coefficients(operation, wires)
             terms, coefficients = self.remove_trivial_terms(terms, coefficients)
             if len(terms) > 0:
-                gate = {"gate": self._operation_map[name]}
-                gate["targets"] = wires
-                gate["terms"] = terms
-                gate["coefficients"] = [-1 * float(v) for v in coefficients]
-                gate["time"] = operation.param
-                self.input["circuits"][circuit_index]["circuit"].append(gate)
-                print(gate)
+                for _ in range(num_trotter_steps):
+                    gate = {"gate": self._operation_map[name]}
+                    gate["targets"] = wires
+                    gate["terms"] = terms
+                    gate["coefficients"] = [-1 * float(v) for v in coefficients]
+                    gate["time"] = operation.param / num_trotter_steps
+                    self.input["circuits"][circuit_index]["circuit"].append(gate)
         elif name == "ParametrizedEvolution":
             terms = self._extract_parametrized_evolution_pauli_terms(operation, wires)
             coefficients = self._extract_parametrized_evolution_coefficients(
@@ -357,11 +360,21 @@ class IonQDevice(QubitDevice):
                 for time_step in time_steps:
                     time_delta = time_step - previous_time
                     parameters = operation.parameters
-                    # TODO: what if the parametrized hamiltonian has a different signature?
-                    # for example first param is time, second is params
-                    # @CODE REVIEWER: any solution recommended for this?
+                    # TODO: @CODE REVIEWER
+                    # (1) at this point I am not anymore convinced we should provide an implementation for ParametrizedEvolution operator here
+                    # (2) below we assume that we the array of time points provided by user specify the intermediat points where the
+                    #     hamiltonian should be evaluated. I am not sure this assumption is correct. Also note that I am evaluting the coefficient
+                    #     in the middle of the time interval. This intuitevly makes sense, but I am not sure this is what we should be doing.
+                    # (3) Here I assume the hamiltonian depends on some  unspecified parametrs and one more argument wich is time. I do not know
+                    #     how to enforce this is API ane the user may come up with a parametrization that has time as the first argument for example.
+                    # (4) It is not clear how number of steps for trotterization should be provided as input.
+                    # (5) While I have some tests ready for this portion of code I have not included it in the test suite due to questions above.
                     coefficients = [
-                        coeff(*parameters, (previous_time + time_delta/2)) if callable(coeff) else coeff
+                        (
+                            coeff(*parameters, (previous_time + time_delta / 2))
+                            if callable(coeff)
+                            else coeff
+                        )
                         for coeff in coefficients
                     ]
                     gate = {"gate": self._operation_map[name]}
@@ -371,6 +384,7 @@ class IonQDevice(QubitDevice):
                     gate["time"] = time_delta
                     self.input["circuits"][circuit_index]["circuit"].append(gate)
                     previous_time = time_step
+                    # TODO: remove
                     print(gate)
         else:
             gate = {"gate": self._operation_map[name]}
