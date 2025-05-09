@@ -19,19 +19,34 @@ This module contains the device class for constructing IonQ devices for PennyLan
 
 import inspect
 import logging
+from typing import List
 import warnings
 from time import sleep
 
 import numpy as np
 
+from pennylane import pauli_decompose, Hamiltonian, SparseHamiltonian
 from pennylane.devices import QubitDevice
+from pennylane.ops.qubit.observables import Hermitian
+from pennylane.ops.op_math import Exp, Sum, SProd
+from pennylane.ops import Identity, PauliX, PauliY, PauliZ
+from pennylane.ops.op_math.prod import Prod
+from pennylane.pauli import PauliWord
 
 from pennylane.measurements import (
     Shots,
 )
 from pennylane.resource import Resources
+from pennylane.ops.op_math.linear_combination import LinearCombination
 
 from .api_client import Job, JobExecutionError
+from .exceptions import (
+    CircuitIndexNotSetException,
+    ComplexEvolutionCoefficientsNotSupported,
+    NotSupportedEvolutionInstance,
+    NotSupportedParametrizedEvolutionInstance,
+    OperatorNotSupportedInEvolutionGateGenerator,
+)
 from ._version import __version__
 
 logger = logging.getLogger(__name__)
@@ -44,6 +59,8 @@ _qis_operation_map = {
     "PauliZ": "z",
     "Hadamard": "h",
     "CNOT": "cnot",
+    "Evolution": "pauliexp",
+    "ParametrizedEvolution": "pauliexp",
     "SWAP": "swap",
     "RX": "rx",
     "RY": "ry",
@@ -71,19 +88,7 @@ _GATESET_OPS = {
     "qis": _qis_operation_map,
 }
 
-
-class CircuitIndexNotSetException(Exception):
-    """Raised when after submitting multiple circuits circuit index is not set
-    before the user want to access implementation methods of IonQDevice
-    like probability(), estimate_probability(), sample() or the prob property.
-    """
-
-    def __init__(self):
-        self.message = (
-            "Because multiple circuits have been submitted in this job, the index of the circuit "
-            "you want to access must be first set via the set_current_circuit_index device method."
-        )
-        super().__init__(self.message)
+PAULI_MAP = {"PauliX": "X", "PauliY": "Y", "PauliZ": "Z", "Identity": "I"}
 
 
 class IonQDevice(QubitDevice):
@@ -142,7 +147,9 @@ class IonQDevice(QubitDevice):
         sharpen=False,
     ):
         if shots is None:
-            raise ValueError("The ionq device does not support analytic expectation values.")
+            raise ValueError(
+                "The ionq device does not support analytic expectation values."
+            )
 
         super().__init__(wires=wires, shots=shots)
         self._current_circuit_index = None
@@ -206,7 +213,8 @@ class IonQDevice(QubitDevice):
                 """Entry with args=(circuits=%s) called by=%s""",
                 circuits,
                 "::L".join(
-                    str(i) for i in inspect.getouterframes(inspect.currentframe(), 2)[1][1:3]
+                    str(i)
+                    for i in inspect.getouterframes(inspect.currentframe(), 2)[1][1:3]
                 ),
             )
 
@@ -219,7 +227,6 @@ class IonQDevice(QubitDevice):
                 rotations=self._get_diagonalizing_gates(circuit),
                 circuit_index=circuit_index,
             )
-
         self._submit_job()
 
         results = []
@@ -245,7 +252,9 @@ class IonQDevice(QubitDevice):
 
         if self.tracker.active:
             for circuit in circuits:
-                shots_from_dev = self._shots if not self.shot_vector else self._raw_shot_sequence
+                shots_from_dev = (
+                    self._shots if not self.shot_vector else self._raw_shot_sequence
+                )
                 tape_resources = circuit.specs["resources"]
 
                 resources = Resources(  # temporary until shots get updated on tape !
@@ -274,7 +283,9 @@ class IonQDevice(QubitDevice):
         rotations = kwargs.pop("rotations", [])
 
         if len(operations) == 0 and len(rotations) == 0:
-            warnings.warn("Circuit is empty. Empty circuits return failures. Submitting anyway.")
+            warnings.warn(
+                "Circuit is empty. Empty circuits return failures. Submitting anyway."
+            )
 
         for i, operation in enumerate(operations):
             self._apply_operation(operation, circuit_index)
@@ -299,7 +310,9 @@ class IonQDevice(QubitDevice):
         rotations = kwargs.pop("rotations", [])
 
         if len(operations) == 0 and len(rotations) == 0:
-            warnings.warn("Circuit is empty. Empty circuits return failures. Submitting anyway.")
+            warnings.warn(
+                "Circuit is empty. Empty circuits return failures. Submitting anyway."
+            )
 
         for i, operation in enumerate(operations):
             self._apply_operation(operation)
@@ -319,30 +332,286 @@ class IonQDevice(QubitDevice):
         """
         name = operation.name
         wires = self.map_wires(operation.wires).tolist()
-        gate = {"gate": self._operation_map[name]}
-        par = operation.parameters
-
-        if len(wires) == 2:
-            if name in {"SWAP", "XX", "YY", "ZZ", "MS"}:
-                # these gates takes two targets
-                gate["targets"] = wires
-            else:
-                gate["control"] = wires[0]
-                gate["target"] = wires[1]
+        params = operation.parameters
+        if name == "Evolution":
+            num_trotter_steps = (
+                operation.num_steps if operation.num_steps is not None else 1
+            )
+            terms = self._extract_evolution_pauli_terms(operation, wires)
+            coefficients = self._extract_evolution_coefficients(operation, wires)
+            terms, coefficients = self.remove_trivial_terms(terms, coefficients)
+            if len(terms) > 0:
+                for _ in range(num_trotter_steps):
+                    gate = {"gate": self._operation_map[name]}
+                    gate["targets"] = wires
+                    gate["terms"] = terms
+                    gate["coefficients"] = [-1 * float(v) for v in coefficients]
+                    gate["time"] = operation.param / num_trotter_steps
+                    self.input["circuits"][circuit_index]["circuit"].append(gate)
+        elif name == "ParametrizedEvolution":
+            terms = self._extract_parametrized_evolution_pauli_terms(operation, wires)
+            coefficients = self._extract_parametrized_evolution_coefficients(
+                operation, wires
+            )
+            terms, coefficients = self.remove_trivial_terms(terms, coefficients)
+            if len(terms) > 0:
+                previous_time = operation.t[0]
+                time_steps = operation.t.tolist()[1:]
+                for time_step in time_steps:
+                    time_delta = time_step - previous_time
+                    parameters = operation.parameters
+                    # TODO: @CODE REVIEWER
+                    # (1) at this point I am not anymore convinced we should provide an implementation for ParametrizedEvolution operator here
+                    # (2) below we assume that we the array of time points provided by user specify the intermediat points where the
+                    #     hamiltonian should be evaluated. I am not sure this assumption is correct. Also note that I am evaluting the coefficient
+                    #     in the middle of the time interval. This intuitevly makes sense, but I am not sure this is what we should be doing.
+                    # (3) Here I assume the hamiltonian depends on some  unspecified parametrs and one more argument wich is time. I do not know
+                    #     how to enforce this choice in API as the user may come up with a different parametrization, live having time as the first 
+                    #     argument for example.
+                    # (4) It is not clear how the number of steps for trotterization should be provided as input.
+                    # (5) While I have some tests ready for this portion of code I have not included those in the test suite due to questions above.
+                    coefficients = [
+                        (
+                            coeff(*parameters, (previous_time + time_delta / 2))
+                            if callable(coeff)
+                            else coeff
+                        )
+                        for coeff in coefficients
+                    ]
+                    gate = {"gate": self._operation_map[name]}
+                    gate["targets"] = wires
+                    gate["terms"] = terms
+                    gate["coefficients"] = [float(v) for v in coefficients]
+                    gate["time"] = time_delta
+                    self.input["circuits"][circuit_index]["circuit"].append(gate)
+                    previous_time = time_step
+                    # TODO: remove
+                    print(gate)
         else:
-            gate["target"] = wires[0]
-
-        if self.gateset == "native":
-            if len(par) > 1:
-                gate["phases"] = [float(v) for v in par[:2]]
-                if len(par) > 2:
-                    gate["angle"] = float(par[2])
+            gate = {"gate": self._operation_map[name]}
+            if len(wires) == 2:
+                if name in {"SWAP", "XX", "YY", "ZZ", "MS"}:
+                    # these gates takes two targets
+                    gate["targets"] = wires
+                else:
+                    gate["control"] = wires[0]
+                    gate["target"] = wires[1]
             else:
-                gate["phase"] = float(par[0])
-        elif par:
-            gate["rotation"] = float(par[0])
+                gate["target"] = wires[0]
 
-        self.input["circuits"][circuit_index]["circuit"].append(gate)
+            if self.gateset == "native":
+                if len(params) > 1:
+                    gate["phases"] = [float(v) for v in params[:2]]
+                    if len(params) > 2:
+                        gate["angle"] = float(params[2])
+                else:
+                    gate["phase"] = float(params[0])
+            elif params:
+                gate["rotation"] = float(params[0])
+            self.input["circuits"][circuit_index]["circuit"].append(gate)
+
+    def remove_trivial_terms(self, terms, coefficients):
+        """Removes II..I terms from the list of terms."""
+        cleaned_up_terms = []
+        cleaned_up_coefficients = []
+        for i, term in enumerate(terms):
+            if not "X" in term and not "Y" in term and not "Z" in term:
+                continue
+            cleaned_up_terms.append(term)
+            cleaned_up_coefficients.append(coefficients[i])
+        return cleaned_up_terms, cleaned_up_coefficients
+
+    def _extract_parametrized_evolution_coefficients(
+        self, operation, wires: List[int]
+    ) -> List[float]:
+        coefficients = []
+        coeffs = operation.H.coeffs
+        for index, op in enumerate(operation.H.ops):
+            if isinstance(op, (PauliX, PauliY, PauliZ, Identity)):
+                coefficients.append(coeffs[index])
+            elif isinstance(op, (Prod, Sum)):
+                coefficients = op.terms()[0]
+                for coefficient in coefficients:
+                    if callable(coeffs[index]):
+                        f = coeffs[index]
+                        coefficients.append(
+                            lambda *args, **kwargs: coefficient * f(*args, **kwargs)
+                        )
+                    else:
+                        coefficients.append(coeffs[index] * coefficient)
+            elif isinstance(op, Hermitian):
+                matrix = op.matrix()
+                pauli_decomp = pauli_decompose(matrix, wire_order=wires, pauli=False)
+                pauli_coeffs = pauli_decomp.coeffs.tolist()
+                for pauli_coeff in pauli_coeffs:
+                    if callable(coeffs[index]):
+                        f = coeffs[index]
+                        coefficients.append(
+                            lambda *args, **kwargs: pauli_coeff * f(*args, **kwargs)
+                        )
+                    else:
+                        coefficients.append(coeffs[index] * pauli_coeff)
+        if coefficients == []:
+            raise NotSupportedParametrizedEvolutionInstance()
+        if any(isinstance(c, complex) for c in coefficients):
+            raise ComplexEvolutionCoefficientsNotSupported()
+        return coefficients
+
+    def _extract_parametrized_evolution_pauli_terms(
+        self, operation, wires: List[int]
+    ) -> List[str]:
+        ops = []
+        for op in operation.H.ops:
+            if isinstance(op, (PauliX, PauliY, PauliZ, Identity)):
+                ops.append(op)
+            elif isinstance(op, (Prod, Sum)):
+                ops.extend(op.terms()[1])
+            elif isinstance(op, Hermitian):
+                matrix = op.matrix()
+                pauli_decomp = pauli_decompose(matrix, wire_order=wires, pauli=False)
+                for pauli_op in pauli_decomp.ops:
+                    ops.append(pauli_op)
+        if ops == []:
+            raise NotSupportedParametrizedEvolutionInstance()
+        return self._operations_to_ionq_pauli_names(ops, wires)
+
+    def _extract_evolution_coefficients(
+        self, operation, wires: List[int]
+    ) -> List[float]:
+        coefficients = None
+        operation_generator = operation.generator()
+        if isinstance(operation_generator, LinearCombination):
+            coefficients = []
+            coeffs = operation_generator.coeffs.tolist()
+            operations = operation_generator.ops
+            for i, _ in enumerate(operations):
+                operation = coeffs[i] * operations[i]
+                if isinstance(
+                    operations[i], (Sum, Prod, PauliX, PauliY, PauliZ, Identity)
+                ):
+                    coefficients.extend(operation.terms()[0])
+                else:
+                    op_wires = operation.wires.tolist()
+                    pauli_decomp = pauli_decompose(
+                        operation.matrix(), wire_order=op_wires, pauli=False
+                    )
+                    coefficients.extend(pauli_decomp.coeffs.tolist())
+        elif isinstance(operation_generator, SparseHamiltonian):
+            dense_matrix = operation_generator.H.toarray()
+            linear_combination = pauli_decompose(
+                dense_matrix, wire_order=wires, pauli=False
+            )
+            coefficients = linear_combination.coeffs.tolist()
+        elif isinstance(operation_generator, SProd):
+            if isinstance(operation_generator.base, (PauliX, PauliY, PauliZ, Identity)):
+                coefficients = [operation_generator.scalar]
+            elif isinstance(operation_generator.base, (Sum, Prod)):
+                coefficients = [
+                    operation_generator.scalar * float(c)
+                    for c in operation_generator.base.terms()[0]
+                ]
+            elif isinstance(operation_generator.base, Exp):
+                # can we do anything smarter here?
+                pauli_rep = pauli_decompose(
+                    operation_generator.matrix(), wire_order=wires, pauli=False
+                )
+                coefficients = pauli_rep.coeffs.tolist()
+
+        if coefficients is None:
+            raise NotSupportedEvolutionInstance()
+
+        if any(isinstance(c, complex) for c in coefficients):
+            raise ComplexEvolutionCoefficientsNotSupported()
+
+        return coefficients
+
+    def _extract_evolution_pauli_terms(self, operation, wires: List[int]) -> List[str]:
+        ops = None
+        operation_generator = operation.generator()
+        if isinstance(operation_generator, LinearCombination):
+            ops = []
+            coeffs = operation_generator.coeffs.tolist()
+            operations = operation_generator.ops
+            for i, _ in enumerate(operations):
+                operation = coeffs[i] * operations[i]
+                if isinstance(
+                    operations[i], (Sum, Prod, PauliX, PauliY, PauliZ, Identity)
+                ):
+                    ops.extend(operation.terms()[1])
+                else:
+                    op_wires = operation.wires.tolist()
+                    pauli_decomp = pauli_decompose(
+                        operation.matrix(), wire_order=op_wires, pauli=False
+                    )
+                    ops.extend(pauli_decomp.ops)
+        elif isinstance(operation_generator, SparseHamiltonian):
+            dense_mat = operation_generator.H.toarray()
+            pauli_rep = pauli_decompose(dense_mat, wire_order=wires, pauli=False)
+            ops = pauli_rep.ops
+        elif isinstance(operation_generator, SProd):
+            if isinstance(operation_generator.base, (PauliX, PauliY, PauliZ, Identity)):
+                # TODO: single Pauli exp not working at IonQ?
+                ops = [operation_generator.base]
+            elif isinstance(operation_generator.base, (Sum, Prod)):
+                ops = operation_generator.base.terms()[1]
+            elif isinstance(operation_generator.base, Exp):
+                # can we do anything smarter here?
+                pauli_rep = pauli_decompose(
+                    operation_generator.matrix(), wire_order=wires, pauli=False
+                )
+                ops = pauli_rep.ops
+
+        if ops is None:
+            raise NotSupportedEvolutionInstance()
+
+        return self._operations_to_ionq_pauli_names(ops, wires)
+
+    def _operations_to_ionq_pauli_names(self, ops, wires) -> List[str]:
+        """Converts a list of operations to a list of IonQ compatible Pauli matrice names."""
+
+        def map_operand_to_term(operand):
+            try:
+                return PAULI_MAP[operand.name]
+            except KeyError:
+                supported = ", ".join(PAULI_MAP.keys())
+                raise ValueError(
+                    f"Operand {operand.name} is not supported for Evolution gate. "
+                    f"Supported operands: {supported}."
+                )
+
+        def join_terms(terms, wires):
+            """Pennylane uses big-endian ordering, IonQ uses little-endian ordering."""
+            big_endian_term = "".join(terms.get(wire, "I") for wire in wires)
+            little_endian_term = big_endian_term[::-1]
+            return little_endian_term
+
+        ionq_terms = []
+        for op in ops:
+            terms = {}
+            if isinstance(op, PauliWord):
+                for wire in op.keys():
+                    term_name = op[wire]
+                    term_wire = wire
+                    terms[term_wire] = term_name
+                ionq_terms.append(join_terms(terms, wires))
+            elif isinstance(op, Prod):
+                for operand in op.operands:
+                    term_name = map_operand_to_term(operand)
+                    term_wire = operand.wires[0]
+                    terms[term_wire] = term_name
+                ionq_terms.append(join_terms(terms, wires))
+            elif isinstance(op, (PauliX, PauliY, PauliZ)):
+                term_name = map_operand_to_term(op)
+                term_wire = op.wires[0]
+                terms[term_wire] = term_name
+                ionq_terms.append(join_terms(terms, wires))
+            elif isinstance(op, Identity):
+                ionq_terms.append(join_terms(terms, wires))
+            else:
+                raise OperatorNotSupportedInEvolutionGateGenerator(
+                    f"Unsupported operator in generator of Evolution gate: {op}"
+                )
+        return ionq_terms
 
     def _submit_job(self):
 
@@ -395,7 +664,9 @@ class IonQDevice(QubitDevice):
         # The IonQ API returns basis states using little-endian ordering.
         # Here, we rearrange the states to match the big-endian ordering
         # expected by PennyLane.
-        basis_states = (int(bin(int(k))[2:].rjust(self.num_wires, "0")[::-1], 2) for k in histogram)
+        basis_states = (
+            int(bin(int(k))[2:].rjust(self.num_wires, "0")[::-1], 2) for k in histogram
+        )
         idx = np.fromiter(basis_states, dtype=int)
 
         # convert the sparse probs into a probability array
@@ -414,7 +685,9 @@ class IonQDevice(QubitDevice):
         if shot_range is None and bin_size is None:
             return self.marginal_prob(self.prob, wires)
 
-        return self.estimate_probability(wires=wires, shot_range=shot_range, bin_size=bin_size)
+        return self.estimate_probability(
+            wires=wires, shot_range=shot_range, bin_size=bin_size
+        )
 
 
 class SimulatorDevice(IonQDevice):
