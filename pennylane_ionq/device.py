@@ -366,9 +366,10 @@ class IonQDevice(QubitDevice):
                     #     hamiltonian should be evaluated. I am not sure this assumption is correct. Also note that I am evaluting the coefficient
                     #     in the middle of the time interval. This intuitevly makes sense, but I am not sure this is what we should be doing.
                     # (3) Here I assume the hamiltonian depends on some  unspecified parametrs and one more argument wich is time. I do not know
-                    #     how to enforce this is API ane the user may come up with a parametrization that has time as the first argument for example.
-                    # (4) It is not clear how number of steps for trotterization should be provided as input.
-                    # (5) While I have some tests ready for this portion of code I have not included it in the test suite due to questions above.
+                    #     how to enforce this choice in API as the user may come up with a different parametrization, live having time as the first 
+                    #     argument for example.
+                    # (4) It is not clear how the number of steps for trotterization should be provided as input.
+                    # (5) While I have some tests ready for this portion of code I have not included those in the test suite due to questions above.
                     coefficients = [
                         (
                             coeff(*parameters, (previous_time + time_delta / 2))
