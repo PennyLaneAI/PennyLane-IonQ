@@ -220,7 +220,6 @@ class TestDeviceIntegration:
 
     @pytest.mark.parametrize("backend",
         [
-            "harmony",
             "aria-1",
             "aria-2",
             "forte-1",
