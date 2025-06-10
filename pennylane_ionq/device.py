@@ -464,12 +464,12 @@ class IonQDevice(QubitDevice):
         def map_operand_to_term(operand):
             try:
                 return PAULI_MAP[operand.name]
-            except KeyError:
+            except KeyError as exc:
                 supported = ", ".join(PAULI_MAP.keys())
                 raise KeyError(
                     f"Operand {operand.name} is not supported for Evolution gate. "
                     f"Supported operands: {supported}."
-                )
+                ) from exc
 
         def join_terms(terms, wires):
             """Pennylane uses big-endian ordering, IonQ uses little-endian ordering."""
