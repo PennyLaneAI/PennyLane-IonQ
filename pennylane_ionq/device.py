@@ -25,9 +25,8 @@ from time import sleep
 
 import numpy as np
 
-from pennylane import pauli_decompose, Hamiltonian, SparseHamiltonian
+from pennylane import pauli_decompose, SparseHamiltonian
 from pennylane.devices import QubitDevice
-from pennylane.ops.qubit.observables import Hermitian
 from pennylane.ops.op_math import Exp, Sum, SProd
 from pennylane.ops import Identity, PauliX, PauliY, PauliZ
 from pennylane.ops.op_math.prod import Prod
@@ -467,7 +466,7 @@ class IonQDevice(QubitDevice):
                 return PAULI_MAP[operand.name]
             except KeyError:
                 supported = ", ".join(PAULI_MAP.keys())
-                raise ValueError(
+                raise KeyError(
                     f"Operand {operand.name} is not supported for Evolution gate. "
                     f"Supported operands: {supported}."
                 )
