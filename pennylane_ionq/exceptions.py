@@ -36,8 +36,8 @@ class NotSupportedParametrizedEvolutionInstance(Exception):
 
 
 class OperatorNotSupportedInEvolutionGateGenerator(Exception):
-    """Raised when Evolution gate is generated from a generator constructed with operator that
-    is not supported.
+    """Raised when an Evolution gate is generated from a generator constructed with
+    an operator that is not supported.
     """
 
     def __init__(self, message):
