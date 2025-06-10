@@ -44,7 +44,6 @@ from .exceptions import (
     CircuitIndexNotSetException,
     ComplexEvolutionCoefficientsNotSupported,
     NotSupportedEvolutionInstance,
-    NotSupportedParametrizedEvolutionInstance,
     OperatorNotSupportedInEvolutionGateGenerator,
 )
 from ._version import __version__
