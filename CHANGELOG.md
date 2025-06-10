@@ -1,18 +1,31 @@
-# Release 0.40.0-dev
+# Release 0.42.0-dev
+ 
+ ### New features since last release
+ 
+ ### Improvements 🛠
+ 
+ ### Breaking changes 💔
+ 
+ ### Deprecations 👋
 
-### New features since last release
+ ### Internal changes ⚙️
 
-### Improvements 🛠
+* The `readthedocs.yml` action has been updated to work with Ubuntu-24.04
+  [(138)](https://github.com/PennyLaneAI/pennylane/pull/138)
+ 
+ ### Documentation 📝
+ 
+ ### Bug fixes 🐛
+ 
+ ### Contributors ✍️
+ 
+ This release contains contributions from (in alphabetical order):
+ 
+ Runor Agbaire
+ ---
+# Release 0.41.0
 
-### Breaking changes 💔
-
-### Deprecations 👋
-
-### Documentation 📝
-
-### Bug fixes 🐛
-
-### Internal changes
+### Internal changes ⚙️
 
 * Pinning `setuptools` in the CI to update how the plugin is installed.
   [(#133)](https://github.com/PennyLaneAI/pennylane-cirq/pull/133)
