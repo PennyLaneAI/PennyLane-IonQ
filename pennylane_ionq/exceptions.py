@@ -19,7 +19,7 @@ class NotSupportedEvolutionInstance(Exception):
     """
 
     def __init__(self):
-        self.message = "The current instance of Evolution gate is not supported."
+        self.message = "The current instance of the Evolution gate is not supported."
         super().__init__(self.message)
 
 
