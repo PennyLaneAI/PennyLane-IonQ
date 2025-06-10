@@ -49,5 +49,5 @@ class ComplexEvolutionCoefficientsNotSupported(Exception):
     """Raised when a coeffcient in Evolution gate is complex."""
 
     def __init__(self):
-        self.message = "Complex coefficients in Evolution gate are not supported."
+        self.message = "Complex coefficients in Evolution gates are not supported."
         super().__init__(self.message)
