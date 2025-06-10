@@ -2,6 +2,7 @@
 This file contains the definition of several custom exceptions raised in this module.
 """
 
+
 class CircuitIndexNotSetException(Exception):
     """Raised after submitting multiple circuits if the circuit index is not set
     before the user want to access implementation methods of ``IonQDevice``
