@@ -334,59 +334,16 @@ class IonQDevice(QubitDevice):
         wires = self.map_wires(operation.wires).tolist()
         params = operation.parameters
         if name == "Evolution":
-            num_trotter_steps = (
-                operation.num_steps if operation.num_steps is not None else 1
-            )
             terms = self._extract_evolution_pauli_terms(operation, wires)
             coefficients = self._extract_evolution_coefficients(operation, wires)
             terms, coefficients = self.remove_trivial_terms(terms, coefficients)
             if len(terms) > 0:
-                for _ in range(num_trotter_steps):
-                    gate = {"gate": self._operation_map[name]}
-                    gate["targets"] = wires
-                    gate["terms"] = terms
-                    gate["coefficients"] = [-1 * float(v) for v in coefficients]
-                    gate["time"] = operation.param / num_trotter_steps
-                    self.input["circuits"][circuit_index]["circuit"].append(gate)
-        elif name == "ParametrizedEvolution":
-            terms = self._extract_parametrized_evolution_pauli_terms(operation, wires)
-            coefficients = self._extract_parametrized_evolution_coefficients(
-                operation, wires
-            )
-            terms, coefficients = self.remove_trivial_terms(terms, coefficients)
-            if len(terms) > 0:
-                previous_time = operation.t[0]
-                time_steps = operation.t.tolist()[1:]
-                for time_step in time_steps:
-                    time_delta = time_step - previous_time
-                    parameters = operation.parameters
-                    # TODO: @CODE REVIEWER
-                    # (1) at this point I am not anymore convinced we should provide an implementation for ParametrizedEvolution operator here
-                    # (2) below we assume that we the array of time points provided by user specify the intermediat points where the
-                    #     hamiltonian should be evaluated. I am not sure this assumption is correct. Also note that I am evaluting the coefficient
-                    #     in the middle of the time interval. This intuitevly makes sense, but I am not sure this is what we should be doing.
-                    # (3) Here I assume the hamiltonian depends on some  unspecified parametrs and one more argument wich is time. I do not know
-                    #     how to enforce this choice in API as the user may come up with a different parametrization, live having time as the first 
-                    #     argument for example.
-                    # (4) It is not clear how the number of steps for trotterization should be provided as input.
-                    # (5) While I have some tests ready for this portion of code I have not included those in the test suite due to questions above.
-                    coefficients = [
-                        (
-                            coeff(*parameters, (previous_time + time_delta / 2))
-                            if callable(coeff)
-                            else coeff
-                        )
-                        for coeff in coefficients
-                    ]
-                    gate = {"gate": self._operation_map[name]}
-                    gate["targets"] = wires
-                    gate["terms"] = terms
-                    gate["coefficients"] = [float(v) for v in coefficients]
-                    gate["time"] = time_delta
-                    self.input["circuits"][circuit_index]["circuit"].append(gate)
-                    previous_time = time_step
-                    # TODO: remove
-                    print(gate)
+                gate = {"gate": self._operation_map[name]}
+                gate["targets"] = wires
+                gate["terms"] = terms
+                gate["coefficients"] = [-1 * float(v) for v in coefficients]
+                gate["time"] = operation.param
+                self.input["circuits"][circuit_index]["circuit"].append(gate)
         else:
             gate = {"gate": self._operation_map[name]}
             if len(wires) == 2:
@@ -420,60 +377,6 @@ class IonQDevice(QubitDevice):
             cleaned_up_terms.append(term)
             cleaned_up_coefficients.append(coefficients[i])
         return cleaned_up_terms, cleaned_up_coefficients
-
-    def _extract_parametrized_evolution_coefficients(
-        self, operation, wires: List[int]
-    ) -> List[float]:
-        coefficients = []
-        coeffs = operation.H.coeffs
-        for index, op in enumerate(operation.H.ops):
-            if isinstance(op, (PauliX, PauliY, PauliZ, Identity)):
-                coefficients.append(coeffs[index])
-            elif isinstance(op, (Prod, Sum)):
-                coefficients = op.terms()[0]
-                for coefficient in coefficients:
-                    if callable(coeffs[index]):
-                        f = coeffs[index]
-                        coefficients.append(
-                            lambda *args, **kwargs: coefficient * f(*args, **kwargs)
-                        )
-                    else:
-                        coefficients.append(coeffs[index] * coefficient)
-            elif isinstance(op, Hermitian):
-                matrix = op.matrix()
-                pauli_decomp = pauli_decompose(matrix, wire_order=wires, pauli=False)
-                pauli_coeffs = pauli_decomp.coeffs.tolist()
-                for pauli_coeff in pauli_coeffs:
-                    if callable(coeffs[index]):
-                        f = coeffs[index]
-                        coefficients.append(
-                            lambda *args, **kwargs: pauli_coeff * f(*args, **kwargs)
-                        )
-                    else:
-                        coefficients.append(coeffs[index] * pauli_coeff)
-        if coefficients == []:
-            raise NotSupportedParametrizedEvolutionInstance()
-        if any(isinstance(c, complex) for c in coefficients):
-            raise ComplexEvolutionCoefficientsNotSupported()
-        return coefficients
-
-    def _extract_parametrized_evolution_pauli_terms(
-        self, operation, wires: List[int]
-    ) -> List[str]:
-        ops = []
-        for op in operation.H.ops:
-            if isinstance(op, (PauliX, PauliY, PauliZ, Identity)):
-                ops.append(op)
-            elif isinstance(op, (Prod, Sum)):
-                ops.extend(op.terms()[1])
-            elif isinstance(op, Hermitian):
-                matrix = op.matrix()
-                pauli_decomp = pauli_decompose(matrix, wire_order=wires, pauli=False)
-                for pauli_op in pauli_decomp.ops:
-                    ops.append(pauli_op)
-        if ops == []:
-            raise NotSupportedParametrizedEvolutionInstance()
-        return self._operations_to_ionq_pauli_names(ops, wires)
 
     def _extract_evolution_coefficients(
         self, operation, wires: List[int]

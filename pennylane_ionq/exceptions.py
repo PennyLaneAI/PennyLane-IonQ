@@ -1,7 +1,8 @@
 class CircuitIndexNotSetException(Exception):
-    """Raised when after submitting multiple circuits circuit index is not set
-    before the user want to access implementation methods of IonQDevice
-    like probability(), estimate_probability(), sample() or the prob property.
+    """Raised after submitting multiple circuits if the circuit index is not set
+    before the user want to access implementation methods of ``IonQDevice``
+    like ``probability()``, ``estimate_probability()``, ``sample()`` or the
+    ``prob`` property.
     """
 
     def __init__(self):
