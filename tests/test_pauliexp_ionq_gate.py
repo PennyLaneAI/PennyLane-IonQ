@@ -81,7 +81,7 @@ class TestIonQPauliexp:
         tape = qml.tape.QuantumScript([qml.evolve(H, time)], [qml.probs(wires=[0, 1])])
 
         with pytest.raises(
-            ValueError,
+            KeyError,
             match="Operand Hadamard is not supported for Evolution gate. Supported operands: PauliX, PauliY, PauliZ, Identity.",
         ):
             dev.batch_execute([tape])
