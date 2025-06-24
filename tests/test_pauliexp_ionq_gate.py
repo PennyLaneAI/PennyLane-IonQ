@@ -20,7 +20,6 @@ import re
 
 from scipy.sparse import csr_matrix
 from pennylane.ops.op_math import Prod, SProd, Exp
-from pennylane.tape import QuantumScript
 
 from pennylane_ionq.exceptions import (
     ComplexEvolutionCoefficientsNotSupported,
@@ -287,43 +286,28 @@ class TestIonQPauliexp:
             result_ionq, result_simulator, atol=1e-2
         ), "The IonQ and simulator results do not agree."
 
-    def test_evolution_object_created_via_exp(self, requires_api):
+    @pytest.mark.parametrize(
+        "wires, hamiltonian",
+        [
+            ([0, 1], 2 * Prod(qml.X(0), qml.PauliZ(1))),
+            ([0, 1, 2], 1.5 * qml.prod(qml.PauliX(0), qml.PauliZ(1), qml.PauliY(2))),
+        ],
+        ids=lambda val: f"{val}",
+    )
+    def test_evolution_object_created_from_prod(self, wires, hamiltonian, requires_api):
         """Test that the implementation of Evolution gate derived
-        from a Hamiltonian constructed via an Exp term works."""
+        from an Hamiltonian constructed via prod term works."""
 
-        dev = qml.device("ionq.simulator", wires=2, gateset="qis")
+        dev = qml.device("ionq.simulator", wires=len(wires), gateset="qis")
 
-        H = qml.PauliX(0) + 0.5 * qml.PauliY(1)
-        t = 1
-        U = Exp(t * H)
-        sprod_op = U.base
-
-        time = 3
-        tape = qml.tape.QuantumScript([qml.evolve(sprod_op, time)], [qml.probs(wires=[0, 1])])
-
-        result_ionq = dev.batch_execute([tape])
-
-        simulator = qml.device("default.qubit", wires=2)
-        result_simulator = qml.execute([tape], simulator)
-
-        assert np.allclose(
-            result_ionq, result_simulator, atol=1e-2
-        ), "The IonQ and simulator results do not agree."
-
-    def test_evolution_object_created_from_prod(self, requires_api):
-        """Test that the implementation of Evolution gate derived
-        from an Hamiltonian constructed via Prod term works."""
-
-        dev = qml.device("ionq.simulator", wires=2, gateset="qis")
-
-        H = 2 * Prod(qml.X(0), qml.PauliZ(1))
+        H = hamiltonian
 
         time = 2
-        tape = qml.tape.QuantumScript([qml.evolve(H, time)], [qml.probs(wires=[0, 1])])
+        tape = qml.tape.QuantumScript([qml.evolve(H, time)], [qml.probs(wires=wires)])
 
         result_ionq = dev.batch_execute([tape])
 
-        simulator = qml.device("default.qubit", wires=2)
+        simulator = qml.device("default.qubit", wires=len(wires))
         result_simulator = qml.execute([tape], simulator)
 
         assert np.allclose(
@@ -344,26 +328,6 @@ class TestIonQPauliexp:
         result_ionq = dev.batch_execute([tape])
 
         simulator = qml.device("default.qubit", wires=2)
-        result_simulator = qml.execute([tape], simulator)
-
-        assert np.allclose(
-            result_ionq, result_simulator, atol=1e-2
-        ), "The IonQ and simulator results do not agree."
-
-    def test_evolution_object_created_from_prod(self, requires_api):
-        """Test that the implementation of Evolution gate
-        derived from an Hamiltonian constructed via prod works."""
-
-        dev = qml.device("ionq.simulator", wires=3, gateset="qis")
-
-        H = 1.5 * qml.prod(qml.PauliX(0), qml.PauliZ(1), qml.PauliY(2))
-
-        time = 3
-        tape = qml.tape.QuantumScript([qml.evolve(H, time)], [qml.probs(wires=[0, 1])])
-
-        result_ionq = dev.batch_execute([tape])
-
-        simulator = qml.device("default.qubit", wires=3)
         result_simulator = qml.execute([tape], simulator)
 
         assert np.allclose(

@@ -27,7 +27,7 @@ from pennylane_ionq.device import (
     SimulatorDevice,
     CircuitIndexNotSetException,
 )
-from pennylane_ionq.ops import GPI, GPI2, MS
+from pennylane_ionq.ops import GPI, GPI2, MS, XX, YY, ZZ
 from pennylane.measurements import SampleMeasurement, ShotCopies
 from unittest import mock
 
@@ -218,15 +218,8 @@ class TestDeviceIntegration:
         dev = qml.device(d, wires=1, shots=1)
         assert dev.prob is None
 
-    @pytest.mark.parametrize("backend",
-        [
-            "aria-1",
-            "aria-2",
-            "forte-1",
-            "forte-enterprise-1",
-            "forte-enterprise-2",
-            None
-        ]
+    @pytest.mark.parametrize(
+        "backend", ["aria-1", "aria-2", "forte-1", "forte-enterprise-1", "forte-enterprise-2", None]
     )
     def test_backend_initialization(self, backend):
         """Test that the device initializes with the correct backend."""
@@ -720,3 +713,39 @@ class TestJobAttribute:
         assert np.allclose(
             computed_matrix, expected_matrix, atol=tol
         ), "Computed matrix does not match the expected matrix"
+
+    def test_simple_operations_SWAP_gate(self, requires_api):
+        """Test SWAP gate operation is correctly processed and sent to IonQ."""
+        dev = qml.device("ionq.simulator", wires=2, gateset="qis")
+
+        with qml.tape.QuantumTape() as tape:
+            qml.PauliX(wires=0)
+            qml.SWAP(wires=[0, 1])
+            qml.probs(wires=[0, 1])
+
+        result_ionq = dev.batch_execute([tape])
+
+        simulator = qml.device("default.qubit", wires=2)
+        result_simulator = qml.execute([tape], simulator)
+
+        assert np.allclose(
+            result_ionq, result_simulator, atol=1e-5
+        ), "The IonQ and simulator results do not agree."
+
+    def test_simple_operations_controlled_gate(self, requires_api):
+        """Test a controlled gate operation is correctly processed and sent to IonQ."""
+        dev = qml.device("ionq.simulator", wires=2, gateset="qis")
+
+        with qml.tape.QuantumTape() as tape:
+            qml.PauliX(wires=0)
+            qml.CNOT(wires=[0, 1])
+            qml.probs(wires=[0, 1])
+
+        result_ionq = dev.batch_execute([tape])
+
+        simulator = qml.device("default.qubit", wires=2)
+        result_simulator = qml.execute([tape], simulator)
+
+        assert np.allclose(
+            result_ionq, result_simulator, atol=1e-5
+        ), "The IonQ and simulator results do not agree."

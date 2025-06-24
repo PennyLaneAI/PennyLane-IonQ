@@ -58,7 +58,6 @@ _qis_operation_map = {
     "Hadamard": "h",
     "CNOT": "cnot",
     "Evolution": "pauliexp",
-    "ParametrizedEvolution": "pauliexp",
     "SWAP": "swap",
     "RX": "rx",
     "RY": "ry",
@@ -413,9 +412,6 @@ class IonQDevice(QubitDevice):
                 )
                 coefficients = pauli_rep.coeffs.tolist()
 
-        if coefficients is None:
-            raise NotSupportedEvolutionInstance()
-
         if any(isinstance(c, complex) for c in coefficients):
             raise ComplexEvolutionCoefficientsNotSupported()
 
@@ -481,13 +477,7 @@ class IonQDevice(QubitDevice):
         ionq_terms = []
         for op in ops:
             terms = {}
-            if isinstance(op, PauliWord):
-                for wire in op.keys():
-                    term_name = op[wire]
-                    term_wire = wire
-                    terms[term_wire] = term_name
-                ionq_terms.append(join_terms(terms, wires))
-            elif isinstance(op, Prod):
+            if isinstance(op, Prod):
                 for operand in op.operands:
                     term_name = map_operand_to_term(operand)
                     term_wire = operand.wires[0]
