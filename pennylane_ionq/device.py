@@ -30,7 +30,6 @@ from pennylane.devices import QubitDevice
 from pennylane.ops.op_math import Exp, Sum, SProd
 from pennylane.ops import Identity, PauliX, PauliY, PauliZ
 from pennylane.ops.op_math.prod import Prod
-from pennylane.pauli import PauliWord
 
 from pennylane.measurements import (
     Shots,
