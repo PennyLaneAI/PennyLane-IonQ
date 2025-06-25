@@ -112,8 +112,8 @@ class APIClient:
         api_key (str): IonQ cloud platform API key
     """
 
-    USER_AGENT = "pennylane-ionq-api-client/0.3"
-    HOSTNAME = "api.ionq.co/v0.3"
+    USER_AGENT = "pennylane-ionq-api-client/0.4"
+    HOSTNAME = "api-staging.ionq.co/v0.4"
     BASE_URL = "https://{}".format(HOSTNAME)
 
     def __init__(self, **kwargs):
@@ -225,8 +225,18 @@ class APIClient:
         Returns:
             requests.Response: A response object, or None if no response could be fetched
         """
-        return self.request(requests.post, url=self.join_path(path), data=json.dumps(payload))
-
+        print("Request payload:")
+        print(json.dumps(payload))
+        print("Request url:")
+        print(self.join_path(path))
+        response = self.request(requests.post, url=self.join_path(path), data=json.dumps(payload))
+        print("Request error:")
+        print(self.errors)
+        print("Response from server:")
+        print(self.responses)
+        print("Response text:")
+        print(response.text)
+        return response
 
 class ResourceManager:
     """

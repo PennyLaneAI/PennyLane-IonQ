@@ -163,20 +163,20 @@ class IonQDevice(QubitDevice):
         self._samples = None
         self.histograms = []
         self.input = {
-            "format": "ionq.circuit.v0",
             "qubits": self.num_wires,
             "circuits": [{"circuit": []} for _ in range(circuits_array_length)],
             "gateset": self.gateset,
         }
         self.job = {
+            "type": "ionq.circuit.v1",
             "input": self.input,
-            "target": self.target,
+            "backend": self.target,
             "shots": self.shots,
         }
         if self.error_mitigation is not None:
             self.job["error_mitigation"] = self.error_mitigation
-        if self.job["target"] == "qpu":
-            self.job["target"] = "qpu.aria-1"
+        if self.job["backend"] == "qpu":
+            self.job["backend"] = "qpu.aria-1"
             warnings.warn(
                 "The ionq_qpu backend is deprecated. Defaulting to ionq_qpu.aria-1.",
                 UserWarning,

@@ -494,7 +494,7 @@ class TestJobAttribute:
 
         assert dev.job["input"]["format"] == "ionq.circuit.v0"
         assert dev.job["input"]["gateset"] == "qis"
-        assert dev.job["target"] == "foo"
+        assert dev.job["backend"] == "foo"
         assert dev.job["input"]["qubits"] == 1
 
         assert len(dev.job["input"]["circuits"][0]) == 1
@@ -520,7 +520,7 @@ class TestJobAttribute:
 
         assert dev.job["input"]["format"] == "ionq.circuit.v0"
         assert dev.job["input"]["gateset"] == "qis"
-        assert dev.job["target"] == "foo"
+        assert dev.job["backend"] == "foo"
         assert dev.job["input"]["qubits"] == 1
 
         assert len(dev.job["input"]["circuits"]) == 1
@@ -664,7 +664,7 @@ class TestJobAttribute:
 
         assert dev.job["input"]["format"] == "ionq.circuit.v0"
         assert dev.job["input"]["gateset"] == "native"
-        assert dev.job["target"] == "simulator"
+        assert dev.job["backend"] == "simulator"
         assert dev.job["input"]["qubits"] == 1
         assert len(dev.job["input"]["circuits"]) == 2
         assert dev.job["input"]["circuits"][0]["circuit"][0] == {
