@@ -737,7 +737,7 @@ class TestJobAttribute:
         dev = qml.device("ionq.simulator", wires=2, gateset="qis")
 
         with qml.tape.QuantumTape() as tape:
-            qml.PauliX(wires=0)
+            qml.Hadamard(wires=0)
             qml.CNOT(wires=[0, 1])
             qml.probs(wires=[0, 1])
 
