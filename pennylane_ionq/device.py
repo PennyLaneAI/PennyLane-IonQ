@@ -168,7 +168,7 @@ class IonQDevice(QubitDevice):
             "gateset": self.gateset,
         }
         self.job = {
-            "type": "ionq.circuit.v1",
+            "type": "ionq.multi-circuit.v1",
             "input": self.input,
             "backend": self.target,
             "shots": self.shots,
