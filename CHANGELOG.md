@@ -5,6 +5,9 @@
  ### Improvements 🛠
  
  ### Breaking changes 💔
+
+* Upgrade minimum supported version of PennyLane to 0.38.0.
+  [(#143)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/143)
  
  ### Deprecations 👋
 
