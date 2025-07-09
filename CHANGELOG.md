@@ -11,7 +11,7 @@
  ### Internal changes ⚙️
 
 * Add new IonQ forte-enterprise backend names to tests.
-  [(#139)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/139)
+  [(#132)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/132)
 
 * The `readthedocs.yml` action has been updated to work with Ubuntu-24.04
   [(#138)](https://github.com/PennyLaneAI/pennylane/pull/138)
