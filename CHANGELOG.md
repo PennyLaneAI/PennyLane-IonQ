@@ -24,7 +24,10 @@
  
  This release contains contributions from (in alphabetical order):
  
- Runor Agbaire
+ Runor Agbaire,
+ Radu Marginean,
+ Mudit Pandey
+
  ---
 # Release 0.41.0
 
