@@ -116,7 +116,7 @@ class IonQDevice(QubitDevice):
     # pylint: disable=too-many-instance-attributes
     name = "IonQ PennyLane plugin"
     short_name = "ionq"
-    pennylane_requires = ">=0.38.0"
+    pennylane_requires = ">=0.42.0"
     version = __version__
     author = "Xanadu Inc."
 
@@ -130,6 +130,7 @@ class IonQDevice(QubitDevice):
     # and therefore does not support the Hermitian observable.
     observables = {"PauliX", "PauliY", "PauliZ", "Hadamard", "Identity", "Prod"}
 
+    # pylint: disable=too-many-arguments
     def __init__(
         self,
         wires,
@@ -175,9 +176,9 @@ class IonQDevice(QubitDevice):
         if self.error_mitigation is not None:
             self.job["error_mitigation"] = self.error_mitigation
         if self.job["target"] == "qpu":
-            self.job["target"] = "qpu.harmony"
+            self.job["target"] = "qpu.aria-1"
             warnings.warn(
-                "The ionq_qpu backend is deprecated. Defaulting to ionq_qpu.harmony.",
+                "The ionq_qpu backend is deprecated. Defaulting to ionq_qpu.aria-1.",
                 UserWarning,
                 stacklevel=2,
             )
@@ -461,8 +462,8 @@ class QPUDevice(IonQDevice):
             or iterable that contains unique labels for the subsystems as numbers (i.e., ``[-1, 0, 2]``)
             or strings (``['ancilla', 'q1', 'q2']``).
         gateset (str): the target gateset, either ``"qis"`` or ``"native"``. Defaults to ``qis``.
-        backend (str): Optional specifier for an IonQ backend. Can be ``"harmony"``, ``"aria-1"``, etc.
-            Default to ``harmony``.
+        backend (str): Optional specifier for an IonQ backend. Can be ``"aria-1"``, ``"aria-2"``, etc.
+            Default to ``aria-1``.
         shots (int, list[int]): Number of circuit evaluations/random samples used to estimate
             expectation values of observables. Defaults to 1024. If a list of integers is passed, the
             circuit evaluations are batched over the list of shots.
@@ -482,13 +483,14 @@ class QPUDevice(IonQDevice):
     name = "IonQ QPU PennyLane plugin"
     short_name = "ionq.qpu"
 
+    # pylint: disable=too-many-arguments
     def __init__(
         self,
         wires,
         *,
         gateset="qis",
         shots=1024,
-        backend="harmony",
+        backend="aria-1",
         error_mitigation=None,
         sharpen=None,
         api_key=None,
