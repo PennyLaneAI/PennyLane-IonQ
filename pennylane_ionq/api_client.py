@@ -229,15 +229,8 @@ class APIClient:
         print(json.dumps(payload))
         print("Request url:")
         print(self.join_path(path))
-        response = self.request(
-            requests.post, url=self.join_path(path), data=json.dumps(payload)
-        )
-        print("Request error:")
-        print(self.errors)
-        print("Response from server:")
-        print(self.responses)
-        print("Response text:")
-        print(response.text)
+        response = self.request(requests.post, url=self.join_path(path), data=json.dumps(payload))
+        print(response)
         return response
 
 
@@ -277,9 +270,7 @@ class ResourceManager:
             resource_id (int): the ID of an object to be retrieved
         """
         if "GET" not in self.resource.SUPPORTED_METHODS:
-            raise MethodNotSupportedException(
-                "GET method on this resource is not supported"
-            )
+            raise MethodNotSupportedException("GET method on this resource is not supported")
 
         if resource_id is not None:
             response = self.client.get(self.join_path(str(resource_id)), params=params)
@@ -298,9 +289,7 @@ class ResourceManager:
             **params: arbitrary parameters to be passed on to the POST request
         """
         if "POST" not in self.resource.SUPPORTED_METHODS:
-            raise MethodNotSupportedException(
-                "POST method on this resource is not supported"
-            )
+            raise MethodNotSupportedException("POST method on this resource is not supported")
 
         if self.resource.id:
             raise ObjectAlreadyCreatedException("ID must be None when calling create")
@@ -370,10 +359,7 @@ class ResourceManager:
             field.set(data.get(field.name, None))
 
         if "results" in data.keys():
-            if (
-                data["results"] is not None
-                and "probabilities" in data["results"].keys()
-            ):
+            if data["results"] is not None and "probabilities" in data["results"].keys():
                 if (
                     data["results"]["probabilities"] is not None
                     and "url" in data["results"]["probabilities"].keys()

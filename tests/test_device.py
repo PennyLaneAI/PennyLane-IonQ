@@ -140,9 +140,48 @@ class TestDeviceIntegration:
         circuit()
         assert json.loads(spy.call_args[1]["data"])["shots"] == shots
 
-    @pytest.mark.parametrize("error_mitigation", [None, {"debias": True}, {"debias": False}])
+    @pytest.mark.parametrize("compilation", [None, {"opt": 0, "precision": "1E-3"}])
+    def test_compilation(self, compilation, monkeypatch, mocker):
+        """Test that compilation settings are properly handled when submitting a job to the API."""
+
+        monkeypatch.setattr(
+            requests, "post", lambda url, timeout, data, headers: (url, data, headers)
+        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
+        monkeypatch.setattr(Job, "is_complete", True)
+
+        def fake_response(self, resource_id=None, params=None):
+            """Return fake response data"""
+            fake_json = {"0": 1}
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
+
+        monkeypatch.setattr(ResourceManager, "get", fake_response)
+
+        dev = qml.device(
+            "ionq.qpu",
+            wires=1,
+            shots=5000,
+            api_key="test",
+            compilation=compilation,
+        )
+
+        @qml.qnode(dev)
+        def circuit():
+            """Reference QNode"""
+            qml.PauliX(wires=0)
+            return qml.expval(qml.PauliZ(0))
+
+        spy = mocker.spy(requests, "post")
+        circuit()
+        if compilation is not None:
+            assert json.loads(spy.call_args[1]["data"])["settings"]["compilation"] == compilation
+        else:
+            with pytest.raises(KeyError, match="settings"):
+                json.loads(spy.call_args[1]["data"])["settings"]
+
+    @pytest.mark.parametrize("error_mitigation", [None, {"debiasing": True}, {"debiasing": False}])
     def test_error_mitigation(self, error_mitigation, monkeypatch, mocker):
-        """Test that shots are correctly specified when submitting a job to the API."""
+        """Test that error mitigation settings are properly handled when submitting a job to the API."""
 
         monkeypatch.setattr(
             requests, "post", lambda url, timeout, data, headers: (url, data, headers)
@@ -174,10 +213,13 @@ class TestDeviceIntegration:
         spy = mocker.spy(requests, "post")
         circuit()
         if error_mitigation is not None:
-            assert json.loads(spy.call_args[1]["data"])["error_mitigation"] == error_mitigation
+            assert (
+                json.loads(spy.call_args[1]["data"])["settings"]["error_mitigation"]
+                == error_mitigation
+            )
         else:
-            with pytest.raises(KeyError, match="error_mitigation"):
-                json.loads(spy.call_args[1]["data"])["error_mitigation"]
+            with pytest.raises(KeyError, match="settings"):
+                json.loads(spy.call_args[1]["data"])["settings"]
 
     @pytest.mark.parametrize("shots", [8192])
     def test_one_qubit_circuit(self, shots, requires_api, tol):
@@ -218,15 +260,16 @@ class TestDeviceIntegration:
         dev = qml.device(d, wires=1, shots=1)
         assert dev.prob is None
 
-    @pytest.mark.parametrize("backend",
+    @pytest.mark.parametrize(
+        "backend",
         [
             "aria-1",
             "aria-2",
             "forte-1",
             "forte-enterprise-1",
             "forte-enterprise-2",
-            None
-        ]
+            None,
+        ],
     )
     def test_backend_initialization(self, backend):
         """Test that the device initializes with the correct backend."""
@@ -287,7 +330,10 @@ class TestDeviceIntegration:
     @mock.patch("logging.Logger.isEnabledFor", return_value=True)
     @mock.patch("logging.Logger.debug")
     def test_batch_execute_logging_when_enabled(
-        self, mock_logging_debug_method, mock_logging_is_enabled_for_method, requires_api
+        self,
+        mock_logging_debug_method,
+        mock_logging_is_enabled_for_method,
+        requires_api,
     ):
         """Test logging invoked in batch_execute method."""
         dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
@@ -492,7 +538,7 @@ class TestJobAttribute:
 
         dev.apply(tape.operations)
 
-        assert dev.job["input"]["format"] == "ionq.circuit.v0"
+        assert dev.job["type"] == "ionq.multi-circuit.v1"
         assert dev.job["input"]["gateset"] == "qis"
         assert dev.job["backend"] == "foo"
         assert dev.job["input"]["qubits"] == 1
@@ -518,7 +564,7 @@ class TestJobAttribute:
         dev.reset(circuits_array_length=1)
         dev.batch_apply(tape.operations, circuit_index=0)
 
-        assert dev.job["input"]["format"] == "ionq.circuit.v0"
+        assert dev.job["type"] == "ionq.multi-circuit.v1"
         assert dev.job["input"]["gateset"] == "qis"
         assert dev.job["backend"] == "foo"
         assert dev.job["input"]["qubits"] == 1
@@ -544,7 +590,7 @@ class TestJobAttribute:
 
         dev.apply(tape.operations)
 
-        assert dev.job["input"]["format"] == "ionq.circuit.v0"
+        assert dev.job["type"] == "ionq.multi-circuit.v1"
         assert dev.job["input"]["gateset"] == "qis"
         assert dev.job["input"]["qubits"] == 1
 
@@ -576,7 +622,7 @@ class TestJobAttribute:
         dev.reset(circuits_array_length=1)
         dev.batch_apply(tape.operations, circuit_index=0)
 
-        assert dev.job["input"]["format"] == "ionq.circuit.v0"
+        assert dev.job["type"] == "ionq.multi-circuit.v1"
         assert dev.job["input"]["gateset"] == "qis"
         assert dev.job["input"]["qubits"] == 1
 
@@ -609,7 +655,7 @@ class TestJobAttribute:
 
         dev.apply(tape.operations)
 
-        assert dev.job["input"]["format"] == "ionq.circuit.v0"
+        assert dev.job["type"] == "ionq.multi-circuit.v1"
         assert dev.job["input"]["gateset"] == "native"
         assert dev.job["input"]["qubits"] == 3
 
@@ -662,7 +708,7 @@ class TestJobAttribute:
         except StopExecute:
             pass
 
-        assert dev.job["input"]["format"] == "ionq.circuit.v0"
+        assert dev.job["type"] == "ionq.multi-circuit.v1"
         assert dev.job["input"]["gateset"] == "native"
         assert dev.job["backend"] == "simulator"
         assert dev.job["input"]["qubits"] == 1

@@ -86,6 +86,7 @@ class CircuitIndexNotSetException(Exception):
         super().__init__(self.message)
 
 
+# TODO: add gate_basis to compilation fields in docs?
 class IonQDevice(QubitDevice):
     r"""IonQ device for PennyLane.
 
@@ -102,11 +103,14 @@ class IonQDevice(QubitDevice):
             If a list of integers is passed, the circuit evaluations are batched over the list of shots.
         api_key (str): The IonQ API key. If not provided, the environment
             variable ``IONQ_API_KEY`` is used.
+        compilation (dict): settings for compilation when creating a job: 
+            default values: {"opt": 0, "precision": "1E-3"}
+            seee: https://docs.ionq.com/api-reference/v0.4/jobs/create-job
         error_mitigation (dict): settings for error mitigation when creating a job. Defaults to None.
             Not available on all backends. Set by default on some hardware systems. See
-            `IonQ API Job Creation <https://docs.ionq.com/#tag/jobs/operation/createJob>`_  and
+            `IonQ API Job Creation <https://docs.ionq.com/api-reference/v0.4/jobs/create-job>`_  and
             `IonQ Debiasing and Sharpening <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
-            Valid keys include: ``debias`` (bool).
+            Valid keys include: ``debiasing`` False or Object.
         sharpen (bool): whether to use sharpening when accessing the results of an executed job. Defaults to None
             (no value passed at job retrieval). Will generally return more accurate results if your expected output
             distribution has peaks. See `IonQ Debiasing and Sharpening
@@ -139,6 +143,7 @@ class IonQDevice(QubitDevice):
         gateset="qis",
         shots=1024,
         api_key=None,
+        compilation=None,
         error_mitigation=None,
         sharpen=False,
     ):
@@ -150,6 +155,7 @@ class IonQDevice(QubitDevice):
         self.target = target
         self.api_key = api_key
         self.gateset = gateset
+        self.compilation = compilation
         self.error_mitigation = error_mitigation
         self.sharpen = sharpen
         self._operation_map = _GATESET_OPS[gateset]
@@ -173,8 +179,12 @@ class IonQDevice(QubitDevice):
             "backend": self.target,
             "shots": self.shots,
         }
+        if self.compilation is not None:
+            self.job["settings"] = {"compilation": self.compilation}
         if self.error_mitigation is not None:
-            self.job["error_mitigation"] = self.error_mitigation
+            if not "settings" in self.job:
+                self.job["settings"] = {}
+            self.job["settings"]["error_mitigation"] = self.error_mitigation
         if self.job["backend"] == "qpu":
             self.job["backend"] = "qpu.aria-1"
             warnings.warn(
@@ -491,6 +501,7 @@ class QPUDevice(IonQDevice):
         gateset="qis",
         shots=1024,
         backend="aria-1",
+        compilation=None,
         error_mitigation=None,
         sharpen=None,
         api_key=None,
@@ -505,6 +516,7 @@ class QPUDevice(IonQDevice):
             gateset=gateset,
             shots=shots,
             api_key=api_key,
+            compilation=compilation,
             error_mitigation=error_mitigation,
             sharpen=sharpen,
         )
