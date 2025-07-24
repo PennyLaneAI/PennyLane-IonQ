@@ -19,6 +19,8 @@
 
 This release contains contributions from (in alphabetical order):
 
+Andrija Paurevic.
+
 ---
 # Release 0.42.0
  
