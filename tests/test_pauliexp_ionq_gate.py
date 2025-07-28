@@ -102,6 +102,25 @@ class TestIonQPauliexp:
         ):
             dev.batch_execute([tape])
 
+    def test_evolution_gate_print_warning(self, capsys):
+        """A warning is shown to user when using an Evolution gate."""
+
+        dev = qml.device("ionq.simulator", wires=1, gateset="qis")
+
+        H = qml.PauliX(0)
+
+        time = 1
+        tape = qml.tape.QuantumScript([qml.evolve(H, time)], [qml.probs(wires=[0])])
+
+        dev.batch_execute([tape])
+        captured = capsys.readouterr()
+
+        expected_message = (
+            "The number of steps argument will be ignored even if provided because IonQ "
+            "implements hardware-efficient approximate compilation schemes for pauliexp gates."
+        )
+        assert expected_message in captured.out
+
     def test_identity_evolution_gate_generator(self, requires_api):
         """Test the implementation of Evolution gate using pauliexp gate
         works when applied Evolution is generated from an Identity operator.
@@ -228,11 +247,8 @@ class TestIonQPauliexp:
 
         result_ionq = dev.batch_execute([tape])
 
-        # Pennylane simulator returns incorrect
-        # results for this test, probably because Pauli
-        # strings in which the operator is decomposed
-        # do not commute.
-
+        # need this here because Pennylane simulator use the exact
+        # evolution rather than a the trotterization approximation
         results_qiskit_statevector_sim = [
             0.90082792,
             0.07257902,
@@ -353,10 +369,8 @@ class TestIonQPauliexp:
 
         result_ionq = dev.batch_execute([tape])
 
-        # Pennylane simulator returns incorrect
-        # results for this test, probably because Pauli
-        # strings in which the operator is decomposed
-        # do not commute.
+        # need this here because Pennylane simulator use the exact
+        # evolution rather than a the trotterization approximation
         results_qiskit_statevector_sim = [
             0.10784311,
             0.45583129,
