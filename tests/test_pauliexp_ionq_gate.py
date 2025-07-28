@@ -102,7 +102,7 @@ class TestIonQPauliexp:
         ):
             dev.batch_execute([tape])
 
-    def test_evolution_gate_print_warning(self, capsys):
+    def test_evolution_gate_print_warning(self, requires_api, capsys):
         """A warning is shown to user when using an Evolution gate."""
 
         dev = qml.device("ionq.simulator", wires=1, gateset="qis")
