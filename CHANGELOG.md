@@ -5,7 +5,7 @@
  ### Improvements 🛠
  
 * The Pennylane Evolution gate is now decomposed to IonQ pauliexp gates before sending to IonQ API.
-  [(134)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/134)
+  [(#134)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/134)
 
  ### Breaking changes 💔
  
@@ -14,7 +14,7 @@
  ### Internal changes ⚙️
 
 * The `readthedocs.yml` action has been updated to work with Ubuntu-24.04
-  [(138)](https://github.com/PennyLaneAI/pennylane/pull/138)
+  [(#138)](https://github.com/PennyLaneAI/pennylane/pull/138)
  
  ### Documentation 📝
  
