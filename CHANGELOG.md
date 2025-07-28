@@ -4,7 +4,8 @@
  
  ### Improvements 🛠
  
- The Pennylane Evolution gate is now decomposed to IonQ pauliexp gates before sending to IonQ API.
+* The Pennylane Evolution gate is now decomposed to IonQ pauliexp gates before sending to IonQ API.
+  [(134)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/134)
 
  ### Breaking changes 💔
  
