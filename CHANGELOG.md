@@ -4,6 +4,8 @@
  
  ### Improvements 🛠
  
+ The Pennylane Evolution gate is now decomposed to IonQ pauliexp gates before sending to IonQ API.
+
  ### Breaking changes 💔
  
  ### Deprecations 👋
@@ -22,6 +24,7 @@
  This release contains contributions from (in alphabetical order):
  
  Runor Agbaire
+ Radu Marginean
  ---
 # Release 0.41.0
 
