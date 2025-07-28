@@ -75,7 +75,7 @@ def join_path(base_path, path):
     Returns:
         str: A joined path.
     """
-    return urllib.parse.urljoin("{}/".format(base_path), path)
+    return urllib.parse.urljoin(f"{base_path}/", path)
 
 
 class MethodNotSupportedException(TypeError):
@@ -153,7 +153,7 @@ class APIClient:
         Args:
             authentication_token (str): an authentication token used to access the API
         """
-        self.HEADERS["Authorization"] = "apiKey {}".format(authentication_token)
+        self.HEADERS["Authorization"] = f"apiKey {authentication_token}"
 
     def join_path(self, path):
         """
@@ -429,7 +429,7 @@ class Field:
         """
         Return the string representation of the value.
         """
-        return "<{} {}: {}>".format(self.name, self.__class__.__name__, str(self.value))
+        return f"<{self.name} {self.__class__.__name__}: {str(self.value)}>"
 
     def __bool__(self):
         """
