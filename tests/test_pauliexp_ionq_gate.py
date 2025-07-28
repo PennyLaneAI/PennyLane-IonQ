@@ -102,7 +102,7 @@ class TestIonQPauliexp:
         ):
             dev.batch_execute([tape])
 
-    def test_evolution_gate_print_warning(self, requires_api, capsys):
+    def test_evolution_gate_print_warning(self, requires_api):
         """A warning is shown to user when using an Evolution gate."""
 
         dev = qml.device("ionq.simulator", wires=1, gateset="qis")
@@ -112,14 +112,11 @@ class TestIonQPauliexp:
         time = 1
         tape = qml.tape.QuantumScript([qml.evolve(H, time)], [qml.probs(wires=[0])])
 
-        dev.batch_execute([tape])
-        captured = capsys.readouterr()
-
-        expected_message = (
-            "The number of steps argument will be ignored even if provided because IonQ "
-            "implements hardware-efficient approximate compilation schemes for pauliexp gates."
-        )
-        assert expected_message in captured.out
+        with pytest.warns(
+            UserWarning,
+            match="The number of steps argument for Evolution gate will be ignored even if provided",
+        ):
+            dev.batch_execute([tape])
 
     def test_identity_evolution_gate_generator(self, requires_api):
         """Test the implementation of Evolution gate using pauliexp gate

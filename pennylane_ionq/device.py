@@ -326,12 +326,14 @@ class IonQDevice(QubitDevice):
 
     def _apply_evolution_operation(self, operation, circuit_index, wires):
         """Applies Evolution operations to the internal device state.
-        The number of steps argument will be ignored even if provided because IonQ
-        implements hardware-efficient approximate compilation schemes for pauliexp gates.
+        The number of steps argument for Evolution gate will be ignored even if provided because
+        IonQ implements hardware-efficient approximate compilation schemes for pauliexp gates.
         """
-        print(
-            "The number of steps argument will be ignored even if provided because IonQ "
-            "implements hardware-efficient approximate compilation schemes for pauliexp gates."
+        warnings.warn(
+            "The number of steps argument for Evolution gate will be ignored even if provided because "
+            "IonQ implements hardware-efficient approximate compilation schemes for pauliexp gates "
+            "and the Evolution gate is being mapped to pauliexp gates by the API before sending to IonQ.",
+            UserWarning,
         )
         name = operation.name
         terms = self._extract_evolution_pauli_terms(operation, wires)
