@@ -103,7 +103,7 @@ class IonQDevice(QubitDevice):
             If a list of integers is passed, the circuit evaluations are batched over the list of shots.
         api_key (str): The IonQ API key. If not provided, the environment
             variable ``IONQ_API_KEY`` is used.
-        compilation (dict): settings for compilation when creating a job: 
+        compilation (dict): settings for compilation when creating a job:
             default values: {"opt": 0, "precision": "1E-3"}
             seee: https://docs.ionq.com/api-reference/v0.4/jobs/create-job
         error_mitigation (dict): settings for error mitigation when creating a job. Defaults to None.
@@ -146,6 +146,7 @@ class IonQDevice(QubitDevice):
         compilation=None,
         error_mitigation=None,
         sharpen=False,
+        dry_run=False,
     ):
         if shots is None:
             raise ValueError("The ionq device does not support analytic expectation values.")
@@ -158,6 +159,7 @@ class IonQDevice(QubitDevice):
         self.compilation = compilation
         self.error_mitigation = error_mitigation
         self.sharpen = sharpen
+        self.dry_run = dry_run
         self._operation_map = _GATESET_OPS[gateset]
         self.histograms = []
         self._samples = None
@@ -179,6 +181,8 @@ class IonQDevice(QubitDevice):
             "backend": self.target,
             "shots": self.shots,
         }
+        if self.dry_run:
+            self.job["dry_run"] = self.dry_run
         if self.compilation is not None:
             self.job["settings"] = {"compilation": self.compilation}
         if self.error_mitigation is not None:
@@ -232,6 +236,9 @@ class IonQDevice(QubitDevice):
             )
 
         self._submit_job()
+
+        if self.dry_run:
+            return []
 
         results = []
         for circuit_index, circuit in enumerate(circuits):
@@ -373,6 +380,9 @@ class IonQDevice(QubitDevice):
 
         job.manager.get(resource_id=job.id.value, params=params)
 
+        if self.dry_run:
+            return
+
         # The returned job histogram is of the form
         # dict[str, float], and maps the computational basis
         # state (as a base-10 integer string) to the probability
@@ -448,13 +458,14 @@ class SimulatorDevice(IonQDevice):
     name = "IonQ Simulator PennyLane plugin"
     short_name = "ionq.simulator"
 
-    def __init__(self, wires, *, gateset="qis", shots=1024, api_key=None):
+    def __init__(self, wires, *, gateset="qis", shots=1024, api_key=None, dry_run=False):
         super().__init__(
             wires=wires,
             target="simulator",
             gateset=gateset,
             shots=shots,
             api_key=api_key,
+            dry_run=dry_run,
         )
 
     def generate_samples(self):
@@ -505,6 +516,7 @@ class QPUDevice(IonQDevice):
         error_mitigation=None,
         sharpen=None,
         api_key=None,
+        dry_run=False,
     ):
         target = "qpu"
         self.backend = backend
@@ -519,6 +531,7 @@ class QPUDevice(IonQDevice):
             compilation=compilation,
             error_mitigation=error_mitigation,
             sharpen=sharpen,
+            dry_run=dry_run,
         )
 
     def generate_samples(self):

@@ -179,7 +179,9 @@ class TestDeviceIntegration:
             with pytest.raises(KeyError, match="settings"):
                 json.loads(spy.call_args[1]["data"])["settings"]
 
-    @pytest.mark.parametrize("error_mitigation", [None, {"debiasing": True}, {"debiasing": False}])
+    @pytest.mark.parametrize(
+        "error_mitigation", [None, {"debiasing": {"key": "value"}}, {"debiasing": False}]
+    )
     def test_error_mitigation(self, error_mitigation, monkeypatch, mocker):
         """Test that error mitigation settings are properly handled when submitting a job to the API."""
 
