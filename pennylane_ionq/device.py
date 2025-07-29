@@ -330,9 +330,9 @@ class IonQDevice(QubitDevice):
         IonQ implements hardware-efficient approximate compilation schemes for pauliexp gates.
         """
         warnings.warn(
-            "The number of steps argument for Evolution gate will be ignored even if provided because "
-            "IonQ implements hardware-efficient approximate compilation schemes for pauliexp gates "
-            "and the Evolution gate is being mapped to pauliexp gates by the API before sending to IonQ.",
+            "The 'num_steps' argument for the Evolution gate will be ignored. The API maps this "
+            "gate to IonQ's 'pauliexp' gate, for which IonQ implements its own hardware-efficient "
+            "approximate compilation schemes.",
             UserWarning,
         )
         name = operation.name

@@ -114,7 +114,7 @@ class TestIonQPauliexp:
 
         with pytest.warns(
             UserWarning,
-            match="The number of steps argument for Evolution gate will be ignored even if provided",
+            match="The 'num_steps' argument for the Evolution gate will be ignored",
         ):
             dev.batch_execute([tape])
 
@@ -257,38 +257,23 @@ class TestIonQPauliexp:
             result_ionq, results_qiskit_statevector_sim, atol=1e-2
         ), "The IonQ and simulator results do not agree."
 
-    def test_evolution_object_created_from_sprod_1(self, requires_api):
+    @pytest.mark.parametrize(
+        "op",
+        [
+            SProd(2.5, qml.PauliX(0)),
+            2 * SProd(2.5, qml.Hamiltonian([1.0], [qml.PauliX(0)]))
+            + SProd(3.1, qml.Hamiltonian([-0.5], [qml.PauliZ(1)])),
+        ],
+    )
+    def test_evolution_object_created_from_sprod(self, op, requires_api):
         """Test that the implementation of Evolution gate derived
         from a Hamiltonian constructed via an SProd term works.
         """
 
         dev = qml.device("ionq.simulator", wires=2, gateset="qis")
 
-        H1 = qml.Hamiltonian([1.0], [qml.PauliX(0)])
-        H2 = qml.Hamiltonian([-0.5], [qml.PauliZ(1)])
-        sum_H = 2 * SProd(2.5, H1) + SProd(3.1, H2)
-
         time = 3
-        tape = qml.tape.QuantumScript([qml.evolve(sum_H, time)], [qml.probs(wires=[0, 1])])
-
-        result_ionq = dev.batch_execute([tape])
-
-        simulator = qml.device("default.qubit", wires=2)
-        result_simulator = qml.execute([tape], simulator)
-
-        assert np.allclose(
-            result_ionq, result_simulator, atol=1e-2
-        ), "The IonQ and simulator results do not agree."
-
-    def test_evolution_object_created_from_sprod_2(self, requires_api):
-        """Test that the implementation of Evolution gate derived
-        from a Hamiltonian constructed via an SProd term works.
-        """
-
-        dev = qml.device("ionq.simulator", wires=1, gateset="qis")
-
-        H = SProd(2.5, qml.PauliX(0))
-        tape = qml.tape.QuantumScript([qml.evolve(H)], [qml.probs(wires=[0])])
+        tape = qml.tape.QuantumScript([qml.evolve(op, time)], [qml.probs(wires=[0, 1])])
 
         result_ionq = dev.batch_execute([tape])
 
