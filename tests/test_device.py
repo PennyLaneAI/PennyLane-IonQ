@@ -140,6 +140,137 @@ class TestDeviceIntegration:
         circuit()
         assert json.loads(spy.call_args[1]["data"])["shots"] == shots
 
+    def test_dry_run_submit_job(self, monkeypatch, mocker):
+        """Test that dry_run are correctly specified when submitting a job to the API."""
+
+        monkeypatch.setattr(
+            requests, "post", lambda url, timeout, data, headers: (url, data, headers)
+        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
+        monkeypatch.setattr(Job, "is_complete", True)
+
+        def fake_response(self, resource_id=None, params=None):
+            """Return fake response data"""
+            fake_json = {"0": 1}
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
+
+        monkeypatch.setattr(ResourceManager, "get", fake_response)
+
+        dev = qml.device("ionq.simulator", wires=1, dry_run=True, api_key="test")
+
+        @qml.qnode(dev)
+        def circuit():
+            """Reference QNode"""
+            qml.Identity(wires=0)
+            return qml.probs(wires=[0])
+
+        spy = mocker.spy(requests, "post")
+        circuit()
+
+        assert json.loads(spy.call_args[1]["data"])["dry_run"] == True
+
+    def test_dry_run_execute(self, requires_api):
+        """Send a job with dry_run option set to true to the API."""
+
+        dev = qml.device("ionq.simulator", wires=1, dry_run=True)
+
+        @qml.qnode(dev)
+        def circuit():
+            qml.Identity(wires=0)
+            return qml.probs(wires=[0])
+
+        res = circuit()
+        assert res == []
+
+    def test_noise_submit_job(self, monkeypatch, mocker):
+        """Test that noise are correctly specified when submitting a job to the API."""
+
+        monkeypatch.setattr(
+            requests, "post", lambda url, timeout, data, headers: (url, data, headers)
+        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
+        monkeypatch.setattr(Job, "is_complete", True)
+
+        def fake_response(self, resource_id=None, params=None):
+            """Return fake response data"""
+            fake_json = {"0": 1}
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
+
+        monkeypatch.setattr(ResourceManager, "get", fake_response)
+
+        dev = qml.device(
+            "ionq.simulator", wires=1, noise={"model": "ideal", "seed": 7}, api_key="test"
+        )
+
+        @qml.qnode(dev)
+        def circuit():
+            """Reference QNode"""
+            qml.Identity(wires=0)
+            return qml.probs(wires=[0])
+
+        spy = mocker.spy(requests, "post")
+        circuit()
+
+        assert json.loads(spy.call_args[1]["data"])["noise"] == {"model": "ideal", "seed": 7}
+
+    def test_metadata_submit_job(self, monkeypatch, mocker):
+        """Test that metadata is correctly specified when submitting a job to the API."""
+
+        monkeypatch.setattr(
+            requests, "post", lambda url, timeout, data, headers: (url, data, headers)
+        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
+        monkeypatch.setattr(Job, "is_complete", True)
+
+        def fake_response(self, resource_id=None, params=None):
+            """Return fake response data"""
+            fake_json = {"0": 1}
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
+
+        monkeypatch.setattr(ResourceManager, "get", fake_response)
+
+        dev = qml.device("ionq.simulator", wires=1, metadata={"key": "value"}, api_key="test")
+
+        @qml.qnode(dev)
+        def circuit():
+            """Reference QNode"""
+            qml.Identity(wires=0)
+            return qml.probs(wires=[0])
+
+        spy = mocker.spy(requests, "post")
+        circuit()
+
+        assert json.loads(spy.call_args[1]["data"])["metadata"] == {"key": "value"}
+
+    def test_job_name_submit_job(self, monkeypatch, mocker):
+        """Test that name is correctly specified when submitting a job to the API."""
+
+        monkeypatch.setattr(
+            requests, "post", lambda url, timeout, data, headers: (url, data, headers)
+        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
+        monkeypatch.setattr(Job, "is_complete", True)
+
+        def fake_response(self, resource_id=None, params=None):
+            """Return fake response data"""
+            fake_json = {"0": 1}
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
+
+        monkeypatch.setattr(ResourceManager, "get", fake_response)
+
+        dev = qml.device("ionq.simulator", wires=1, job_name="test_name", api_key="test")
+
+        @qml.qnode(dev)
+        def circuit():
+            """Reference QNode"""
+            qml.Identity(wires=0)
+            return qml.probs(wires=[0])
+
+        spy = mocker.spy(requests, "post")
+        circuit()
+
+        assert json.loads(spy.call_args[1]["data"])["name"] == "test_name"
+
     @pytest.mark.parametrize("compilation", [None, {"opt": 0, "precision": "1E-3"}])
     def test_compilation(self, compilation, monkeypatch, mocker):
         """Test that compilation settings are properly handled when submitting a job to the API."""
@@ -551,7 +682,7 @@ class TestJobAttribute:
             "target": 0,
         }
 
-    def test_nonparametrized_tape_batch_submit(self, mocker):
+    def test_nonparametrized_tape_batch_submit_job(self, mocker):
         """Tests job attribute after single paulix tape, on batch submit."""
 
         def mock_submit_job(*args):
@@ -608,7 +739,7 @@ class TestJobAttribute:
             "rotation": 2.3456,
         }
 
-    def test_parameterized_op_batch_submit(self, mocker):
+    def test_parameterized_op_batch_submit_job(self, mocker):
         """Tests job attribute several parameterized operations."""
 
         def mock_submit_job(*args):
@@ -685,7 +816,7 @@ class TestJobAttribute:
             "angle": 0.1,
         }
 
-    def test_parameterized_native_op_batch_submit(self, mocker):
+    def test_parameterized_native_op_batch_submit_job(self, mocker):
         """Tests job attribute for several parameterized native operations with batch_execute."""
 
         class StopExecute(Exception):
