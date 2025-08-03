@@ -6,6 +6,9 @@
 
 ### Breaking changes 💔
 
+* Remove support for Python 3.10 and add support for Python 3.13.
+  [(#144)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/144)
+
 ### Deprecations 👋
 
 ### Documentation 📝
@@ -15,6 +18,8 @@
 ### Contributors ✍️
 
 This release contains contributions from (in alphabetical order):
+
+Andrija Paurevic.
 
 ---
 # Release 0.42.0
