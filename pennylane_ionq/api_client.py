@@ -225,12 +225,7 @@ class APIClient:
         Returns:
             requests.Response: A response object, or None if no response could be fetched
         """
-        print("Request payload:")
-        print(json.dumps(payload))
-        print("Request url:")
-        print(self.join_path(path))
         response = self.request(requests.post, url=self.join_path(path), data=json.dumps(payload))
-        print(response)
         return response
 
 
