@@ -115,7 +115,10 @@ class IonQDevice(QubitDevice):
             (no value passed at job retrieval). Will generally return more accurate results if your expected output
             distribution has peaks. See `IonQ Debiasing and Sharpening
             <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
-        noise (dict): {"model": str, "seed": int or None}
+        noise (dict): {"model": str, "seed": int or None}. Defaults to None.
+        dry_run: If True, the job will be submitted by the API client but not processed remotely. 
+            Useful for obtaining cost estimates. Defaults to False.
+        metadata (dict): optional metadata to attach to the job. Defaults to None.
     """
 
     # pylint: disable=too-many-instance-attributes
@@ -466,6 +469,8 @@ class SimulatorDevice(IonQDevice):
             Defaults to 1024.
         api_key (str): The IonQ API key. If not provided, the environment
             variable ``IONQ_API_KEY`` is used.
+        noise (dict): {"model": str, "seed": int or None}. Defaults to None.
+        metadata (dict): optional metadata to attach to the job. Defaults to None.
     """
 
     name = "IonQ Simulator PennyLane plugin"
