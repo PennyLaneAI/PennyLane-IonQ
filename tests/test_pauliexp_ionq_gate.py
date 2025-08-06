@@ -135,8 +135,8 @@ class TestIonQPauliexp:
         result_ionq = dev.batch_execute([tape])
 
         simulator = qml.device("default.qubit", wires=2)
-        # note that Pennylane is calculating exact results here instead of using Trotterization
-        # which is fine here since the two results should agree if number of Trotter steps is 1
+        # note that Pennylane is calculating exact results here instead of using Trotterization which
+        # is fine for this particular test since the two results should agree if number of Trotter steps is 1
         result_simulator = qml.execute([tape], simulator)
 
         assert np.allclose(result_ionq, result_simulator, atol=1e-2)
@@ -183,8 +183,8 @@ class TestIonQPauliexp:
         result_ionq = dev.batch_execute([tape])
 
         simulator = qml.device("default.qubit", wires=no_wires)
-        # note that Pennylane is calculating exact results here instead of using Trotterization
-        # which is fine here since the two results should agree if number of Trotter steps is 1
+        # note that Pennylane is calculating exact results here instead of using Trotterization which
+        # is fine for this particular test since the two results should agree if number of Trotter steps is 1
         result_simulator = qml.execute([tape], simulator)
 
         assert np.allclose(
@@ -273,8 +273,8 @@ class TestIonQPauliexp:
         result_ionq = dev.batch_execute([tape])
 
         simulator = qml.device("default.qubit", wires=2)
-        # note that Pennylane is calculating exact results here instead of using Trotterization
-        # which is fine here since the two results should agree if number of Trotter steps is 1
+        # note that Pennylane is calculating exact results here instead of using Trotterization which
+        # is fine for this particular test since the two results should agree if number of Trotter steps is 1
         result_simulator = qml.execute([tape], simulator)
 
         assert np.allclose(
@@ -303,8 +303,8 @@ class TestIonQPauliexp:
         result_ionq = dev.batch_execute([tape])
 
         simulator = qml.device("default.qubit", wires=len(wires))
-        # note that Pennylane is calculating exact results here instead of using Trotterization
-        # which is fine here since the two results should agree if number of Trotter steps is 1
+        # note that Pennylane is calculating exact results here instead of using Trotterization which
+        # is fine for this particular test since the two results should agree if number of Trotter steps is 1
         result_simulator = qml.execute([tape], simulator)
 
         assert np.allclose(
@@ -325,8 +325,8 @@ class TestIonQPauliexp:
         result_ionq = dev.batch_execute([tape])
 
         simulator = qml.device("default.qubit", wires=2)
-        # note that Pennylane is calculating exact results here instead of using Trotterization
-        # which is fine here since the two results should agree if number of Trotter steps is 1
+        # note that Pennylane is calculating exact results here instead of using Trotterization which
+        # is fine for this particular test since the two results should agree if number of Trotter steps is 1
         result_simulator = qml.execute([tape], simulator)
 
         assert np.allclose(
@@ -393,8 +393,8 @@ class TestIonQPauliexp:
         result_ionq = dev.batch_execute([tape])
 
         simulator = qml.device("default.qubit", wires=2)
-        # note that Pennylane is calculating exact results here instead of using Trotterization
-        # which is fine here since the two results should agree if number of Trotter steps is 1
+        # note that Pennylane is calculating exact results here instead of using Trotterization which
+        # is fine for this particular test since the two results should agree if number of Trotter steps is 1
         result_simulator = qml.execute([tape], simulator)
 
         assert np.allclose(
