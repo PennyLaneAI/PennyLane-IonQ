@@ -1,17 +1,47 @@
-# Release 0.42.0-dev
+# Release 0.43.0-dev
+
+### New features since last release
+
+### Improvements 🛠
+
+### Breaking changes 💔
+
+* Remove support for Python 3.10 and add support for Python 3.13.
+  [(#144)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/144)
+
+### Deprecations 👋
+
+### Documentation 📝
+
+### Bug fixes 🐛
+
+### Contributors ✍️
+
+This release contains contributions from (in alphabetical order):
+
+Andrija Paurevic.
+
+---
+# Release 0.42.0
  
  ### New features since last release
  
  ### Improvements 🛠
  
  ### Breaking changes 💔
+
+* Upgrade minimum supported version of PennyLane to 0.42.0.
+  [(#143)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/143)
  
  ### Deprecations 👋
 
  ### Internal changes ⚙️
 
+* Add new IonQ forte-enterprise backend names to tests.
+  [(#132)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/132)
+
 * The `readthedocs.yml` action has been updated to work with Ubuntu-24.04
-  [(138)](https://github.com/PennyLaneAI/pennylane/pull/138)
+  [(#138)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/138)
  
  ### Documentation 📝
  
@@ -21,7 +51,10 @@
  
  This release contains contributions from (in alphabetical order):
  
- Runor Agbaire
+ Runor Agbaire,
+ Radu Marginean,
+ Mudit Pandey
+
  ---
 # Release 0.41.0
 
