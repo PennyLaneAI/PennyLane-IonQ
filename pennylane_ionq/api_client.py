@@ -112,9 +112,9 @@ class APIClient:
         api_key (str): IonQ cloud platform API key
     """
 
-    USER_AGENT = "pennylane-ionq-api-client/0.3"
-    HOSTNAME = "api.ionq.co/v0.3"
-    BASE_URL = f"https://{HOSTNAME}"
+    USER_AGENT = "pennylane-ionq-api-client/0.4"
+    HOSTNAME = "api.ionq.co/v0.4"
+    BASE_URL = "https://{}".format(HOSTNAME)
 
     def __init__(self, **kwargs):
         self.AUTHENTICATION_TOKEN = (
@@ -225,7 +225,8 @@ class APIClient:
         Returns:
             requests.Response: A response object, or None if no response could be fetched
         """
-        return self.request(requests.post, url=self.join_path(path), data=json.dumps(payload))
+        response = self.request(requests.post, url=self.join_path(path), data=json.dumps(payload))
+        return response
 
 
 class ResourceManager:
@@ -352,9 +353,17 @@ class ResourceManager:
         for field in self.resource.fields:
             field.set(data.get(field.name, None))
 
-        if "results_url" in data.keys():
-            result = self.client.get(self.join_path(data["results_url"]), params=params)
-            self.resource.fields[-1].set(result.json())
+        if "results" in data.keys():
+            if data["results"] is not None and "probabilities" in data["results"].keys():
+                if (
+                    data["results"]["probabilities"] is not None
+                    and "url" in data["results"]["probabilities"].keys()
+                ):
+                    result = self.client.get(
+                        self.join_path(data["results"]["probabilities"]["url"]),
+                        params=params,
+                    )
+                    self.resource.fields[-1].set(result.json())
 
         if hasattr(self.resource, "refresh_data"):
             self.resource.refresh_data()

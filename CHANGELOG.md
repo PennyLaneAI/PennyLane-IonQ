@@ -2,6 +2,9 @@
 
 ### New features since last release
 
+* Update to v0.4 IonQ API
+  [(#140)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/140)
+
 ### Improvements 🛠
 
 ### Breaking changes 💔
@@ -20,6 +23,7 @@
 This release contains contributions from (in alphabetical order):
 
 Andrija Paurevic.
+Radu Marginean
 
 ---
 # Release 0.42.0

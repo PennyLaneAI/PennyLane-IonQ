@@ -100,17 +100,25 @@ class IonQDevice(QubitDevice):
         shots (int, list[int]): Number of circuit evaluations/random samples used to estimate
             expectation values of observables. Defaults to 1024.
             If a list of integers is passed, the circuit evaluations are batched over the list of shots.
+        job_name (str): Optional job name. Defaults to None.
         api_key (str): The IonQ API key. If not provided, the environment
             variable ``IONQ_API_KEY`` is used.
+        compilation {"opt": int, "precision": str}: settings for compilation when creating a job
+            default values: {"opt": 0, "precision": "1E-3"}
+            seee: https://docs.ionq.com/api-reference/v0.4/jobs/create-job
         error_mitigation (dict): settings for error mitigation when creating a job. Defaults to None.
             Not available on all backends. Set by default on some hardware systems. See
-            `IonQ API Job Creation <https://docs.ionq.com/#tag/jobs/operation/createJob>`_  and
+            `IonQ API Job Creation <https://docs.ionq.com/api-reference/v0.4/jobs/create-job>`_  and
             `IonQ Debiasing and Sharpening <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
-            Valid keys include: ``debias`` (bool).
+            Valid keys include: ``debiasing`` False or Object.
         sharpen (bool): whether to use sharpening when accessing the results of an executed job. Defaults to None
             (no value passed at job retrieval). Will generally return more accurate results if your expected output
             distribution has peaks. See `IonQ Debiasing and Sharpening
             <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
+        noise (dict): {"model": str, "seed": int or None}. Defaults to None.
+        dry_run: If True, the job will be submitted by the API client but not processed remotely. 
+            Useful for obtaining cost estimates. Defaults to False.
+        metadata (dict): optional metadata to attach to the job. Defaults to None.
     """
 
     # pylint: disable=too-many-instance-attributes
@@ -138,20 +146,30 @@ class IonQDevice(QubitDevice):
         target="simulator",
         gateset="qis",
         shots=1024,
+        job_name=None,
         api_key=None,
+        compilation=None,
         error_mitigation=None,
         sharpen=False,
+        dry_run=False,
+        noise=None,
+        metadata=None,
     ):
         if shots is None:
             raise ValueError("The ionq device does not support analytic expectation values.")
 
         super().__init__(wires=wires, shots=shots)
         self._current_circuit_index = None
+        self.job_name = job_name
         self.target = target
         self.api_key = api_key
         self.gateset = gateset
+        self.compilation = compilation
         self.error_mitigation = error_mitigation
         self.sharpen = sharpen
+        self.dry_run = dry_run
+        self.noise = noise
+        self.metadata = metadata
         self._operation_map = _GATESET_OPS[gateset]
         self.histograms = []
         self._samples = None
@@ -163,20 +181,32 @@ class IonQDevice(QubitDevice):
         self._samples = None
         self.histograms = []
         self.input = {
-            "format": "ionq.circuit.v0",
             "qubits": self.num_wires,
             "circuits": [{"circuit": []} for _ in range(circuits_array_length)],
             "gateset": self.gateset,
         }
         self.job = {
+            "type": "ionq.multi-circuit.v1",
             "input": self.input,
-            "target": self.target,
+            "backend": self.target,
             "shots": self.shots,
         }
+        if self.job_name is not None:
+            self.job["name"] = self.job_name
+        if self.dry_run:
+            self.job["dry_run"] = self.dry_run
+        if self.noise:
+            self.job["noise"] = self.noise
+        if self.metadata:
+            self.job["metadata"] = self.metadata
+        if self.compilation is not None:
+            self.job["settings"] = {"compilation": self.compilation}
         if self.error_mitigation is not None:
-            self.job["error_mitigation"] = self.error_mitigation
-        if self.job["target"] == "qpu":
-            self.job["target"] = "qpu.aria-1"
+            if not "settings" in self.job:
+                self.job["settings"] = {}
+            self.job["settings"]["error_mitigation"] = self.error_mitigation
+        if self.job["backend"] == "qpu":
+            self.job["backend"] = "qpu.aria-1"
             warnings.warn(
                 "The ionq_qpu backend is deprecated. Defaulting to ionq_qpu.aria-1.",
                 UserWarning,
@@ -222,6 +252,9 @@ class IonQDevice(QubitDevice):
             )
 
         self._submit_job()
+
+        if self.dry_run:
+            return [[]]
 
         results = []
         for circuit_index, circuit in enumerate(circuits):
@@ -363,6 +396,9 @@ class IonQDevice(QubitDevice):
 
         job.manager.get(resource_id=job.id.value, params=params)
 
+        if self.dry_run:
+            return
+
         # The returned job histogram is of the form
         # dict[str, float], and maps the computational basis
         # state (as a base-10 integer string) to the probability
@@ -433,18 +469,37 @@ class SimulatorDevice(IonQDevice):
             Defaults to 1024.
         api_key (str): The IonQ API key. If not provided, the environment
             variable ``IONQ_API_KEY`` is used.
+        noise (dict): {"model": str, "seed": int or None}. Defaults to None.
+        metadata (dict): optional metadata to attach to the job. Defaults to None.
     """
 
     name = "IonQ Simulator PennyLane plugin"
     short_name = "ionq.simulator"
 
-    def __init__(self, wires, *, gateset="qis", shots=1024, api_key=None):
+    def __init__(
+        self,
+        wires,
+        *,
+        gateset="qis",
+        shots=1024,
+        job_name=None,
+        compilation=None,
+        api_key=None,
+        dry_run=False,
+        noise=None,
+        metadata=None,
+    ):
         super().__init__(
             wires=wires,
             target="simulator",
             gateset=gateset,
             shots=shots,
+            job_name=job_name,
             api_key=api_key,
+            compilation=compilation,
+            dry_run=dry_run,
+            noise=noise,
+            metadata=metadata,
         )
 
     def generate_samples(self):
@@ -473,11 +528,13 @@ class QPUDevice(IonQDevice):
             Not available on all backends. Set by default on some hardware systems. See
             `IonQ API Job Creation <https://docs.ionq.com/#tag/jobs/operation/createJob>`_  and
             `IonQ Debiasing and Sharpening <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
-            Valid keys include: ``debias`` (bool).
+            Valid keys include: ``debiasing`` (bool).
         sharpen (bool): whether to use sharpening when accessing the results of an executed job.
             Defaults to None (no value passed at job retrieval). Will generally return more accurate results if
             your expected output distribution has peaks. See `IonQ Debiasing and Sharpening
             <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
+        dry_run (bool): whether to run the job in dry run mode. Defaults to False.
+        metadata (dict): optional metadata to attach to the job. Defaults to None.
     """
 
     name = "IonQ QPU PennyLane plugin"
@@ -490,10 +547,14 @@ class QPUDevice(IonQDevice):
         *,
         gateset="qis",
         shots=1024,
+        job_name=None,
         backend="aria-1",
+        compilation=None,
         error_mitigation=None,
         sharpen=None,
         api_key=None,
+        dry_run=False,
+        metadata=None,
     ):
         target = "qpu"
         self.backend = backend
@@ -504,9 +565,13 @@ class QPUDevice(IonQDevice):
             target=target,
             gateset=gateset,
             shots=shots,
+            job_name=job_name,
             api_key=api_key,
+            compilation=compilation,
             error_mitigation=error_mitigation,
             sharpen=sharpen,
+            dry_run=dry_run,
+            metadata=metadata,
         )
 
     def generate_samples(self):
