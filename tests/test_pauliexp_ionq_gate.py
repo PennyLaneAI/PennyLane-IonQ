@@ -231,9 +231,12 @@ class TestIonQPauliexp:
 
         result_ionq = dev.batch_execute([tape])
 
-        # simulate with Pennylane using Trotterization
+        # Simulate with Pennylane using Trotterization instead of exact simulation
+        # first multiply by -1 to add the expected negative sign because qml.evolve
+        # implements exp(-iHt) while qml.TrotterProduct implements exp(iHt)
         pauli_decomp = qml.pauli_decompose(-1 * H_sparse.matrix())
         coeffs, ops = pauli_decomp.terms()
+        # qml.TrotterProduct's decomposition reverses the order of the terms
         H = qml.Hamiltonian(coeffs[::-1], ops[::-1])
         tape = qml.tape.QuantumScript(
             [qml.TrotterProduct(H, time, n=1)], [qml.probs(wires=[0, 1])]
@@ -347,9 +350,12 @@ class TestIonQPauliexp:
 
         result_ionq = dev.batch_execute([tape])
 
-        # simulate with Pennylane using Trotterization
+        # Simulate with Pennylane using Trotterization instead of exact simulation
+        # first multiply by -1 to add the expected negative sign because qml.evolve
+        # implements exp(-iHt) while qml.TrotterProduct implements exp(iHt)
         pauli_decomp = qml.pauli_decompose(-1 * H.matrix())
         coeffs, ops = pauli_decomp.terms()
+        # qml.TrotterProduct's decomposition reverses the order of the terms
         H = qml.Hamiltonian(coeffs[::-1], ops[::-1])
         tape = qml.tape.QuantumScript(
             [qml.TrotterProduct(H, time, n=1)], [qml.probs(wires=[0, 1])]
