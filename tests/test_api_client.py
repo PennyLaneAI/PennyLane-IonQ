@@ -113,8 +113,7 @@ class TestAPIClient:
         """
         client = api_client.APIClient(api_key="test")
         assert client.USER_AGENT == "pennylane-ionq-api-client/0.4"
-        # TODO: Update to production hostname
-        assert client.HOSTNAME == "api-staging.ionq.co/v0.4"
+        assert client.HOSTNAME == "api.ionq.co/v0.4"
         assert client.BASE_URL.startswith("https://")
         assert client.BASE_URL.endswith(client.HOSTNAME)
         assert client.HEADERS["User-Agent"] == client.USER_AGENT

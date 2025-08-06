@@ -113,7 +113,7 @@ class APIClient:
     """
 
     USER_AGENT = "pennylane-ionq-api-client/0.4"
-    HOSTNAME = "api-staging.ionq.co/v0.4"
+    HOSTNAME = "api.ionq.co/v0.4"
     BASE_URL = "https://{}".format(HOSTNAME)
 
     def __init__(self, **kwargs):

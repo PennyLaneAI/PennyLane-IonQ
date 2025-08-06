@@ -86,7 +86,6 @@ class CircuitIndexNotSetException(Exception):
         super().__init__(self.message)
 
 
-# TODO: add gate_basis to compilation fields in docs?
 class IonQDevice(QubitDevice):
     r"""IonQ device for PennyLane.
 
@@ -479,6 +478,7 @@ class SimulatorDevice(IonQDevice):
         gateset="qis",
         shots=1024,
         job_name=None,
+        compilation=None,
         api_key=None,
         dry_run=False,
         noise=None,
@@ -491,6 +491,7 @@ class SimulatorDevice(IonQDevice):
             shots=shots,
             job_name=job_name,
             api_key=api_key,
+            compilation=compilation,
             dry_run=dry_run,
             noise=noise,
             metadata=metadata,
