@@ -737,8 +737,7 @@ class TestJobAttribute:
 
         result_ionq = dev.batch_execute([tape])
 
-        with pytest.warns(PennyLaneDeprecationWarning, match="shots on device is deprecated"):
-            simulator = qml.device("default.qubit", wires=2)
+        simulator = qml.device("default.qubit", wires=2)
         result_simulator = qml.execute([tape], simulator)
 
         assert np.allclose(
@@ -758,8 +757,7 @@ class TestJobAttribute:
 
         result_ionq = dev.batch_execute([tape])
 
-        with pytest.warns(PennyLaneDeprecationWarning, match="shots on device is deprecated"):
-            simulator = qml.device("default.qubit", wires=2)
+        simulator = qml.device("default.qubit", wires=2)
         result_simulator = qml.execute([tape], simulator)
 
         assert np.allclose(
