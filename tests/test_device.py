@@ -28,6 +28,7 @@ from pennylane_ionq.device import (
     CircuitIndexNotSetException,
 )
 from pennylane_ionq.ops import GPI, GPI2, MS, XX, YY, ZZ
+from pennylane.exceptions import PennyLaneDeprecationWarning
 from pennylane.measurements import SampleMeasurement, ShotCopies
 from unittest import mock
 
@@ -72,7 +73,8 @@ class TestDeviceIntegration:
     @pytest.mark.parametrize("d", shortnames)
     def test_load_device(self, d):
         """Test that the device loads correctly"""
-        dev = qml.device(d, wires=2, shots=1024)
+        with pytest.warns(PennyLaneDeprecationWarning, match="shots on device is deprecated"):
+            dev = qml.device(d, wires=2, shots=1024)
         assert dev.num_wires == 2
         assert dev.shots.total_shots == 1024
         assert dev.short_name == d
@@ -80,6 +82,7 @@ class TestDeviceIntegration:
     @pytest.mark.parametrize("d", shortnames)
     def test_args(self, d):
         """Test that the device requires correct arguments"""
+
         with pytest.raises(TypeError, match="missing 1 required positional argument"):
             qml.device(d)
 
@@ -128,7 +131,8 @@ class TestDeviceIntegration:
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
-        dev = qml.device("ionq.simulator", wires=1, api_key="test")
+        with pytest.warns(PennyLaneDeprecationWarning, match="shots on device is deprecated"):
+            dev = qml.device("ionq.simulator", wires=1, api_key="test")
 
         @qml.set_shots(shots)
         @qml.qnode(dev)
@@ -158,12 +162,13 @@ class TestDeviceIntegration:
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
-        dev = qml.device(
-            "ionq.qpu",
-            wires=1,
-            api_key="test",
-            error_mitigation=error_mitigation,
-        )
+        with pytest.warns(PennyLaneDeprecationWarning, match="shots on device is deprecated"):
+            dev = qml.device(
+                "ionq.qpu",
+                wires=1,
+                api_key="test",
+                error_mitigation=error_mitigation,
+            )
 
         @qml.set_shots(5000)
         @qml.qnode(dev)
@@ -183,7 +188,8 @@ class TestDeviceIntegration:
     @pytest.mark.parametrize("shots", [8192])
     def test_one_qubit_circuit(self, shots, requires_api, tol):
         """Test that devices provide correct result for a simple circuit"""
-        dev = qml.device("ionq.simulator", wires=1, shots=shots)
+        with pytest.warns(PennyLaneDeprecationWarning, match="shots on device is deprecated"):
+            dev = qml.device("ionq.simulator", wires=1, shots=shots)
 
         a = 0.543
         b = 0.123
@@ -202,7 +208,8 @@ class TestDeviceIntegration:
     @pytest.mark.parametrize("shots", [8192])
     def test_one_qubit_ordering(self, shots, requires_api, tol):
         """Test that probabilities are returned with the correct qubit ordering"""
-        dev = qml.device("ionq.simulator", wires=2, shots=shots)
+        with pytest.warns(PennyLaneDeprecationWarning, match="shots on device is deprecated"):
+            dev = qml.device("ionq.simulator", wires=2, shots=shots)
 
         @qml.qnode(dev)
         def circuit():
@@ -216,7 +223,8 @@ class TestDeviceIntegration:
     def test_prob_no_results(self, d):
         """Test that the prob attribute is
         None if no job has yet been run."""
-        dev = qml.device(d, wires=1, shots=1)
+        with pytest.warns(PennyLaneDeprecationWarning, match="shots on device is deprecated"):
+            dev = qml.device(d, wires=1, shots=1)
         assert dev.prob is None
 
     @pytest.mark.parametrize(
@@ -224,11 +232,13 @@ class TestDeviceIntegration:
     )
     def test_backend_initialization(self, backend):
         """Test that the device initializes with the correct backend."""
-        dev = qml.device(
-            "ionq.qpu",
-            wires=2,
-            backend=backend,
-        )
+
+        with pytest.warns(PennyLaneDeprecationWarning, match="shots on device is deprecated"):
+            dev = qml.device(
+                "ionq.qpu",
+                wires=2,
+                backend=backend,
+            )
         assert dev.backend == backend
 
     def test_recording_when_pennylane_tracker_active(self, requires_api):
@@ -716,7 +726,9 @@ class TestJobAttribute:
 
     def test_simple_operations_SWAP_gate(self, requires_api):
         """Test SWAP gate operation is correctly processed and sent to IonQ."""
-        dev = qml.device("ionq.simulator", wires=2, gateset="qis")
+
+        with pytest.warns(PennyLaneDeprecationWarning, match="shots on device is deprecated"):
+            dev = qml.device("ionq.simulator", wires=2, gateset="qis")
 
         with qml.tape.QuantumTape() as tape:
             qml.PauliX(wires=0)
@@ -734,7 +746,9 @@ class TestJobAttribute:
 
     def test_simple_operations_controlled_gate(self, requires_api):
         """Test a controlled gate operation is correctly processed and sent to IonQ."""
-        dev = qml.device("ionq.simulator", wires=2, gateset="qis")
+
+        with pytest.warns(PennyLaneDeprecationWarning, match="shots on device is deprecated"):
+            dev = qml.device("ionq.simulator", wires=2, gateset="qis")
 
         with qml.tape.QuantumTape() as tape:
             qml.Hadamard(wires=0)
