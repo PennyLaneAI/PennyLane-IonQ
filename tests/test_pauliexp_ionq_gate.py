@@ -19,6 +19,7 @@ import pytest
 import re
 
 from scipy.sparse import csr_matrix
+from pennylane.exceptions import PennyLaneDeprecationWarning
 from pennylane.ops.op_math import Prod, SProd, Exp
 
 from pennylane_ionq.exceptions import (
@@ -36,7 +37,8 @@ class TestIonQPauliexp:
         instance Evolution gate is not supported.
         """
 
-        dev = qml.device("ionq.simulator", wires=1, gateset="qis")
+        with pytest.warns(PennyLaneDeprecationWarning, match="shots on device is deprecated"):
+            dev = qml.device("ionq.simulator", wires=1, gateset="qis")
 
         op = qml.S(0)
 
@@ -54,7 +56,8 @@ class TestIonQPauliexp:
         of the Evolution gate is not supported.
         """
 
-        dev = qml.device("ionq.simulator", wires=2, gateset="qis")
+        with pytest.warns(PennyLaneDeprecationWarning, match="shots on device is deprecated"):
+            dev = qml.device("ionq.simulator", wires=2, gateset="qis")
 
         H = qml.sum(qml.H(1), qml.PauliZ(0))
 
@@ -63,9 +66,7 @@ class TestIonQPauliexp:
 
         with pytest.raises(
             OperatorNotSupportedInEvolutionGateGenerator,
-            match=re.escape(
-                "Unsupported operator in generator of Evolution gate: H(1)"
-            ),
+            match=re.escape("Unsupported operator in generator of Evolution gate: H(1)"),
         ):
             dev.batch_execute([tape])
 
@@ -74,7 +75,8 @@ class TestIonQPauliexp:
         an Evolution gate generated via an unsupported operand.
         """
 
-        dev = qml.device("ionq.simulator", wires=2, gateset="qis")
+        with pytest.warns(PennyLaneDeprecationWarning, match="shots on device is deprecated"):
+            dev = qml.device("ionq.simulator", wires=2, gateset="qis")
 
         H = qml.H(0) @ qml.PauliX(1)
 
@@ -91,7 +93,8 @@ class TestIonQPauliexp:
         """Test an exception is thrown when coefficients for Evolution
         gate are complex since IonQ API does not support this."""
 
-        dev = qml.device("ionq.simulator", wires=2, gateset="qis")
+        with pytest.warns(PennyLaneDeprecationWarning, match="shots on device is deprecated"):
+            dev = qml.device("ionq.simulator", wires=2, gateset="qis")
 
         H = SProd(1j, qml.Hamiltonian([1.0], [qml.PauliX(0)]))
 
@@ -107,7 +110,8 @@ class TestIonQPauliexp:
     def test_evolution_gate_print_warning(self, requires_api):
         """A warning is shown to user when using an Evolution gate."""
 
-        dev = qml.device("ionq.simulator", wires=1, gateset="qis")
+        with pytest.warns(PennyLaneDeprecationWarning, match="shots on device is deprecated"):
+            dev = qml.device("ionq.simulator", wires=1, gateset="qis")
 
         H = qml.PauliX(0)
 
@@ -125,7 +129,8 @@ class TestIonQPauliexp:
         works when applied Evolution is generated from an Identity operator.
         """
 
-        dev = qml.device("ionq.simulator", wires=2, gateset="qis")
+        with pytest.warns(PennyLaneDeprecationWarning, match="shots on device is deprecated"):
+            dev = qml.device("ionq.simulator", wires=2, gateset="qis")
 
         H = 3 * qml.Identity(0) @ qml.Identity(1)
 
@@ -166,15 +171,15 @@ class TestIonQPauliexp:
         ],
         ids=lambda val: f"{val}",
     )
-    def test_evolution_object_created_from_hamiltonian(
-        self, wires, coeffs, ops, requires_api
-    ):
+    def test_evolution_object_created_from_hamiltonian(self, wires, coeffs, ops, requires_api):
         """Test that the implementation of Evolution gate derived
         from a Hamiltonian constructed via a Hamiltonian term works.
         """
 
         no_wires = len(wires)
-        dev = qml.device("ionq.simulator", wires=no_wires, gateset="qis")
+
+        with pytest.warns(PennyLaneDeprecationWarning, match="shots on device is deprecated"):
+            dev = qml.device("ionq.simulator", wires=no_wires, gateset="qis")
         H = 2 * qml.Hamiltonian(coeffs, ops)
 
         time = 7
@@ -213,14 +218,13 @@ class TestIonQPauliexp:
         ],
         ids=lambda val: f"{val}",
     )
-    def test_evolution_object_created_from_sparse_hamiltonian(
-        self, sparse_matrix, requires_api
-    ):
+    def test_evolution_object_created_from_sparse_hamiltonian(self, sparse_matrix, requires_api):
         """Test that the implementation of Evolution gate derived
         from a Hamiltonian constructed via a sparse Hamiltonian works.
         """
 
-        dev = qml.device("ionq.simulator", wires=2, gateset="qis")
+        with pytest.warns(PennyLaneDeprecationWarning, match="shots on device is deprecated"):
+            dev = qml.device("ionq.simulator", wires=2, gateset="qis")
 
         dense_matrix = sparse_matrix.toarray()
         hermitian_matrix = (dense_matrix + dense_matrix.T.conj()) / 2
@@ -229,9 +233,7 @@ class TestIonQPauliexp:
         H_sparse = qml.SparseHamiltonian(hermitian_sparse, wires=[0, 1])
 
         time = 3
-        tape = qml.tape.QuantumScript(
-            [qml.evolve(H_sparse, time)], [qml.probs(wires=[0, 1])]
-        )
+        tape = qml.tape.QuantumScript([qml.evolve(H_sparse, time)], [qml.probs(wires=[0, 1])])
 
         result_ionq = dev.batch_execute([tape])
 
@@ -242,9 +244,7 @@ class TestIonQPauliexp:
         coeffs, ops = pauli_decomp.terms()
         # qml.TrotterProduct's decomposition reverses the order of the terms
         H = qml.Hamiltonian(coeffs[::-1], ops[::-1])
-        tape = qml.tape.QuantumScript(
-            [qml.TrotterProduct(H, time, n=1)], [qml.probs(wires=[0, 1])]
-        )
+        tape = qml.tape.QuantumScript([qml.TrotterProduct(H, time, n=1)], [qml.probs(wires=[0, 1])])
         simulator = qml.device("default.qubit", wires=2)
         result_simulator = qml.execute([tape], simulator)
 
@@ -265,7 +265,8 @@ class TestIonQPauliexp:
         from a Hamiltonian constructed via an SProd term works.
         """
 
-        dev = qml.device("ionq.simulator", wires=2, gateset="qis")
+        with pytest.warns(PennyLaneDeprecationWarning, match="shots on device is deprecated"):
+            dev = qml.device("ionq.simulator", wires=2, gateset="qis")
 
         time = 3
         tape = qml.tape.QuantumScript([qml.evolve(op, time)], [qml.probs(wires=[0, 1])])
@@ -293,7 +294,8 @@ class TestIonQPauliexp:
         """Test that the implementation of Evolution gate derived
         from an Hamiltonian constructed via prod term works."""
 
-        dev = qml.device("ionq.simulator", wires=len(wires), gateset="qis")
+        with pytest.warns(PennyLaneDeprecationWarning, match="shots on device is deprecated"):
+            dev = qml.device("ionq.simulator", wires=len(wires), gateset="qis")
 
         H = hamiltonian
 
@@ -315,7 +317,8 @@ class TestIonQPauliexp:
         """Test that the implementation of Evolution gate
         derived from an Hamiltonian constructed via sum works."""
 
-        dev = qml.device("ionq.simulator", wires=2, gateset="qis")
+        with pytest.warns(PennyLaneDeprecationWarning, match="shots on device is deprecated"):
+            dev = qml.device("ionq.simulator", wires=2, gateset="qis")
 
         H = 3 * qml.sum(qml.PauliX(0), qml.PauliZ(1))
 
@@ -336,20 +339,17 @@ class TestIonQPauliexp:
     @pytest.mark.parametrize(
         "H_matrix",
         [
-            np.array(
-                [[1, 1 + 1j, 0, -1j], [1 - 1j, 3, 2, 0], [0, 2, 0, 1j], [1j, 0, -1j, 1]]
-            ),
+            np.array([[1, 1 + 1j, 0, -1j], [1 - 1j, 3, 2, 0], [0, 2, 0, 1j], [1j, 0, -1j, 1]]),
             np.array([[1, 0, 0, 0], [0, 0.5, 0.3, 0], [0, 0.3, 0.5, 0], [0, 0, 0, 1]]),
         ],
         ids=lambda val: f"{val}",
     )
-    def test_evolution_object_created_from_hermitian_matrix(
-        self, H_matrix, requires_api
-    ):
+    def test_evolution_object_created_from_hermitian_matrix(self, H_matrix, requires_api):
         """Test that the implementation of Evolution gate
         derived from a Hamiltonian constructed via a Hermitian matrix."""
 
-        dev = qml.device("ionq.simulator", wires=2, gateset="qis")
+        with pytest.warns(PennyLaneDeprecationWarning, match="shots on device is deprecated"):
+            dev = qml.device("ionq.simulator", wires=2, gateset="qis")
 
         hermitian_op = qml.Hermitian(H_matrix, wires=[0, 1])
 
@@ -367,9 +367,7 @@ class TestIonQPauliexp:
         coeffs, ops = pauli_decomp.terms()
         # qml.TrotterProduct's decomposition reverses the order of the terms
         H = qml.Hamiltonian(coeffs[::-1], ops[::-1])
-        tape = qml.tape.QuantumScript(
-            [qml.TrotterProduct(H, time, n=1)], [qml.probs(wires=[0, 1])]
-        )
+        tape = qml.tape.QuantumScript([qml.TrotterProduct(H, time, n=1)], [qml.probs(wires=[0, 1])])
         simulator = qml.device("default.qubit", wires=2)
         result_simulator = qml.execute([tape], simulator)
 
@@ -381,7 +379,8 @@ class TestIonQPauliexp:
         """Test that the implementation of Evolution gate
         derived from a Hamiltonian constructed via an Exp matrix."""
 
-        dev = qml.device("ionq.simulator", wires=2, gateset="qis")
+        with pytest.warns(PennyLaneDeprecationWarning, match="shots on device is deprecated"):
+            dev = qml.device("ionq.simulator", wires=2, gateset="qis")
 
         H = 2.5 * qml.PauliX(0) + 0.5 * qml.PauliY(1)
         t = 3
