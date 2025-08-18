@@ -36,6 +36,7 @@ from pennylane.measurements import (
 )
 from pennylane.resource import Resources
 from pennylane.ops.op_math.linear_combination import LinearCombination
+from pennylane.tape import QuantumScript
 
 from .api_client import Job, JobExecutionError
 from .exceptions import (
@@ -160,9 +161,16 @@ class IonQDevice(QubitDevice):
         """Expand the circuit"""
         if not circuit.shots:
             raise ValueError(
-                "The aqt.base_device device does not support analytic expectation values"
+                "The ionq device does not support analytic expectation values"
             )
         return super().expand_fn(circuit, max_expansion)
+    
+    # def batch_transform(self, circuit: QuantumScript):
+    #     if not circuit.shots:
+    #         raise ValueError(
+    #             "The ionq device does not support analytic expectation values"
+    #         )
+    #     return super().batch_transform(circuit)
 
     def reset(self, circuits_array_length=1):
         """Reset the device"""
@@ -219,6 +227,13 @@ class IonQDevice(QubitDevice):
             )
 
         self.reset(circuits_array_length=len(circuits))
+
+        # Update job shots based on the circuits
+        if circuits:
+            # All circuits should have the same shots for batch execution
+            circuit_shots = circuits[0].shots
+            if circuit_shots is not None:
+                self.job["shots"] = circuit_shots.total_shots
 
         for circuit_index, circuit in enumerate(circuits):
             self.check_validity(circuit.operations, circuit.observables)
