@@ -228,11 +228,14 @@ class IonQDevice(QubitDevice):
 
         self.reset(circuits_array_length=len(circuits))
 
-        # Update job shots based on the circuits
+        # Update both device and job shots based on the circuits
         if circuits:
             # All circuits should have the same shots for batch execution
             circuit_shots = circuits[0].shots
             if circuit_shots is not None:
+                # Update device shots so PennyLane knows we support finite shots
+                self._shots = circuit_shots
+                # Update job shots for API submission
                 self.job["shots"] = circuit_shots.total_shots
 
         for circuit_index, circuit in enumerate(circuits):
