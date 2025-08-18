@@ -3,6 +3,9 @@
 ### New features since last release
 
 ### Improvements 🛠
+ 
+* The Pennylane Evolution gate is now decomposed to IonQ pauliexp gates before being sent to IonQ API.
+  [(#134)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/134)
 
 ### Breaking changes 💔
 
@@ -19,6 +22,7 @@
 
 This release contains contributions from (in alphabetical order):
 
+Radu Marginean,
 Andrija Paurevic.
 
 ---

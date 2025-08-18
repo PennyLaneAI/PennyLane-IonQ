@@ -19,19 +19,31 @@ This module contains the device class for constructing IonQ devices for PennyLan
 
 import inspect
 import logging
+from typing import List
 import warnings
 from time import sleep
 
 import numpy as np
 
+from pennylane import pauli_decompose, SparseHamiltonian
 from pennylane.devices import QubitDevice
+from pennylane.ops.op_math import Exp, Sum, SProd
+from pennylane.ops import Identity, PauliX, PauliY, PauliZ
+from pennylane.ops.op_math.prod import Prod
 
 from pennylane.measurements import (
     Shots,
 )
 from pennylane.resource import Resources
+from pennylane.ops.op_math.linear_combination import LinearCombination
 
 from .api_client import Job, JobExecutionError
+from .exceptions import (
+    CircuitIndexNotSetException,
+    ComplexEvolutionCoefficientsNotSupported,
+    NotSupportedEvolutionInstance,
+    OperatorNotSupportedInEvolutionGateGenerator,
+)
 from ._version import __version__
 
 logger = logging.getLogger(__name__)
@@ -44,6 +56,7 @@ _qis_operation_map = {
     "PauliZ": "z",
     "Hadamard": "h",
     "CNOT": "cnot",
+    "Evolution": "pauliexp",
     "SWAP": "swap",
     "RX": "rx",
     "RY": "ry",
@@ -71,19 +84,7 @@ _GATESET_OPS = {
     "qis": _qis_operation_map,
 }
 
-
-class CircuitIndexNotSetException(Exception):
-    """Raised when after submitting multiple circuits circuit index is not set
-    before the user want to access implementation methods of IonQDevice
-    like probability(), estimate_probability(), sample() or the prob property.
-    """
-
-    def __init__(self):
-        self.message = (
-            "Because multiple circuits have been submitted in this job, the index of the circuit "
-            "you want to access must be first set via the set_current_circuit_index device method."
-        )
-        super().__init__(self.message)
+PAULI_MAP = {"PauliX": "X", "PauliY": "Y", "PauliZ": "Z", "Identity": "I"}
 
 
 class IonQDevice(QubitDevice):
@@ -226,7 +227,6 @@ class IonQDevice(QubitDevice):
                 rotations=self._get_diagonalizing_gates(circuit),
                 circuit_index=circuit_index,
             )
-
         self._submit_job()
 
         results = []
@@ -324,11 +324,40 @@ class IonQDevice(QubitDevice):
             operation (.Operation): operation to apply on the device
             circuit_index: index of the circuit to apply operation to
         """
-        name = operation.name
         wires = self.map_wires(operation.wires).tolist()
-        gate = {"gate": self._operation_map[name]}
-        par = operation.parameters
+        if operation.name == "Evolution":
+            self._apply_evolution_operation(operation, circuit_index, wires)
+        else:
+            self._apply_simple_operation(operation, circuit_index, wires)
 
+    def _apply_evolution_operation(self, operation, circuit_index, wires):
+        """Applies Evolution operations to the internal device state.
+        The number of steps argument for Evolution gate will be ignored even if provided because
+        IonQ implements hardware-efficient approximate compilation schemes for pauliexp gates.
+        """
+        warnings.warn(
+            "The 'num_steps' argument for the Evolution gate will be ignored. The API maps this "
+            "gate to IonQ's 'pauliexp' gate, for which IonQ implements its own hardware-efficient "
+            "approximate compilation schemes.",
+            UserWarning,
+        )
+        name = operation.name
+        terms = self._extract_evolution_pauli_terms(operation, wires)
+        coefficients = self._extract_evolution_coefficients(operation, wires)
+        terms, coefficients = self._remove_trivial_terms(terms, coefficients)
+        if len(terms) > 0:
+            gate = {"gate": self._operation_map[name]}
+            gate["targets"] = wires
+            gate["terms"] = terms
+            gate["coefficients"] = [-1 * float(v) for v in coefficients]
+            gate["time"] = operation.param
+            self.input["circuits"][circuit_index]["circuit"].append(gate)
+
+    def _apply_simple_operation(self, operation, circuit_index, wires):
+        """Applies regular operations (gates) to the internal device state."""
+        name = operation.name
+        params = operation.parameters
+        gate = {"gate": self._operation_map[name]}
         if len(wires) == 2:
             if name in {"SWAP", "XX", "YY", "ZZ", "MS"}:
                 # these gates takes two targets
@@ -340,16 +369,146 @@ class IonQDevice(QubitDevice):
             gate["target"] = wires[0]
 
         if self.gateset == "native":
-            if len(par) > 1:
-                gate["phases"] = [float(v) for v in par[:2]]
-                if len(par) > 2:
-                    gate["angle"] = float(par[2])
+            if len(params) > 1:
+                gate["phases"] = [float(v) for v in params[:2]]
+                if len(params) > 2:
+                    gate["angle"] = float(params[2])
             else:
-                gate["phase"] = float(par[0])
-        elif par:
-            gate["rotation"] = float(par[0])
-
+                gate["phase"] = float(params[0])
+        elif params:
+            gate["rotation"] = float(params[0])
         self.input["circuits"][circuit_index]["circuit"].append(gate)
+
+    def _remove_trivial_terms(self, terms, coefficients):
+        """Removes II..I terms from the list of terms."""
+        cleaned_up_terms = []
+        cleaned_up_coefficients = []
+        for i, term in enumerate(terms):
+            if not "X" in term and not "Y" in term and not "Z" in term:
+                continue
+            cleaned_up_terms.append(term)
+            cleaned_up_coefficients.append(coefficients[i])
+        return cleaned_up_terms, cleaned_up_coefficients
+
+    def _extract_evolution_coefficients(self, operation, wires: List[int]) -> List[float]:
+        coefficients = None
+        operation_generator = operation.generator()
+        if isinstance(operation_generator, LinearCombination):
+            coefficients = []
+            coeffs = operation_generator.coeffs.tolist()
+            operations = operation_generator.ops
+            for i, _ in enumerate(operations):
+                operation = coeffs[i] * operations[i]
+                if isinstance(operations[i], (Sum, Prod, PauliX, PauliY, PauliZ, Identity)):
+                    coefficients.extend(operation.terms()[0])
+                else:
+                    op_wires = operation.wires.tolist()
+                    pauli_decomp = pauli_decompose(
+                        operation.matrix(), wire_order=op_wires, pauli=False
+                    )
+                    coefficients.extend(pauli_decomp.coeffs.tolist())
+        elif isinstance(operation_generator, SparseHamiltonian):
+            dense_matrix = operation_generator.H.toarray()
+            linear_combination = pauli_decompose(dense_matrix, wire_order=wires, pauli=False)
+            coefficients = linear_combination.coeffs.tolist()
+        elif isinstance(operation_generator, SProd):
+            if isinstance(operation_generator.base, (PauliX, PauliY, PauliZ, Identity)):
+                coefficients = [operation_generator.scalar]
+            elif isinstance(operation_generator.base, (Sum, Prod)):
+                coefficients = [
+                    operation_generator.scalar * float(c)
+                    for c in operation_generator.base.terms()[0]
+                ]
+            elif isinstance(operation_generator.base, Exp):
+                # can we do anything smarter here?
+                pauli_rep = pauli_decompose(
+                    operation_generator.matrix(), wire_order=wires, pauli=False
+                )
+                coefficients = pauli_rep.coeffs.tolist()
+
+        if any(isinstance(c, complex) for c in coefficients):
+            raise ComplexEvolutionCoefficientsNotSupported()
+
+        return coefficients
+
+    def _extract_evolution_pauli_terms(self, operation, wires: List[int]) -> List[str]:
+        ops = None
+        operation_generator = operation.generator()
+        if isinstance(operation_generator, LinearCombination):
+            ops = []
+            coeffs = operation_generator.coeffs.tolist()
+            operations = operation_generator.ops
+            for i, _ in enumerate(operations):
+                operation = coeffs[i] * operations[i]
+                if isinstance(operations[i], (Sum, Prod, PauliX, PauliY, PauliZ, Identity)):
+                    ops.extend(operation.terms()[1])
+                else:
+                    op_wires = operation.wires.tolist()
+                    pauli_decomp = pauli_decompose(
+                        operation.matrix(), wire_order=op_wires, pauli=False
+                    )
+                    ops.extend(pauli_decomp.ops)
+        elif isinstance(operation_generator, SparseHamiltonian):
+            dense_mat = operation_generator.H.toarray()
+            pauli_rep = pauli_decompose(dense_mat, wire_order=wires, pauli=False)
+            ops = pauli_rep.ops
+        elif isinstance(operation_generator, SProd):
+            if isinstance(operation_generator.base, (PauliX, PauliY, PauliZ, Identity)):
+                ops = [operation_generator.base]
+            elif isinstance(operation_generator.base, (Sum, Prod)):
+                ops = operation_generator.base.terms()[1]
+            elif isinstance(operation_generator.base, Exp):
+                # can we do anything smarter here?
+                pauli_rep = pauli_decompose(
+                    operation_generator.matrix(), wire_order=wires, pauli=False
+                )
+                ops = pauli_rep.ops
+
+        if ops is None:
+            raise NotSupportedEvolutionInstance()
+
+        return self._operations_to_ionq_pauli_names(ops, wires)
+
+    def _operations_to_ionq_pauli_names(self, ops, wires) -> List[str]:
+        """Converts a list of operations to a list of IonQ compatible Pauli matrix names."""
+
+        def map_operand_to_term(operand):
+            try:
+                return PAULI_MAP[operand.name]
+            except KeyError as exc:
+                supported = ", ".join(PAULI_MAP.keys())
+                raise KeyError(
+                    f"Operand {operand.name} is not supported for Evolution gate. "
+                    f"Supported operands: {supported}."
+                ) from exc
+
+        def join_terms(terms, wires):
+            """Pennylane uses big-endian ordering, IonQ uses little-endian ordering."""
+            big_endian_term = "".join(terms.get(wire, "I") for wire in wires)
+            little_endian_term = big_endian_term[::-1]
+            return little_endian_term
+
+        ionq_terms = []
+        for op in ops:
+            terms = {}
+            if isinstance(op, Prod):
+                for operand in op.operands:
+                    term_name = map_operand_to_term(operand)
+                    term_wire = operand.wires[0]
+                    terms[term_wire] = term_name
+                ionq_terms.append(join_terms(terms, wires))
+            elif isinstance(op, (PauliX, PauliY, PauliZ)):
+                term_name = map_operand_to_term(op)
+                term_wire = op.wires[0]
+                terms[term_wire] = term_name
+                ionq_terms.append(join_terms(terms, wires))
+            elif isinstance(op, Identity):
+                ionq_terms.append(join_terms(terms, wires))
+            else:
+                raise OperatorNotSupportedInEvolutionGateGenerator(
+                    f"Unsupported operator in generator of Evolution gate: {op}"
+                )
+        return ionq_terms
 
     def _submit_job(self):
 
