@@ -49,7 +49,12 @@ class TestDevice:
     def test_generate_samples_qpu_device(self, wires, histogram):
         """Test that the generate_samples method for QPUDevices shuffles the samples between calls."""
 
-        dev = QPUDevice(wires, shots=1024, api_key=FAKE_API_KEY)
+        with pytest.warns(
+            qml.exceptions.PennyLaneDeprecationWarning,
+            match="shots on device is deprecated"
+        ):
+            dev = QPUDevice(wires, shots=1024, api_key=FAKE_API_KEY)
+
         dev.histograms = [histogram]
 
         sample1 = dev.generate_samples()
@@ -72,7 +77,11 @@ class TestDeviceIntegration:
     @pytest.mark.parametrize("d", shortnames)
     def test_load_device(self, d):
         """Test that the device loads correctly"""
-        dev = qml.device(d, wires=2, shots=1024)
+        with pytest.warns(
+            qml.exceptions.PennyLaneDeprecationWarning,
+            match="shots on device is deprecated"
+        ):
+            dev = qml.device(d, wires=2, shots=1024)
         assert dev.num_wires == 2
         assert dev.shots.total_shots == 1024
         assert dev.short_name == d
@@ -83,9 +92,17 @@ class TestDeviceIntegration:
         with pytest.raises(TypeError, match="missing 1 required positional argument"):
             qml.device(d)
 
-        # IonQ devices do not allow shots=None
+        # IonQ devices allow shots=None
+        dev = qml.device(d, wires=1, shots=None)
+        # But the execution will raise error
+        @qml.qnode(dev)
+        def circuit():
+            """Reference QNode"""
+            qml.PauliX(wires=0)
+            return qml.expval(qml.PauliZ(0))
+
         with pytest.raises(ValueError, match="does not support analytic"):
-            qml.device(d, wires=1, shots=None)
+            circuit()
 
     def test_emptycircuit_warning(self, mocker):
         """Test warning raised on submission of an empty circuit."""

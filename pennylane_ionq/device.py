@@ -137,13 +137,11 @@ class IonQDevice(QubitDevice):
         *,
         target="simulator",
         gateset="qis",
-        shots=1024,
+        shots=None,
         api_key=None,
         error_mitigation=None,
         sharpen=False,
     ):
-        if shots is None:
-            raise ValueError("The ionq device does not support analytic expectation values.")
 
         super().__init__(wires=wires, shots=shots)
         self._current_circuit_index = None
@@ -156,6 +154,14 @@ class IonQDevice(QubitDevice):
         self.histograms = []
         self._samples = None
         self.reset()
+
+    def expand_fn(self, circuit, max_expansion=10):
+        """Expand the circuit"""
+        if not circuit.shots:
+            raise ValueError(
+                "The aqt.base_device device does not support analytic expectation values"
+            )
+        return super().expand_fn(circuit, max_expansion)
 
     def reset(self, circuits_array_length=1):
         """Reset the device"""
@@ -438,7 +444,7 @@ class SimulatorDevice(IonQDevice):
     name = "IonQ Simulator PennyLane plugin"
     short_name = "ionq.simulator"
 
-    def __init__(self, wires, *, gateset="qis", shots=1024, api_key=None):
+    def __init__(self, wires, *, gateset="qis", shots=None, api_key=None):
         super().__init__(
             wires=wires,
             target="simulator",
@@ -489,7 +495,7 @@ class QPUDevice(IonQDevice):
         wires,
         *,
         gateset="qis",
-        shots=1024,
+        shots=None,
         backend="aria-1",
         error_mitigation=None,
         sharpen=None,
