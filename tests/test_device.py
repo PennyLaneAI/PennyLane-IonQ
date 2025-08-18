@@ -49,11 +49,7 @@ class TestDevice:
     def test_generate_samples_qpu_device(self, wires, histogram):
         """Test that the generate_samples method for QPUDevices shuffles the samples between calls."""
 
-        with pytest.warns(
-            qml.exceptions.PennyLaneDeprecationWarning,
-            match="shots on device is deprecated"
-        ):
-            dev = QPUDevice(wires, shots=1024, api_key=FAKE_API_KEY)
+        dev = QPUDevice(wires, shots=1024, api_key=FAKE_API_KEY)
 
         dev.histograms = [histogram]
 
@@ -233,7 +229,11 @@ class TestDeviceIntegration:
     def test_prob_no_results(self, d):
         """Test that the prob attribute is
         None if no job has yet been run."""
-        dev = qml.device(d, wires=1, shots=1)
+        with pytest.warns(
+            qml.exceptions.PennyLaneDeprecationWarning,
+            match="shots on device is deprecated"
+        ):
+            dev = qml.device(d, wires=1, shots=1)
         assert dev.prob is None
 
     @pytest.mark.parametrize(
