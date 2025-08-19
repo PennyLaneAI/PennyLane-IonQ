@@ -27,6 +27,7 @@ import numpy as np
 
 from pennylane import pauli_decompose, SparseHamiltonian
 from pennylane.devices import QubitDevice
+from pennylane.math import get_interface, is_abstract, unwrap
 from pennylane.ops.op_math import Exp, Sum, SProd
 from pennylane.ops import Identity, PauliX, PauliY, PauliZ
 from pennylane.ops.op_math.prod import Prod
@@ -36,7 +37,6 @@ from pennylane.measurements import (
 )
 from pennylane.resource import Resources
 from pennylane.ops.op_math.linear_combination import LinearCombination
-from pennylane.tape import QuantumScript
 
 from .api_client import Job, JobExecutionError
 from .exceptions import (
@@ -86,6 +86,8 @@ _GATESET_OPS = {
 }
 
 PAULI_MAP = {"PauliX": "X", "PauliY": "Y", "PauliZ": "Z", "Identity": "I"}
+
+NO_ANALYTIC_MSG = "The ionq device does not support analytic expectation values."
 
 
 class IonQDevice(QubitDevice):
@@ -160,8 +162,57 @@ class IonQDevice(QubitDevice):
     def expand_fn(self, circuit, max_expansion=10):
         """Expand the circuit"""
         if not circuit.shots:
-            raise ValueError("The ionq device does not support analytic expectation values")
+            raise ValueError(NO_ANALYTIC_MSG)
         return super().expand_fn(circuit, max_expansion)
+
+    def sample_basis_states(self, number_of_states, state_probability, shots=None):
+        """Sample from the computational basis states based on the state
+        probability.
+
+        This is an auxiliary method to the generate_samples method.
+
+        Args:
+            number_of_states (int): the number of basis states to sample from
+            state_probability (array[float]): the computational basis probability vector
+
+        Returns:
+            array[int]: the sampled basis states
+        """
+        shots = shots or self.shots
+        assert shots, NO_ANALYTIC_MSG
+
+        basis_states = np.arange(number_of_states)
+        # pylint:disable = import-outside-toplevel
+        if is_abstract(state_probability) and get_interface(state_probability) == "jax":
+            import jax
+
+            key = jax.random.PRNGKey(np.random.randint(0, 2**31))
+            if jax.numpy.ndim(state_probability) == 2:
+                return jax.numpy.array(
+                    [
+                        jax.random.choice(key, basis_states, shape=(shots,), p=prob)
+                        for prob in state_probability
+                    ]
+                )
+            return jax.random.choice(key, basis_states, shape=(shots,), p=state_probability)
+
+        state_probs = unwrap(state_probability)
+        if self._ndim(state_probability) == 2:
+            # np.random.choice does not support broadcasting as needed here.
+            return np.array([np.random.choice(basis_states, shots, p=prob) for prob in state_probs])
+
+        return np.random.choice(basis_states, shots, p=state_probs)
+
+    def generate_samples(self, shots=None):
+        r"""Overload the legacy method to enable shots input"""
+        shots = shots or self.shots
+        assert shots, NO_ANALYTIC_MSG
+        number_of_states = 2**self.num_wires
+
+        rotated_prob = self.analytic_probability()
+
+        samples = self.sample_basis_states(number_of_states, rotated_prob, shots=shots)
+        return self.states_to_binary(samples, self.num_wires)
 
     def reset(self, circuits_array_length=1):
         """Reset the device"""
@@ -219,14 +270,13 @@ class IonQDevice(QubitDevice):
 
         self.reset(circuits_array_length=len(circuits))
 
-        circuit_shots = circuits[0].shots
-        if circuit_shots is not None:
-            # !NOTE: only for testing. This is temporary and should be reverted in the future.
-            self._shots = circuit_shots.total_shots
-            # Update job shots for API submission
-            self.job["shots"] = circuit_shots.total_shots
-        if not (self.shots or circuit_shots):
-            raise ValueError("The ionq device does not support analytic expectation values")
+        # Shots preprocessing. Important when both device shots and circuit shots co-exist within our ecosystem
+        circuit_shots = circuits[0].shots.total_shots
+        shots = circuit_shots or self.shots
+        if not shots:
+            raise ValueError(NO_ANALYTIC_MSG)
+        # Update job shots for API submission
+        self.job["shots"] = shots
 
         for circuit_index, circuit in enumerate(circuits):
             self.check_validity(circuit.operations, circuit.observables)
@@ -240,7 +290,7 @@ class IonQDevice(QubitDevice):
         results = []
         for circuit_index, circuit in enumerate(circuits):
             self.set_current_circuit_index(circuit_index)
-            self._samples = self.generate_samples()
+            self._samples = self.generate_samples(shots=shots)
 
             # compute the required statistics
             if self._shot_vector is not None:
@@ -260,7 +310,7 @@ class IonQDevice(QubitDevice):
 
         if self.tracker.active:
             for circuit in circuits:
-                shots_from_dev = self._shots if not self.shot_vector else self._raw_shot_sequence
+                shots_from_dev = shots if not self.shot_vector else self._raw_shot_sequence
                 tape_resources = circuit.specs["resources"]
 
                 resources = Resources(  # temporary until shots get updated on tape !
@@ -273,7 +323,7 @@ class IonQDevice(QubitDevice):
                 )
                 self.tracker.update(
                     executions=1,
-                    shots=self._shots,
+                    shots=shots,
                     results=results,
                     resources=resources,
                 )
@@ -620,10 +670,12 @@ class SimulatorDevice(IonQDevice):
             api_key=api_key,
         )
 
-    def generate_samples(self):
+    def generate_samples(self, shots=None):
         """Generates samples by random sampling with the probabilities returned by the simulator."""
+        shots = shots or self.shots
+        assert shots, NO_ANALYTIC_MSG
         number_of_states = 2**self.num_wires
-        samples = self.sample_basis_states(number_of_states, self.prob)
+        samples = self.sample_basis_states(number_of_states, self.prob, shots=shots)
         return QubitDevice.states_to_binary(samples, self.num_wires)
 
 
@@ -682,16 +734,18 @@ class QPUDevice(IonQDevice):
             sharpen=sharpen,
         )
 
-    def generate_samples(self):
+    def generate_samples(self, shots=None):
         """Generates samples from the qpu.
 
         Note that the order of the samples returned here is not indicative of the order in which
         the experiments were done, but is instead controlled by a random shuffle (and hence
         set by numpy random seed).
         """
+        shots = shots or self.shots
+        assert shots, NO_ANALYTIC_MSG
         number_of_states = 2**self.num_wires
         counts = np.rint(
-            self.prob * self.shots,
+            self.prob * shots,
             out=np.zeros(number_of_states, dtype=int),
             casting="unsafe",
         )
