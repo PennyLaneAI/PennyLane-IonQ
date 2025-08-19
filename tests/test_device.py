@@ -50,7 +50,6 @@ class TestDevice:
         """Test that the generate_samples method for QPUDevices shuffles the samples between calls."""
 
         dev = QPUDevice(wires, shots=1024, api_key=FAKE_API_KEY)
-
         dev.histograms = [histogram]
 
         sample1 = dev.generate_samples()
