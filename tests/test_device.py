@@ -74,8 +74,7 @@ class TestDeviceIntegration:
     def test_load_device(self, d):
         """Test that the device loads correctly"""
         with pytest.warns(
-            qml.exceptions.PennyLaneDeprecationWarning,
-            match="shots on device is deprecated"
+            qml.exceptions.PennyLaneDeprecationWarning, match="shots on device is deprecated"
         ):
             dev = qml.device(d, wires=2, shots=1024)
         assert dev.num_wires == 2
@@ -90,6 +89,7 @@ class TestDeviceIntegration:
 
         # IonQ devices allow shots=None
         dev = qml.device(d, wires=1, shots=None)
+
         # But the execution will raise error
         @qml.qnode(dev)
         def circuit():
@@ -230,8 +230,7 @@ class TestDeviceIntegration:
         """Test that the prob attribute is
         None if no job has yet been run."""
         with pytest.warns(
-            qml.exceptions.PennyLaneDeprecationWarning,
-            match="shots on device is deprecated"
+            qml.exceptions.PennyLaneDeprecationWarning, match="shots on device is deprecated"
         ):
             dev = qml.device(d, wires=1, shots=1)
         assert dev.prob is None
@@ -497,7 +496,7 @@ class TestJobAttribute:
         mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
         dev = IonQDevice(wires=(0,), target="foo")
 
-        with qml.tape.QuantumTape() as tape:
+        with qml.tape.QuantumTape(shots=1024) as tape:
             qml.PauliX(0)
 
         dev.apply(tape.operations)
@@ -522,7 +521,7 @@ class TestJobAttribute:
         mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
         dev = IonQDevice(wires=(0,), target="foo")
 
-        with qml.tape.QuantumTape() as tape:
+        with qml.tape.QuantumTape(shots=1024) as tape:
             qml.PauliX(0)
 
         dev.reset(circuits_array_length=1)
@@ -548,7 +547,7 @@ class TestJobAttribute:
         mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
         dev = IonQDevice(wires=(0,))
 
-        with qml.tape.QuantumTape() as tape:
+        with qml.tape.QuantumTape(shots=1024) as tape:
             qml.RX(1.2345, wires=0)
             qml.RY(qml.numpy.array(2.3456), wires=0)
 
@@ -579,7 +578,7 @@ class TestJobAttribute:
         mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
         dev = IonQDevice(wires=(0,))
 
-        with qml.tape.QuantumTape() as tape:
+        with qml.tape.QuantumTape(shots=1024) as tape:
             qml.RX(1.2345, wires=0)
             qml.RY(qml.numpy.array(2.3456), wires=0)
 
@@ -611,7 +610,7 @@ class TestJobAttribute:
         mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
         dev = IonQDevice(wires=(0, 1, 2), gateset="native")
 
-        with qml.tape.QuantumTape() as tape:
+        with qml.tape.QuantumTape(shots=1024) as tape:
             GPI(0.1, wires=[0])
             GPI2(0.2, wires=[1])
             MS(0.2, 0.3, wires=[1, 2])
@@ -735,7 +734,7 @@ class TestJobAttribute:
         """Test SWAP gate operation is correctly processed and sent to IonQ."""
         dev = qml.device("ionq.simulator", wires=2, gateset="qis")
 
-        with qml.tape.QuantumTape() as tape:
+        with qml.tape.QuantumTape(shots=1024) as tape:
             qml.PauliX(wires=0)
             qml.SWAP(wires=[0, 1])
             qml.probs(wires=[0, 1])
@@ -753,7 +752,7 @@ class TestJobAttribute:
         """Test a controlled gate operation is correctly processed and sent to IonQ."""
         dev = qml.device("ionq.simulator", wires=2, gateset="qis")
 
-        with qml.tape.QuantumTape() as tape:
+        with qml.tape.QuantumTape(shots=1024) as tape:
             qml.Hadamard(wires=0)
             qml.CNOT(wires=[0, 1])
             qml.probs(wires=[0, 1])

@@ -160,17 +160,8 @@ class IonQDevice(QubitDevice):
     def expand_fn(self, circuit, max_expansion=10):
         """Expand the circuit"""
         if not circuit.shots:
-            raise ValueError(
-                "The ionq device does not support analytic expectation values"
-            )
+            raise ValueError("The ionq device does not support analytic expectation values")
         return super().expand_fn(circuit, max_expansion)
-    
-    # def batch_transform(self, circuit: QuantumScript):
-    #     if not circuit.shots:
-    #         raise ValueError(
-    #             "The ionq device does not support analytic expectation values"
-    #         )
-    #     return super().batch_transform(circuit)
 
     def reset(self, circuits_array_length=1):
         """Reset the device"""
@@ -228,15 +219,14 @@ class IonQDevice(QubitDevice):
 
         self.reset(circuits_array_length=len(circuits))
 
-        # Update both device and job shots based on the circuits
-        if circuits:
-            # All circuits should have the same shots for batch execution
-            circuit_shots = circuits[0].shots
-            if circuit_shots is not None:
-                # Update device shots so PennyLane knows we support finite shots
-                self._shots = circuit_shots
-                # Update job shots for API submission
-                self.job["shots"] = circuit_shots.total_shots
+        circuit_shots = circuits[0].shots
+        if circuit_shots is not None:
+            # !NOTE: only for testing. This is temporary and should be reverted in the future.
+            self._shots = circuit_shots.total_shots
+            # Update job shots for API submission
+            self.job["shots"] = circuit_shots.total_shots
+        if not (self.shots or circuit_shots):
+            raise ValueError("The ionq device does not support analytic expectation values")
 
         for circuit_index, circuit in enumerate(circuits):
             self.check_validity(circuit.operations, circuit.observables)
