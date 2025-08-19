@@ -25,6 +25,7 @@
 
 This release contains contributions from (in alphabetical order):
 
+Yushao Chen,
 Radu Marginean,
 Andrija Paurevic.
 
