@@ -289,9 +289,7 @@ class IonQDevice(QubitDevice):
 
         # Shots preprocessing. Important when both device shots and circuit shots co-exist within our ecosystem
         circuit_shots = circuits[0].shots.total_shots
-        shots = circuit_shots or self.shots
-        if not shots:
-            raise ValueError(NO_ANALYTIC_MSG)
+        shots = circuit_shots or self.shots or 1024
         # Update job shots for API submission
         self.job["shots"] = shots
 
