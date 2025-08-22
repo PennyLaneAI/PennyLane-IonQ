@@ -17,6 +17,7 @@ This module contains the device class for constructing IonQ devices for PennyLan
 
 # pylint: disable=too-many-arguments
 
+import copy
 import inspect
 import logging
 from typing import List
@@ -25,23 +26,14 @@ from time import sleep
 
 import numpy as np
 
-import pennylane as qml
 from pennylane import pauli_decompose, SparseHamiltonian
 from pennylane.devices import QubitDevice
-from pennylane.exceptions import QuantumFunctionError
-from pennylane.math import unwrap
 from pennylane.ops.op_math import Exp, Sum, SProd
 from pennylane.ops import Identity, PauliX, PauliY, PauliZ
 from pennylane.ops.op_math.prod import Prod
+
 from pennylane.measurements import (
-    CountsMP,
-    ExpectationMP,
-    ProbabilityMP,
-    SampleMeasurement,
-    SampleMP,
     Shots,
-    StateMeasurement,
-    VarianceMP,
 )
 from pennylane.resource import Resources
 from pennylane.ops.op_math.linear_combination import LinearCombination
@@ -173,28 +165,6 @@ class IonQDevice(QubitDevice):
             raise ValueError(NO_ANALYTIC_MSG)
         return super().batch_transform(circuit)
 
-    def sample_basis_states(self, number_of_states, state_probability, shots=None):
-        """Sample from the computational basis states based on the state
-        probability.
-
-        This is an auxiliary method to the generate_samples method.
-
-        Args:
-            number_of_states (int): the number of basis states to sample from
-            state_probability (array[float]): the computational basis probability vector
-
-        Returns:
-            array[int]: the sampled basis states
-        """
-        shots = shots or self.shots
-        assert shots, NO_ANALYTIC_MSG
-
-        basis_states = np.arange(number_of_states)
-
-        state_probs = unwrap(state_probability)
-
-        return np.random.choice(basis_states, shots, p=state_probs)
-
     def reset(self, circuits_array_length=1):
         """Reset the device"""
         self._current_circuit_index = None
@@ -245,7 +215,8 @@ class IonQDevice(QubitDevice):
                 """Entry with args=(circuits=%s) called by=%s""",
                 circuits,
                 "::L".join(
-                    str(i) for i in inspect.getouterframes(inspect.currentframe(), 2)[1][1:3]
+                    str(i)
+                    for i in inspect.getouterframes(inspect.currentframe(), 2)[1][1:3]
                 ),
             )
 
@@ -253,7 +224,9 @@ class IonQDevice(QubitDevice):
 
         # Shots preprocessing. Important when both device shots and circuit shots co-exist within our ecosystem
         circuit_shots = circuits[0].shots.total_shots
-        shots = circuit_shots or self.shots or 1024
+        shots = (
+            circuit_shots or self.shots or 1024
+        )  # NOTE: IONQ does not accept None shots
         # Update job shots for API submission
         self.job["shots"] = shots
 
@@ -268,28 +241,33 @@ class IonQDevice(QubitDevice):
 
         results = []
         for circuit_index, circuit in enumerate(circuits):
-            self.set_current_circuit_index(circuit_index)
-            self._samples = self.generate_samples(shots=shots)
+            # Deep copy self to avoid side effects
+            dev_copy = copy.deepcopy(self)
+            dev_copy.set_current_circuit_index(circuit_index)
+            dev_copy._shots = shots  # pylint: disable=protected-access
+            dev_copy._samples = (
+                dev_copy.generate_samples()
+            )  # pylint: disable=protected-access
 
-            # compute the required statistics
-            if self._shot_vector is not None:
-                result = self.shot_vec_statistics(circuit)
+            # compute the required statistics using the copy
+            if dev_copy._shot_vector is not None:
+                result = dev_copy.shot_vec_statistics(circuit)
             else:
-                result = self.statistics(circuit, shots=shots)
+                result = dev_copy.statistics(circuit)
                 single_measurement = len(circuit.measurements) == 1
-
                 result = result[0] if single_measurement else tuple(result)
 
-            self.set_current_circuit_index(None)
-            self._samples = None
             results.append(result)
+            del dev_copy
 
         # increment counter for number of executions of qubit device
         self._num_executions += 1
 
         if self.tracker.active:
             for circuit in circuits:
-                shots_from_dev = shots if not self.shot_vector else self._raw_shot_sequence
+                shots_from_dev = (
+                    shots if not self.shot_vector else self._raw_shot_sequence
+                )
                 tape_resources = circuit.specs["resources"]
 
                 resources = Resources(  # temporary until shots get updated on tape !
@@ -318,114 +296,16 @@ class IonQDevice(QubitDevice):
         rotations = kwargs.pop("rotations", [])
 
         if len(operations) == 0 and len(rotations) == 0:
-            warnings.warn("Circuit is empty. Empty circuits return failures. Submitting anyway.")
+            warnings.warn(
+                "Circuit is empty. Empty circuits return failures. Submitting anyway."
+            )
 
-        for _, operation in enumerate(operations):
+        for operation in operations:
             self._apply_operation(operation, circuit_index)
 
         # diagonalize observables
         for operation in rotations:
             self._apply_operation(operation, circuit_index)
-
-    def _measure(
-        self,
-        measurement,
-        shot_range=None,
-        bin_size=None,
-        shots=None,
-    ):
-        """Compute the corresponding measurement process depending on ``shots`` and the measurement
-        type.
-        """
-        return measurement.process_samples(
-            samples=self._samples, wire_order=self.wires, shot_range=shot_range, bin_size=bin_size
-        )
-
-    def statistics(
-        self, circuit, shot_range=None, bin_size=None, shots=None
-    ):  # pylint: disable=too-many-statements
-        """Process measurement results from circuit execution and return statistics.
-        """
-        measurements = circuit.measurements
-        results = []
-
-        for m in measurements:
-            # TODO: Remove this when all overridden measurements support the `MeasurementProcess` class
-            if isinstance(m.mv, list):
-                # MeasurementProcess stores information needed for processing if terminal measurement
-                # uses a list of mid-circuit measurement values
-                obs = m  # pragma: no cover
-            else:
-                obs = m.obs or m.mv
-                obs = m if obs is None else obs
-            # 1. Based on the measurement type, compute statistics
-            # Pass instances directly
-            if isinstance(m, ExpectationMP):
-                result = self.expval(obs, shot_range=shot_range, bin_size=bin_size)
-
-            elif isinstance(m, VarianceMP):
-                result = self.var(obs, shot_range=shot_range, bin_size=bin_size)
-
-            elif isinstance(m, SampleMP):
-                samples = self.sample(obs, shot_range=shot_range, bin_size=bin_size, counts=False)
-                dtype = int if isinstance(obs, SampleMP) else None
-                result = self._asarray(samples, dtype=dtype)
-
-            elif isinstance(m, CountsMP):
-                result = self.sample(m, shot_range=shot_range, bin_size=bin_size, counts=True)
-
-            elif isinstance(m, ProbabilityMP):
-                is_lightning = self._is_lightning_device()
-                diagonalizing_gates = (
-                    self._get_diagonalizing_gates(circuit) if is_lightning else None
-                )
-                if is_lightning and diagonalizing_gates:  # pragma: no cover
-                    self.apply(diagonalizing_gates)
-                result = self.probability(wires=m.wires, shot_range=shot_range, bin_size=bin_size)
-                if is_lightning and diagonalizing_gates:  # pragma: no cover
-                    # pylint: disable=bad-reversed-sequence
-                    self.apply([qml.adjoint(g, lazy=False) for g in reversed(diagonalizing_gates)])
-
-            elif isinstance(m, (SampleMeasurement, StateMeasurement)):
-                result = self._measure(m, shot_range=shot_range, bin_size=bin_size)
-
-            else:  # pragma: no cover
-                name = obs.name if isinstance(obs, qml.operation.Operator) else type(obs).__name__
-                raise QuantumFunctionError(
-                    f"Unsupported return type specified for observable {name}"
-                )
-
-            # 2. Post-process statistics results (if need be)
-            if isinstance(
-                m,
-                (
-                    ExpectationMP,
-                    VarianceMP,
-                    ProbabilityMP,
-                ),
-            ):
-                # Result is a float
-                result = self._asarray(result, dtype=self.R_DTYPE)
-
-            if self._shot_vector is not None and isinstance(result, np.ndarray):
-                # In the shot vector case, measurement results may be of shape (N, 1) instead of (N,)
-                # Squeeze the result to transform the results
-                #
-                # E.g.,
-                # before:
-                # [[0.489]
-                #  [0.511]
-                #  [0.   ]
-                #  [0.   ]]
-                #
-                # after: [0.489 0.511 0.    0.   ]
-                result = qml.math.squeeze(result)
-
-            # 3. Append to final list
-            if result is not None:
-                results.append(result)
-
-        return results
 
     @property
     def operations(self):
@@ -443,7 +323,9 @@ class IonQDevice(QubitDevice):
         rotations = kwargs.pop("rotations", [])
 
         if len(operations) == 0 and len(rotations) == 0:
-            warnings.warn("Circuit is empty. Empty circuits return failures. Submitting anyway.")
+            warnings.warn(
+                "Circuit is empty. Empty circuits return failures. Submitting anyway."
+            )
 
         for i, operation in enumerate(operations):
             self._apply_operation(operation)
@@ -527,7 +409,9 @@ class IonQDevice(QubitDevice):
             cleaned_up_coefficients.append(coefficients[i])
         return cleaned_up_terms, cleaned_up_coefficients
 
-    def _extract_evolution_coefficients(self, operation, wires: List[int]) -> List[float]:
+    def _extract_evolution_coefficients(
+        self, operation, wires: List[int]
+    ) -> List[float]:
         coefficients = None
         operation_generator = operation.generator()
         if isinstance(operation_generator, LinearCombination):
@@ -536,7 +420,9 @@ class IonQDevice(QubitDevice):
             operations = operation_generator.ops
             for i, _ in enumerate(operations):
                 operation = coeffs[i] * operations[i]
-                if isinstance(operations[i], (Sum, Prod, PauliX, PauliY, PauliZ, Identity)):
+                if isinstance(
+                    operations[i], (Sum, Prod, PauliX, PauliY, PauliZ, Identity)
+                ):
                     coefficients.extend(operation.terms()[0])
                 else:
                     op_wires = operation.wires.tolist()
@@ -546,7 +432,9 @@ class IonQDevice(QubitDevice):
                     coefficients.extend(pauli_decomp.coeffs.tolist())
         elif isinstance(operation_generator, SparseHamiltonian):
             dense_matrix = operation_generator.H.toarray()
-            linear_combination = pauli_decompose(dense_matrix, wire_order=wires, pauli=False)
+            linear_combination = pauli_decompose(
+                dense_matrix, wire_order=wires, pauli=False
+            )
             coefficients = linear_combination.coeffs.tolist()
         elif isinstance(operation_generator, SProd):
             if isinstance(operation_generator.base, (PauliX, PauliY, PauliZ, Identity)):
@@ -577,7 +465,9 @@ class IonQDevice(QubitDevice):
             operations = operation_generator.ops
             for i, _ in enumerate(operations):
                 operation = coeffs[i] * operations[i]
-                if isinstance(operations[i], (Sum, Prod, PauliX, PauliY, PauliZ, Identity)):
+                if isinstance(
+                    operations[i], (Sum, Prod, PauliX, PauliY, PauliZ, Identity)
+                ):
                     ops.extend(operation.terms()[1])
                 else:
                     op_wires = operation.wires.tolist()
@@ -698,7 +588,9 @@ class IonQDevice(QubitDevice):
         # The IonQ API returns basis states using little-endian ordering.
         # Here, we rearrange the states to match the big-endian ordering
         # expected by PennyLane.
-        basis_states = (int(bin(int(k))[2:].rjust(self.num_wires, "0")[::-1], 2) for k in histogram)
+        basis_states = (
+            int(bin(int(k))[2:].rjust(self.num_wires, "0")[::-1], 2) for k in histogram
+        )
         idx = np.fromiter(basis_states, dtype=int)
 
         # convert the sparse probs into a probability array
@@ -717,7 +609,9 @@ class IonQDevice(QubitDevice):
         if shot_range is None and bin_size is None:
             return self.marginal_prob(self.prob, wires)
 
-        return self.estimate_probability(wires=wires, shot_range=shot_range, bin_size=bin_size)
+        return self.estimate_probability(
+            wires=wires, shot_range=shot_range, bin_size=bin_size
+        )
 
 
 class SimulatorDevice(IonQDevice):
@@ -749,12 +643,10 @@ class SimulatorDevice(IonQDevice):
             api_key=api_key,
         )
 
-    def generate_samples(self, shots=None):
+    def generate_samples(self):
         """Generates samples by random sampling with the probabilities returned by the simulator."""
-        shots = shots or self.shots
-        assert shots, NO_ANALYTIC_MSG
         number_of_states = 2**self.num_wires
-        samples = self.sample_basis_states(number_of_states, self.prob, shots=shots)
+        samples = self.sample_basis_states(number_of_states, self.prob)
         return QubitDevice.states_to_binary(samples, self.num_wires)
 
 
@@ -813,18 +705,16 @@ class QPUDevice(IonQDevice):
             sharpen=sharpen,
         )
 
-    def generate_samples(self, shots=None):
+    def generate_samples(self):
         """Generates samples from the qpu.
 
         Note that the order of the samples returned here is not indicative of the order in which
         the experiments were done, but is instead controlled by a random shuffle (and hence
         set by numpy random seed).
         """
-        shots = shots or self.shots
-        assert shots, NO_ANALYTIC_MSG
         number_of_states = 2**self.num_wires
         counts = np.rint(
-            self.prob * shots,
+            self.prob * self.shots,
             out=np.zeros(number_of_states, dtype=int),
             casting="unsafe",
         )
