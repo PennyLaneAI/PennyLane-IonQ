@@ -751,7 +751,7 @@ class TestJobAttribute:
         """Test a controlled gate operation is correctly processed and sent to IonQ."""
         dev = qml.device("ionq.simulator", wires=2, gateset="qis")
 
-        with qml.tape.QuantumTape(shots=1024) as tape:
+        with qml.tape.QuantumTape() as tape:
             qml.Hadamard(wires=0)
             qml.CNOT(wires=[0, 1])
             qml.probs(wires=[0, 1])
