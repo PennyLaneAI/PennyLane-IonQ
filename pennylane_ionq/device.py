@@ -159,11 +159,11 @@ class IonQDevice(QubitDevice):
         self._samples = None
         self.reset()
 
-    def expand_fn(self, circuit, max_expansion=10):
+    def batch_transform(self, circuit):
         """Expand the circuit"""
         if not circuit.shots:
             raise ValueError(NO_ANALYTIC_MSG)
-        return super().expand_fn(circuit, max_expansion)
+        return super().batch_transform(circuit)
 
     def sample_basis_states(self, number_of_states, state_probability, shots=None):
         """Sample from the computational basis states based on the state
