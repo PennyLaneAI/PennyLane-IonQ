@@ -59,15 +59,11 @@ class TestDevice:
 
         unique_outcomes1 = np.unique(sample1, axis=0)
         unique_outcomes2 = np.unique(sample2, axis=0)
-        assert np.all(
-            unique_outcomes1 == unique_outcomes2
-        )  # possible outcomes are the same
+        assert np.all(unique_outcomes1 == unique_outcomes2)  # possible outcomes are the same
 
         sorted_outcomes1 = np.sort(sample1, axis=0)
         sorted_outcomes2 = np.sort(sample2, axis=0)
-        assert np.all(
-            sorted_outcomes1 == sorted_outcomes2
-        )  # set of outcomes is the same
+        assert np.all(sorted_outcomes1 == sorted_outcomes2)  # set of outcomes is the same
 
 
 class TestDeviceIntegration:
@@ -116,9 +112,7 @@ class TestDeviceIntegration:
         monkeypatch.setattr(
             requests, "post", lambda url, timeout, data, headers: (url, data, headers)
         )
-        monkeypatch.setattr(
-            ResourceManager, "handle_response", lambda self, response: None
-        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", False)
         monkeypatch.setattr(Job, "is_failed", True)
 
@@ -133,17 +127,13 @@ class TestDeviceIntegration:
         monkeypatch.setattr(
             requests, "post", lambda url, timeout, data, headers: (url, data, headers)
         )
-        monkeypatch.setattr(
-            ResourceManager, "handle_response", lambda self, response: None
-        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
         def fake_response(self, resource_id=None, params=None):
             """Return fake response data"""
             fake_json = {"0": 1}
-            setattr(
-                self.resource, "data", type("data", tuple(), {"value": fake_json})()
-            )
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
@@ -160,26 +150,20 @@ class TestDeviceIntegration:
         circuit()
         assert json.loads(spy.call_args[1]["data"])["shots"] == shots
 
-    @pytest.mark.parametrize(
-        "error_mitigation", [None, {"debias": True}, {"debias": False}]
-    )
+    @pytest.mark.parametrize("error_mitigation", [None, {"debias": True}, {"debias": False}])
     def test_error_mitigation(self, error_mitigation, monkeypatch, mocker):
         """Test that shots are correctly specified when submitting a job to the API."""
 
         monkeypatch.setattr(
             requests, "post", lambda url, timeout, data, headers: (url, data, headers)
         )
-        monkeypatch.setattr(
-            ResourceManager, "handle_response", lambda self, response: None
-        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
         def fake_response(self, resource_id=None, params=None):
             """Return fake response data"""
             fake_json = {"0": 1}
-            setattr(
-                self.resource, "data", type("data", tuple(), {"value": fake_json})()
-            )
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
@@ -200,10 +184,7 @@ class TestDeviceIntegration:
         spy = mocker.spy(requests, "post")
         circuit()
         if error_mitigation is not None:
-            assert (
-                json.loads(spy.call_args[1]["data"])["error_mitigation"]
-                == error_mitigation
-            )
+            assert json.loads(spy.call_args[1]["data"])["error_mitigation"] == error_mitigation
         else:
             with pytest.raises(KeyError, match="error_mitigation"):
                 json.loads(spy.call_args[1]["data"])["error_mitigation"]
@@ -410,9 +391,7 @@ you want to access must be first set via the set_current_circuit_index device me
         assert results[0] == pytest.approx(-1, abs=0.1)
         assert results[1] == pytest.approx(0, abs=0.1)
 
-    def test_batch_execute_expectation_value_with_diagonalization_rotations(
-        self, requires_api
-    ):
+    def test_batch_execute_expectation_value_with_diagonalization_rotations(self, requires_api):
         """Test batch_execute method when computing expectation value of an
         observable that requires rotations for diagonalization."""
         dev = SimulatorDevice(wires=(0,), gateset="qis")
@@ -483,13 +462,9 @@ you want to access must be first set via the set_current_circuit_index device me
                 wires = list(range(len(state)))
                 super().__init__(wires=wires)
 
-            def process_samples(
-                self, samples, wire_order, shot_range=None, bin_size=None
-            ):
+            def process_samples(self, samples, wire_order, shot_range=None, bin_size=None):
                 counts_mp = qml.counts(wires=self._wires)
-                counts = counts_mp.process_samples(
-                    samples, wire_order, shot_range, bin_size
-                )
+                counts = counts_mp.process_samples(samples, wire_order, shot_range, bin_size)
                 return float(counts.get(self.state, 0))
 
             def process_counts(self, counts, wire_order):
@@ -525,7 +500,7 @@ class TestJobAttribute:
         mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
         dev = IonQDevice(wires=(0,), target="foo")
 
-        with qml.tape.QuantumTape(shots=1024) as tape:
+        with qml.tape.QuantumTape() as tape:
             qml.PauliX(0)
 
         dev.apply(tape.operations)
@@ -550,7 +525,7 @@ class TestJobAttribute:
         mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
         dev = IonQDevice(wires=(0,), target="foo")
 
-        with qml.tape.QuantumTape(shots=1024) as tape:
+        with qml.tape.QuantumTape() as tape:
             qml.PauliX(0)
 
         dev.reset(circuits_array_length=1)
@@ -576,7 +551,7 @@ class TestJobAttribute:
         mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
         dev = IonQDevice(wires=(0,))
 
-        with qml.tape.QuantumTape(shots=1024) as tape:
+        with qml.tape.QuantumTape() as tape:
             qml.RX(1.2345, wires=0)
             qml.RY(qml.numpy.array(2.3456), wires=0)
 
@@ -607,7 +582,7 @@ class TestJobAttribute:
         mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
         dev = IonQDevice(wires=(0,))
 
-        with qml.tape.QuantumTape(shots=1024) as tape:
+        with qml.tape.QuantumTape() as tape:
             qml.RX(1.2345, wires=0)
             qml.RY(qml.numpy.array(2.3456), wires=0)
 
@@ -639,7 +614,7 @@ class TestJobAttribute:
         mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
         dev = IonQDevice(wires=(0, 1, 2), gateset="native")
 
-        with qml.tape.QuantumTape(shots=1024) as tape:
+        with qml.tape.QuantumTape() as tape:
             GPI(0.1, wires=[0])
             GPI2(0.2, wires=[1])
             MS(0.2, 0.3, wires=[1, 2])
@@ -684,9 +659,7 @@ class TestJobAttribute:
         def mock_submit_job(*args):
             raise StopExecute()
 
-        mocker.patch(
-            "pennylane_ionq.device.SimulatorDevice._submit_job", mock_submit_job
-        )
+        mocker.patch("pennylane_ionq.device.SimulatorDevice._submit_job", mock_submit_job)
         dev = SimulatorDevice(wires=(0,), gateset="native")
 
         with qml.tape.QuantumTape(shots=1024) as tape1:
