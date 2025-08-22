@@ -72,12 +72,9 @@ class TestDeviceIntegration:
     @pytest.mark.parametrize("d", shortnames)
     def test_load_device(self, d):
         """Test that the device loads correctly"""
-        with pytest.warns(
-            qml.exceptions.PennyLaneDeprecationWarning, match="shots on device is deprecated"
-        ):
-            dev = qml.device(d, wires=2, shots=1024)
+        dev = qml.device(d, wires=2)
         assert dev.num_wires == 2
-        assert dev.shots.total_shots == 1024
+        assert dev.shots.total_shots is None
         assert dev.short_name == d
 
     @pytest.mark.parametrize("d", shortnames)
@@ -228,10 +225,7 @@ class TestDeviceIntegration:
     def test_prob_no_results(self, d):
         """Test that the prob attribute is
         None if no job has yet been run."""
-        with pytest.warns(
-            qml.exceptions.PennyLaneDeprecationWarning, match="shots on device is deprecated"
-        ):
-            dev = qml.device(d, wires=1, shots=1)
+        dev = qml.device(d, wires=1)
         assert dev.prob is None
 
     @pytest.mark.parametrize(
@@ -733,7 +727,7 @@ class TestJobAttribute:
         """Test SWAP gate operation is correctly processed and sent to IonQ."""
         dev = qml.device("ionq.simulator", wires=2, gateset="qis")
 
-        with qml.tape.QuantumTape(shots=1024) as tape:
+        with qml.tape.QuantumTape() as tape:
             qml.PauliX(wires=0)
             qml.SWAP(wires=[0, 1])
             qml.probs(wires=[0, 1])
