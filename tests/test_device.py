@@ -192,12 +192,13 @@ class TestDeviceIntegration:
     @pytest.mark.parametrize("shots", [8192])
     def test_one_qubit_circuit(self, shots, requires_api, tol):
         """Test that devices provide correct result for a simple circuit"""
-        dev = qml.device("ionq.simulator", wires=1, shots=shots)
+        dev = qml.device("ionq.simulator", wires=1)
 
         a = 0.543
         b = 0.123
         c = qml.numpy.array(0.987, requires_grad=False)
 
+        @qml.set_shots(shots)
         @qml.qnode(dev)
         def circuit(x, y, z):
             """Reference QNode"""
@@ -211,8 +212,9 @@ class TestDeviceIntegration:
     @pytest.mark.parametrize("shots", [8192])
     def test_one_qubit_ordering(self, shots, requires_api, tol):
         """Test that probabilities are returned with the correct qubit ordering"""
-        dev = qml.device("ionq.simulator", wires=2, shots=shots)
+        dev = qml.device("ionq.simulator", wires=2)
 
+        @qml.set_shots(shots)
         @qml.qnode(dev)
         def circuit():
             qml.PauliX(wires=1)
