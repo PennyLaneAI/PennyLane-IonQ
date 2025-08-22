@@ -215,8 +215,7 @@ class IonQDevice(QubitDevice):
                 """Entry with args=(circuits=%s) called by=%s""",
                 circuits,
                 "::L".join(
-                    str(i)
-                    for i in inspect.getouterframes(inspect.currentframe(), 2)[1][1:3]
+                    str(i) for i in inspect.getouterframes(inspect.currentframe(), 2)[1][1:3]
                 ),
             )
 
@@ -224,9 +223,7 @@ class IonQDevice(QubitDevice):
 
         # Shots preprocessing. Important when both device shots and circuit shots co-exist within our ecosystem
         circuit_shots = circuits[0].shots.total_shots
-        shots = (
-            circuit_shots or self.shots or 1024
-        )  # NOTE: IONQ does not accept None shots
+        shots = circuit_shots or self.shots or 1024  # NOTE: IONQ does not accept None shots
         # Update job shots for API submission
         self.job["shots"] = shots
 
@@ -242,12 +239,11 @@ class IonQDevice(QubitDevice):
         results = []
         for circuit_index, circuit in enumerate(circuits):
             # Deep copy self to avoid side effects
+            # pylint: disable=protected-access， attribute-defined-outside-init
             dev_copy = copy.deepcopy(self)
             dev_copy.set_current_circuit_index(circuit_index)
-            dev_copy._shots = shots  # pylint: disable=protected-access
-            dev_copy._samples = (
-                dev_copy.generate_samples()
-            )  # pylint: disable=protected-access
+            dev_copy._shots = shots
+            dev_copy._samples = dev_copy.generate_samples()
 
             # compute the required statistics using the copy
             if dev_copy._shot_vector is not None:
@@ -265,9 +261,7 @@ class IonQDevice(QubitDevice):
 
         if self.tracker.active:
             for circuit in circuits:
-                shots_from_dev = (
-                    shots if not self.shot_vector else self._raw_shot_sequence
-                )
+                shots_from_dev = shots if not self.shot_vector else self._raw_shot_sequence
                 tape_resources = circuit.specs["resources"]
 
                 resources = Resources(  # temporary until shots get updated on tape !
@@ -296,9 +290,7 @@ class IonQDevice(QubitDevice):
         rotations = kwargs.pop("rotations", [])
 
         if len(operations) == 0 and len(rotations) == 0:
-            warnings.warn(
-                "Circuit is empty. Empty circuits return failures. Submitting anyway."
-            )
+            warnings.warn("Circuit is empty. Empty circuits return failures. Submitting anyway.")
 
         for operation in operations:
             self._apply_operation(operation, circuit_index)
@@ -323,9 +315,7 @@ class IonQDevice(QubitDevice):
         rotations = kwargs.pop("rotations", [])
 
         if len(operations) == 0 and len(rotations) == 0:
-            warnings.warn(
-                "Circuit is empty. Empty circuits return failures. Submitting anyway."
-            )
+            warnings.warn("Circuit is empty. Empty circuits return failures. Submitting anyway.")
 
         for i, operation in enumerate(operations):
             self._apply_operation(operation)
@@ -409,9 +399,7 @@ class IonQDevice(QubitDevice):
             cleaned_up_coefficients.append(coefficients[i])
         return cleaned_up_terms, cleaned_up_coefficients
 
-    def _extract_evolution_coefficients(
-        self, operation, wires: List[int]
-    ) -> List[float]:
+    def _extract_evolution_coefficients(self, operation, wires: List[int]) -> List[float]:
         coefficients = None
         operation_generator = operation.generator()
         if isinstance(operation_generator, LinearCombination):
@@ -420,9 +408,7 @@ class IonQDevice(QubitDevice):
             operations = operation_generator.ops
             for i, _ in enumerate(operations):
                 operation = coeffs[i] * operations[i]
-                if isinstance(
-                    operations[i], (Sum, Prod, PauliX, PauliY, PauliZ, Identity)
-                ):
+                if isinstance(operations[i], (Sum, Prod, PauliX, PauliY, PauliZ, Identity)):
                     coefficients.extend(operation.terms()[0])
                 else:
                     op_wires = operation.wires.tolist()
@@ -432,9 +418,7 @@ class IonQDevice(QubitDevice):
                     coefficients.extend(pauli_decomp.coeffs.tolist())
         elif isinstance(operation_generator, SparseHamiltonian):
             dense_matrix = operation_generator.H.toarray()
-            linear_combination = pauli_decompose(
-                dense_matrix, wire_order=wires, pauli=False
-            )
+            linear_combination = pauli_decompose(dense_matrix, wire_order=wires, pauli=False)
             coefficients = linear_combination.coeffs.tolist()
         elif isinstance(operation_generator, SProd):
             if isinstance(operation_generator.base, (PauliX, PauliY, PauliZ, Identity)):
@@ -465,9 +449,7 @@ class IonQDevice(QubitDevice):
             operations = operation_generator.ops
             for i, _ in enumerate(operations):
                 operation = coeffs[i] * operations[i]
-                if isinstance(
-                    operations[i], (Sum, Prod, PauliX, PauliY, PauliZ, Identity)
-                ):
+                if isinstance(operations[i], (Sum, Prod, PauliX, PauliY, PauliZ, Identity)):
                     ops.extend(operation.terms()[1])
                 else:
                     op_wires = operation.wires.tolist()
@@ -588,9 +570,7 @@ class IonQDevice(QubitDevice):
         # The IonQ API returns basis states using little-endian ordering.
         # Here, we rearrange the states to match the big-endian ordering
         # expected by PennyLane.
-        basis_states = (
-            int(bin(int(k))[2:].rjust(self.num_wires, "0")[::-1], 2) for k in histogram
-        )
+        basis_states = (int(bin(int(k))[2:].rjust(self.num_wires, "0")[::-1], 2) for k in histogram)
         idx = np.fromiter(basis_states, dtype=int)
 
         # convert the sparse probs into a probability array
@@ -609,9 +589,7 @@ class IonQDevice(QubitDevice):
         if shot_range is None and bin_size is None:
             return self.marginal_prob(self.prob, wires)
 
-        return self.estimate_probability(
-            wires=wires, shot_range=shot_range, bin_size=bin_size
-        )
+        return self.estimate_probability(wires=wires, shot_range=shot_range, bin_size=bin_size)
 
 
 class SimulatorDevice(IonQDevice):
