@@ -25,15 +25,32 @@ from time import sleep
 
 import numpy as np
 
+import pennylane as qml
 from pennylane import pauli_decompose, SparseHamiltonian
 from pennylane.devices import QubitDevice
+from pennylane.exceptions import QuantumFunctionError
 from pennylane.math import get_interface, is_abstract, unwrap
 from pennylane.ops.op_math import Exp, Sum, SProd
 from pennylane.ops import Identity, PauliX, PauliY, PauliZ
 from pennylane.ops.op_math.prod import Prod
-
 from pennylane.measurements import (
+    ClassicalShadowMP,
+    CountsMP,
+    ExpectationMP,
+    MeasurementProcess,
+    MeasurementTransform,
+    MeasurementValue,
+    MidMeasureMP,
+    MutualInfoMP,
+    ProbabilityMP,
+    SampleMeasurement,
+    SampleMP,
+    ShadowExpvalMP,
     Shots,
+    StateMeasurement,
+    StateMP,
+    VarianceMP,
+    VnEntropyMP,
 )
 from pennylane.resource import Resources
 from pennylane.ops.op_math.linear_combination import LinearCombination
@@ -296,7 +313,7 @@ class IonQDevice(QubitDevice):
             if self._shot_vector is not None:
                 result = self.shot_vec_statistics(circuit)
             else:
-                result = self.statistics(circuit)
+                result = self.statistics(circuit, shots=shots)
                 single_measurement = len(circuit.measurements) == 1
 
                 result = result[0] if single_measurement else tuple(result)
@@ -347,6 +364,174 @@ class IonQDevice(QubitDevice):
         # diagonalize observables
         for operation in rotations:
             self._apply_operation(operation, circuit_index)
+    def _measure(
+        self,
+        measurement,
+        shot_range=None,
+        bin_size=None,
+        shots=None,
+    ):
+        """Compute the corresponding measurement process depending on ``shots`` and the measurement
+        type.
+        """
+        return measurement.process_samples(
+            samples=self._samples, wire_order=self.wires, shot_range=shot_range, bin_size=bin_size
+        )
+
+    def statistics(
+        self, circuit, shot_range=None, bin_size=None, shots=None
+    ):  # pylint: disable=too-many-statements
+        """Process measurement results from circuit execution and return statistics.
+        """
+        measurements = circuit.measurements
+        results = []
+
+        for m in measurements:
+            # TODO: Remove this when all overridden measurements support the `MeasurementProcess` class
+            if isinstance(m.mv, list):
+                # MeasurementProcess stores information needed for processing if terminal measurement
+                # uses a list of mid-circuit measurement values
+                obs = m  # pragma: no cover
+            else:
+                obs = m.obs or m.mv
+                obs = m if obs is None else obs
+            # Check if there is an overridden version of the measurement process
+            if method := getattr(self, self.measurement_map[type(m)], False):
+                if isinstance(m, MeasurementTransform):
+                    result = method(tape=circuit)
+                else:
+                    result = method(m, shot_range=shot_range, bin_size=bin_size)
+            # 1. Based on the measurement type, compute statistics
+            # Pass instances directly
+            elif isinstance(m, ExpectationMP):
+                result = self.expval(obs, shot_range=shot_range, bin_size=bin_size)
+
+            elif isinstance(m, VarianceMP):
+                result = self.var(obs, shot_range=shot_range, bin_size=bin_size)
+
+            elif isinstance(m, SampleMP):
+                samples = self.sample(obs, shot_range=shot_range, bin_size=bin_size, counts=False)
+                dtype = int if isinstance(obs, SampleMP) else None
+                result = self._asarray(samples, dtype=dtype)
+
+            elif isinstance(m, CountsMP):
+                result = self.sample(m, shot_range=shot_range, bin_size=bin_size, counts=True)
+
+            elif isinstance(m, ProbabilityMP):
+                is_lightning = self._is_lightning_device()
+                diagonalizing_gates = (
+                    self._get_diagonalizing_gates(circuit) if is_lightning else None
+                )
+                if is_lightning and diagonalizing_gates:  # pragma: no cover
+                    self.apply(diagonalizing_gates)
+                result = self.probability(wires=m.wires, shot_range=shot_range, bin_size=bin_size)
+                if is_lightning and diagonalizing_gates:  # pragma: no cover
+                    # pylint: disable=bad-reversed-sequence
+                    self.apply([qml.adjoint(g, lazy=False) for g in reversed(diagonalizing_gates)])
+
+            elif isinstance(m, VnEntropyMP):
+                if self.wires.labels != tuple(range(self.num_wires)):
+                    raise QuantumFunctionError(
+                        "Returning the Von Neumann entropy is not supported when using custom wire labels"
+                    )
+
+                if self._shot_vector is not None:
+                    raise NotImplementedError(
+                        "Returning the Von Neumann entropy is not supported with shot vectors."
+                    )
+
+                if shots is not None:
+                    warnings.warn(
+                        "Requested Von Neumann entropy with finite shots; the returned "
+                        "result is analytic and is unaffected by sampling. To silence "
+                        "this warning, set shots=None on the device.",
+                        UserWarning,
+                    )
+                result = self.vn_entropy(wires=obs.wires, log_base=obs.log_base)
+
+            elif isinstance(m, MutualInfoMP):
+                if self.wires.labels != tuple(range(self.num_wires)):
+                    raise QuantumFunctionError(
+                        "Returning the mutual information is not supported when using custom wire labels"
+                    )
+
+                if self._shot_vector is not None:
+                    raise NotImplementedError(
+                        "Returning the mutual information is not supported with shot vectors."
+                    )
+
+                if shots is not None:
+                    warnings.warn(
+                        "Requested mutual information with finite shots; the returned "
+                        "state information is analytic and is unaffected by sampling. To silence "
+                        "this warning, set shots=None on the device.",
+                        UserWarning,
+                    )
+                wires0, wires1 = obs.raw_wires
+                result = self.mutual_info(wires0=wires0, wires1=wires1, log_base=obs.log_base)
+
+            elif isinstance(m, ClassicalShadowMP):
+                if len(measurements) > 1:
+                    raise QuantumFunctionError(
+                        "Classical shadows cannot be returned in combination "
+                        "with other return types"
+                    )
+                result = self.classical_shadow(obs, circuit)
+
+            elif isinstance(m, ShadowExpvalMP):
+                if len(measurements) > 1:
+                    raise QuantumFunctionError(
+                        "Classical shadows cannot be returned in combination "
+                        "with other return types"
+                    )
+                result = self.shadow_expval(obs, circuit=circuit)
+
+            elif isinstance(m, MeasurementTransform):
+                result = m.process(tape=circuit, device=self)
+
+            elif isinstance(m, (SampleMeasurement, StateMeasurement)):
+                result = self._measure(m, shot_range=shot_range, bin_size=bin_size)
+
+            else:
+                name = obs.name if isinstance(obs, qml.operation.Operator) else type(obs).__name__
+                raise QuantumFunctionError(
+                    f"Unsupported return type specified for observable {name}"
+                )
+
+            # 2. Post-process statistics results (if need be)
+            if isinstance(
+                m,
+                (
+                    ExpectationMP,
+                    VarianceMP,
+                    ProbabilityMP,
+                    VnEntropyMP,
+                    MutualInfoMP,
+                    ShadowExpvalMP,
+                ),
+            ):
+                # Result is a float
+                result = self._asarray(result, dtype=self.R_DTYPE)
+
+            if self._shot_vector is not None and isinstance(result, np.ndarray):
+                # In the shot vector case, measurement results may be of shape (N, 1) instead of (N,)
+                # Squeeze the result to transform the results
+                #
+                # E.g.,
+                # before:
+                # [[0.489]
+                #  [0.511]
+                #  [0.   ]
+                #  [0.   ]]
+                #
+                # after: [0.489 0.511 0.    0.   ]
+                result = qml.math.squeeze(result)
+
+            # 3. Append to final list
+            if result is not None:
+                results.append(result)
+
+        return results
 
     @property
     def operations(self):
