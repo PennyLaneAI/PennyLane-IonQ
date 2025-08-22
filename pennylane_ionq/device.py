@@ -29,28 +29,19 @@ import pennylane as qml
 from pennylane import pauli_decompose, SparseHamiltonian
 from pennylane.devices import QubitDevice
 from pennylane.exceptions import QuantumFunctionError
-from pennylane.math import get_interface, is_abstract, unwrap
+from pennylane.math import unwrap
 from pennylane.ops.op_math import Exp, Sum, SProd
 from pennylane.ops import Identity, PauliX, PauliY, PauliZ
 from pennylane.ops.op_math.prod import Prod
 from pennylane.measurements import (
-    ClassicalShadowMP,
     CountsMP,
     ExpectationMP,
-    MeasurementProcess,
-    MeasurementTransform,
-    MeasurementValue,
-    MidMeasureMP,
-    MutualInfoMP,
     ProbabilityMP,
     SampleMeasurement,
     SampleMP,
-    ShadowExpvalMP,
     Shots,
     StateMeasurement,
-    StateMP,
     VarianceMP,
-    VnEntropyMP,
 )
 from pennylane.resource import Resources
 from pennylane.ops.op_math.linear_combination import LinearCombination
@@ -199,37 +190,10 @@ class IonQDevice(QubitDevice):
         assert shots, NO_ANALYTIC_MSG
 
         basis_states = np.arange(number_of_states)
-        # pylint:disable = import-outside-toplevel
-        if is_abstract(state_probability) and get_interface(state_probability) == "jax":
-            import jax
-
-            key = jax.random.PRNGKey(np.random.randint(0, 2**31))
-            if jax.numpy.ndim(state_probability) == 2:
-                return jax.numpy.array(
-                    [
-                        jax.random.choice(key, basis_states, shape=(shots,), p=prob)
-                        for prob in state_probability
-                    ]
-                )
-            return jax.random.choice(key, basis_states, shape=(shots,), p=state_probability)
 
         state_probs = unwrap(state_probability)
-        if self._ndim(state_probability) == 2:
-            # np.random.choice does not support broadcasting as needed here.
-            return np.array([np.random.choice(basis_states, shots, p=prob) for prob in state_probs])
 
         return np.random.choice(basis_states, shots, p=state_probs)
-
-    def generate_samples(self, shots=None):
-        r"""Overload the legacy method to enable shots input"""
-        shots = shots or self.shots
-        assert shots, NO_ANALYTIC_MSG
-        number_of_states = 2**self.num_wires
-
-        rotated_prob = self.analytic_probability()
-
-        samples = self.sample_basis_states(number_of_states, rotated_prob, shots=shots)
-        return self.states_to_binary(samples, self.num_wires)
 
     def reset(self, circuits_array_length=1):
         """Reset the device"""
@@ -356,12 +320,13 @@ class IonQDevice(QubitDevice):
         if len(operations) == 0 and len(rotations) == 0:
             warnings.warn("Circuit is empty. Empty circuits return failures. Submitting anyway.")
 
-        for i, operation in enumerate(operations):
+        for _, operation in enumerate(operations):
             self._apply_operation(operation, circuit_index)
 
         # diagonalize observables
         for operation in rotations:
             self._apply_operation(operation, circuit_index)
+
     def _measure(
         self,
         measurement,
@@ -393,15 +358,9 @@ class IonQDevice(QubitDevice):
             else:
                 obs = m.obs or m.mv
                 obs = m if obs is None else obs
-            # Check if there is an overridden version of the measurement process
-            if method := getattr(self, self.measurement_map[type(m)], False):
-                if isinstance(m, MeasurementTransform):
-                    result = method(tape=circuit)
-                else:
-                    result = method(m, shot_range=shot_range, bin_size=bin_size)
             # 1. Based on the measurement type, compute statistics
             # Pass instances directly
-            elif isinstance(m, ExpectationMP):
+            if isinstance(m, ExpectationMP):
                 result = self.expval(obs, shot_range=shot_range, bin_size=bin_size)
 
             elif isinstance(m, VarianceMP):
@@ -427,70 +386,10 @@ class IonQDevice(QubitDevice):
                     # pylint: disable=bad-reversed-sequence
                     self.apply([qml.adjoint(g, lazy=False) for g in reversed(diagonalizing_gates)])
 
-            elif isinstance(m, VnEntropyMP):
-                if self.wires.labels != tuple(range(self.num_wires)):
-                    raise QuantumFunctionError(
-                        "Returning the Von Neumann entropy is not supported when using custom wire labels"
-                    )
-
-                if self._shot_vector is not None:
-                    raise NotImplementedError(
-                        "Returning the Von Neumann entropy is not supported with shot vectors."
-                    )
-
-                if shots is not None:
-                    warnings.warn(
-                        "Requested Von Neumann entropy with finite shots; the returned "
-                        "result is analytic and is unaffected by sampling. To silence "
-                        "this warning, set shots=None on the device.",
-                        UserWarning,
-                    )
-                result = self.vn_entropy(wires=obs.wires, log_base=obs.log_base)
-
-            elif isinstance(m, MutualInfoMP):
-                if self.wires.labels != tuple(range(self.num_wires)):
-                    raise QuantumFunctionError(
-                        "Returning the mutual information is not supported when using custom wire labels"
-                    )
-
-                if self._shot_vector is not None:
-                    raise NotImplementedError(
-                        "Returning the mutual information is not supported with shot vectors."
-                    )
-
-                if shots is not None:
-                    warnings.warn(
-                        "Requested mutual information with finite shots; the returned "
-                        "state information is analytic and is unaffected by sampling. To silence "
-                        "this warning, set shots=None on the device.",
-                        UserWarning,
-                    )
-                wires0, wires1 = obs.raw_wires
-                result = self.mutual_info(wires0=wires0, wires1=wires1, log_base=obs.log_base)
-
-            elif isinstance(m, ClassicalShadowMP):
-                if len(measurements) > 1:
-                    raise QuantumFunctionError(
-                        "Classical shadows cannot be returned in combination "
-                        "with other return types"
-                    )
-                result = self.classical_shadow(obs, circuit)
-
-            elif isinstance(m, ShadowExpvalMP):
-                if len(measurements) > 1:
-                    raise QuantumFunctionError(
-                        "Classical shadows cannot be returned in combination "
-                        "with other return types"
-                    )
-                result = self.shadow_expval(obs, circuit=circuit)
-
-            elif isinstance(m, MeasurementTransform):
-                result = m.process(tape=circuit, device=self)
-
             elif isinstance(m, (SampleMeasurement, StateMeasurement)):
                 result = self._measure(m, shot_range=shot_range, bin_size=bin_size)
 
-            else:
+            else:  # pragma: no cover
                 name = obs.name if isinstance(obs, qml.operation.Operator) else type(obs).__name__
                 raise QuantumFunctionError(
                     f"Unsupported return type specified for observable {name}"
@@ -503,9 +402,6 @@ class IonQDevice(QubitDevice):
                     ExpectationMP,
                     VarianceMP,
                     ProbabilityMP,
-                    VnEntropyMP,
-                    MutualInfoMP,
-                    ShadowExpvalMP,
                 ),
             ):
                 # Result is a float
