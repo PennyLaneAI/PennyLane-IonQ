@@ -202,7 +202,7 @@ class IonQDevice(QubitDevice):
         if self.compilation is not None:
             self.job["settings"] = {"compilation": self.compilation}
         if self.error_mitigation is not None:
-            if not "settings" in self.job:
+            if "settings" not in self.job:
                 self.job["settings"] = {}
             self.job["settings"]["error_mitigation"] = self.error_mitigation
         if self.job["backend"] == "qpu":

@@ -24,6 +24,7 @@ This release contains contributions from (in alphabetical order):
 
 Andrija Paurevic.
 Radu Marginean
+Spencer Churchill
 
 ---
 # Release 0.42.0
