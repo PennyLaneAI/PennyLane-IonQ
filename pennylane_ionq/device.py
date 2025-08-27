@@ -105,12 +105,12 @@ class IonQDevice(QubitDevice):
             variable ``IONQ_API_KEY`` is used.
         compilation {"opt": int, "precision": str}: settings for compilation when creating a job
             default values: {"opt": 0, "precision": "1E-3"}
-            seee: https://docs.ionq.com/api-reference/v0.4/jobs/create-job
+            see: https://docs.ionq.com/api-reference/v0.4/jobs/create-job
         error_mitigation (dict): settings for error mitigation when creating a job. Defaults to None.
             Not available on all backends. Set by default on some hardware systems. See
             `IonQ API Job Creation <https://docs.ionq.com/api-reference/v0.4/jobs/create-job>`_  and
             `IonQ Debiasing and Sharpening <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
-            Valid keys include: ``debiasing`` False or Object.
+            Valid keys include: ``debiasing`` True or False.
         sharpen (bool): whether to use sharpening when accessing the results of an executed job. Defaults to None
             (no value passed at job retrieval). Will generally return more accurate results if your expected output
             distribution has peaks. See `IonQ Debiasing and Sharpening
