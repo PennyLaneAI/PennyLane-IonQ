@@ -17,7 +17,6 @@ This module contains the device class for constructing IonQ devices for PennyLan
 
 # pylint: disable=too-many-arguments
 
-import copy
 import inspect
 import logging
 from typing import List
@@ -222,12 +221,6 @@ class IonQDevice(QubitDevice):
 
         self.reset(circuits_array_length=len(circuits))
 
-        # Shots preprocessing. Important when both device shots and circuit shots co-exist within our ecosystem
-        circuit_shots = circuits[0].shots.total_shots
-        shots = circuit_shots or self.shots or 1024  # NOTE: IONQ does not accept None shots
-        # Update job shots for API submission
-        self.job["shots"] = shots
-
         for circuit_index, circuit in enumerate(circuits):
             self.check_validity(circuit.operations, circuit.observables)
             self.batch_apply(
@@ -239,30 +232,28 @@ class IonQDevice(QubitDevice):
 
         results = []
         for circuit_index, circuit in enumerate(circuits):
-            # Deep copy self to avoid side effects
-            # pylint: disable=protected-access， attribute-defined-outside-init
-            dev_copy = copy.deepcopy(self)
-            dev_copy.set_current_circuit_index(circuit_index)
-            dev_copy._shots = shots
-            dev_copy._samples = dev_copy.generate_samples()
+            self.set_current_circuit_index(circuit_index)
+            self._samples = self.generate_samples()
 
-            # compute the required statistics using the copy
-            if dev_copy._shot_vector is not None:
-                result = dev_copy.shot_vec_statistics(circuit)
+            # compute the required statistics
+            if self._shot_vector is not None:
+                result = self.shot_vec_statistics(circuit)
             else:
-                result = dev_copy.statistics(circuit)
+                result = self.statistics(circuit)
                 single_measurement = len(circuit.measurements) == 1
+
                 result = result[0] if single_measurement else tuple(result)
 
+            self.set_current_circuit_index(None)
+            self._samples = None
             results.append(result)
-            del dev_copy
 
         # increment counter for number of executions of qubit device
         self._num_executions += 1
 
         if self.tracker.active:
             for circuit in circuits:
-                shots_from_dev = shots if not self.shot_vector else self._raw_shot_sequence
+                shots_from_dev = self._shots if not self.shot_vector else self._raw_shot_sequence
                 tape_resources = circuit.specs["resources"]
 
                 resources = Resources(  # temporary until shots get updated on tape !
@@ -275,7 +266,7 @@ class IonQDevice(QubitDevice):
                 )
                 self.tracker.update(
                     executions=1,
-                    shots=shots,
+                    shots=self._shots,
                     results=results,
                     resources=resources,
                 )
