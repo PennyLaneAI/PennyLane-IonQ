@@ -9,7 +9,8 @@
 
 ### Breaking changes 💔
 
-* Remove default finite shots `1024` for all devices; no-analytic sanity check happens at execution.
+* Changed the default `shots` to `None` from `1024` for all devices. Additionally, shots validation now
+  happens at execution.
   [(#149)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/149)
 
 * Remove support for Python 3.10 and add support for Python 3.13.
