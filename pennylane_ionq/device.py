@@ -160,7 +160,8 @@ class IonQDevice(QubitDevice):
         self.reset()
 
     def batch_transform(self, circuit):
-        """Expand the circuit"""
+        """Apply a batch transform for preprocessing a circuit prior to execution."""
+
         if not circuit.shots:
             raise ValueError(NO_ANALYTIC_MSG)
         return super().batch_transform(circuit)
