@@ -117,7 +117,7 @@ class IonQDevice(QubitDevice):
             distribution has peaks. See `IonQ Debiasing and Sharpening
             <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
         noise (dict): {"model": str, "seed": int or None}. Defaults to None.
-        dry_run: If True, the job will be submitted by the API client but not processed remotely. 
+        dry_run: If True, the job will be submitted by the API client but not processed remotely.
             Useful for obtaining cost estimates. Defaults to False.
         metadata (dict): optional metadata to attach to the job. Defaults to None.
     """
@@ -181,13 +181,20 @@ class IonQDevice(QubitDevice):
         self._current_circuit_index = None
         self._samples = None
         self.histograms = []
-        self.input = {
-            "qubits": self.num_wires,
-            "circuits": [{"circuit": []} for _ in range(circuits_array_length)],
-            "gateset": self.gateset,
-        }
+        if circuits_array_length > 1:
+            self.input = {
+                "qubits": self.num_wires,
+                "circuits": [{"circuit": []} for _ in range(circuits_array_length)],
+                "gateset": self.gateset,
+            }
+        else:
+            self.input = {
+                "qubits": self.num_wires,
+                "circuit": [],
+                "gateset": self.gateset,
+            }
         self.job = {
-            "type": "ionq.multi-circuit.v1",
+            "type": ("ionq.multi-circuit.v1" if circuits_array_length > 1 else "ionq.circuit.v1"),
             "input": self.input,
             "backend": self.target,
             "shots": self.shots,
@@ -378,7 +385,10 @@ class IonQDevice(QubitDevice):
             gate["terms"] = terms
             gate["coefficients"] = [-1 * float(v) for v in coefficients]
             gate["time"] = operation.param
-            self.input["circuits"][circuit_index]["circuit"].append(gate)
+            if "circuits" in self.input:
+                self.input["circuits"][circuit_index]["circuit"].append(gate)
+            else:
+                self.input["circuit"].append(gate)
 
     def _apply_simple_operation(self, operation, circuit_index, wires):
         """Applies regular operations (gates) to the internal device state."""
@@ -404,7 +414,10 @@ class IonQDevice(QubitDevice):
                 gate["phase"] = float(params[0])
         elif params:
             gate["rotation"] = float(params[0])
-        self.input["circuits"][circuit_index]["circuit"].append(gate)
+        if "circuits" in self.input:
+            self.input["circuits"][circuit_index]["circuit"].append(gate)
+        else:
+            self.input["circuit"].append(gate)
 
     def _remove_trivial_terms(self, terms, coefficients):
         """Removes II..I terms from the list of terms."""

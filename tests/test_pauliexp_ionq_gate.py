@@ -63,9 +63,7 @@ class TestIonQPauliexp:
 
         with pytest.raises(
             OperatorNotSupportedInEvolutionGateGenerator,
-            match=re.escape(
-                "Unsupported operator in generator of Evolution gate: H(1)"
-            ),
+            match=re.escape("Unsupported operator in generator of Evolution gate: H(1)"),
         ):
             dev.batch_execute([tape])
 
@@ -120,6 +118,48 @@ class TestIonQPauliexp:
         ):
             dev.batch_execute([tape])
 
+    def test_evolution_gate_single_circuit(self, requires_api):
+        """Test the implementation of Evolution gate
+        when using a single input circuit.
+        """
+
+        dev = qml.device("ionq.simulator", wires=2, gateset="qis")
+
+        time = 1
+        H = qml.X(0)
+        tape = qml.tape.QuantumScript([qml.evolve(H, time)], [qml.probs(wires=[0])])
+
+        result_ionq = dev.batch_execute([tape])
+
+        simulator = qml.device("default.qubit", wires=1)
+        # note that Pennylane is calculating exact results here instead of using Trotterization which
+        # is fine for this particular test since the two results should agree if number of Trotter steps is 1
+        result_simulator = qml.execute([tape], simulator)
+
+        assert np.allclose(result_ionq, result_simulator, atol=1e-2)
+
+    def test_evolution_gate_multi_circuits(self, requires_api):
+        """Test the implementation of Evolution gate
+        when using a single multiple input circuits.
+        """
+
+        dev = qml.device("ionq.simulator", wires=2, gateset="qis")
+
+        time = 1
+        H1 = qml.X(0)
+        H2 = qml.Z(0)
+        tape1 = qml.tape.QuantumScript([qml.evolve(H1, time)], [qml.probs(wires=[0])])
+        tape2 = qml.tape.QuantumScript([qml.evolve(H2, time)], [qml.probs(wires=[0])])
+
+        result_ionq = dev.batch_execute([tape1, tape2])
+
+        simulator = qml.device("default.qubit", wires=1)
+        # note that Pennylane is calculating exact results here instead of using Trotterization which
+        # is fine for this particular test since the two results should agree if number of Trotter steps is 1
+        result_simulator = qml.execute([tape1, tape2], simulator)
+
+        assert np.allclose(result_ionq, result_simulator, atol=1e-2)
+
     def test_identity_evolution_gate_generator(self, requires_api):
         """Test the implementation of Evolution gate using pauliexp gate
         works when applied Evolution is generated from an Identity operator.
@@ -166,9 +206,7 @@ class TestIonQPauliexp:
         ],
         ids=lambda val: f"{val}",
     )
-    def test_evolution_object_created_from_hamiltonian(
-        self, wires, coeffs, ops, requires_api
-    ):
+    def test_evolution_object_created_from_hamiltonian(self, wires, coeffs, ops, requires_api):
         """Test that the implementation of Evolution gate derived
         from a Hamiltonian constructed via a Hamiltonian term works.
         """
@@ -213,9 +251,7 @@ class TestIonQPauliexp:
         ],
         ids=lambda val: f"{val}",
     )
-    def test_evolution_object_created_from_sparse_hamiltonian(
-        self, sparse_matrix, requires_api
-    ):
+    def test_evolution_object_created_from_sparse_hamiltonian(self, sparse_matrix, requires_api):
         """Test that the implementation of Evolution gate derived
         from a Hamiltonian constructed via a sparse Hamiltonian works.
         """
@@ -229,9 +265,7 @@ class TestIonQPauliexp:
         H_sparse = qml.SparseHamiltonian(hermitian_sparse, wires=[0, 1])
 
         time = 3
-        tape = qml.tape.QuantumScript(
-            [qml.evolve(H_sparse, time)], [qml.probs(wires=[0, 1])]
-        )
+        tape = qml.tape.QuantumScript([qml.evolve(H_sparse, time)], [qml.probs(wires=[0, 1])])
 
         result_ionq = dev.batch_execute([tape])
 
@@ -242,9 +276,7 @@ class TestIonQPauliexp:
         coeffs, ops = pauli_decomp.terms()
         # qml.TrotterProduct's decomposition reverses the order of the terms
         H = qml.Hamiltonian(coeffs[::-1], ops[::-1])
-        tape = qml.tape.QuantumScript(
-            [qml.TrotterProduct(H, time, n=1)], [qml.probs(wires=[0, 1])]
-        )
+        tape = qml.tape.QuantumScript([qml.TrotterProduct(H, time, n=1)], [qml.probs(wires=[0, 1])])
         simulator = qml.device("default.qubit", wires=2)
         result_simulator = qml.execute([tape], simulator)
 
@@ -336,16 +368,12 @@ class TestIonQPauliexp:
     @pytest.mark.parametrize(
         "H_matrix",
         [
-            np.array(
-                [[1, 1 + 1j, 0, -1j], [1 - 1j, 3, 2, 0], [0, 2, 0, 1j], [1j, 0, -1j, 1]]
-            ),
+            np.array([[1, 1 + 1j, 0, -1j], [1 - 1j, 3, 2, 0], [0, 2, 0, 1j], [1j, 0, -1j, 1]]),
             np.array([[1, 0, 0, 0], [0, 0.5, 0.3, 0], [0, 0.3, 0.5, 0], [0, 0, 0, 1]]),
         ],
         ids=lambda val: f"{val}",
     )
-    def test_evolution_object_created_from_hermitian_matrix(
-        self, H_matrix, requires_api
-    ):
+    def test_evolution_object_created_from_hermitian_matrix(self, H_matrix, requires_api):
         """Test that the implementation of Evolution gate
         derived from a Hamiltonian constructed via a Hermitian matrix."""
 
@@ -367,9 +395,7 @@ class TestIonQPauliexp:
         coeffs, ops = pauli_decomp.terms()
         # qml.TrotterProduct's decomposition reverses the order of the terms
         H = qml.Hamiltonian(coeffs[::-1], ops[::-1])
-        tape = qml.tape.QuantumScript(
-            [qml.TrotterProduct(H, time, n=1)], [qml.probs(wires=[0, 1])]
-        )
+        tape = qml.tape.QuantumScript([qml.TrotterProduct(H, time, n=1)], [qml.probs(wires=[0, 1])])
         simulator = qml.device("default.qubit", wires=2)
         result_simulator = qml.execute([tape], simulator)
 
