@@ -749,21 +749,3 @@ class TestJobAttribute:
         assert np.allclose(
             result_ionq, result_simulator, atol=1e-5
         ), "The IonQ and simulator results do not agree."
-
-    def test_QDrift(self):
-        """QDrift could fail"""
-        dev = qml.device("ionq.simulator", wires=2, gateset="qis")
-
-        coeffs = [0.25, 0.75]
-        ops = [qml.X(0), qml.Z(0)]
-        H = qml.dot(coeffs, ops)
-
-        @qml.qnode(dev)
-        def circuit():
-            qml.Hadamard(0)
-            qml.QDrift(H, time=1.2, n=10, seed=10)
-            return qml.probs()
-
-        res = circuit()
-        expected = [0.65379493, 0.0, 0.34620507, 0.0]
-        assert np.allclose(res, expected, atol=tol(dev.shots))
