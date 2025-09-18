@@ -86,6 +86,8 @@ _GATESET_OPS = {
 
 PAULI_MAP = {"PauliX": "X", "PauliY": "Y", "PauliZ": "Z", "Identity": "I"}
 
+NO_ANALYTIC_MSG = "The ionq device does not support analytic expectation values."
+
 
 class IonQDevice(QubitDevice):
     r"""IonQ device for PennyLane.
@@ -138,13 +140,11 @@ class IonQDevice(QubitDevice):
         *,
         target="simulator",
         gateset="qis",
-        shots=1024,
+        shots=None,
         api_key=None,
         error_mitigation=None,
         sharpen=False,
     ):
-        if shots is None:
-            raise ValueError("The ionq device does not support analytic expectation values.")
 
         super().__init__(wires=wires, shots=shots)
         self._current_circuit_index = None
@@ -157,6 +157,13 @@ class IonQDevice(QubitDevice):
         self.histograms = []
         self._samples = None
         self.reset()
+
+    def batch_transform(self, circuit):
+        """Apply a batch transform for preprocessing a circuit prior to execution."""
+
+        if not circuit.shots:
+            raise ValueError(NO_ANALYTIC_MSG)
+        return super().batch_transform(circuit)
 
     def reset(self, circuits_array_length=1):
         """Reset the device"""
@@ -277,7 +284,7 @@ class IonQDevice(QubitDevice):
         if len(operations) == 0 and len(rotations) == 0:
             warnings.warn("Circuit is empty. Empty circuits return failures. Submitting anyway.")
 
-        for i, operation in enumerate(operations):
+        for operation in operations:
             self._apply_operation(operation, circuit_index)
 
         # diagonalize observables
@@ -597,7 +604,7 @@ class SimulatorDevice(IonQDevice):
     name = "IonQ Simulator PennyLane plugin"
     short_name = "ionq.simulator"
 
-    def __init__(self, wires, *, gateset="qis", shots=1024, api_key=None):
+    def __init__(self, wires, *, gateset="qis", shots=None, api_key=None):
         super().__init__(
             wires=wires,
             target="simulator",
@@ -648,7 +655,7 @@ class QPUDevice(IonQDevice):
         wires,
         *,
         gateset="qis",
-        shots=1024,
+        shots=None,
         backend="aria-1",
         error_mitigation=None,
         sharpen=None,
