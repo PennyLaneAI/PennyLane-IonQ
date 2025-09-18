@@ -164,7 +164,7 @@ class IonQDevice(QubitDevice):
         self._samples = None
         self.histograms = []
         self.input = {
-            "format": "ionq.circuit.v0",
+            "type": "ionq.circuit.v1",
             "qubits": self.num_wires,
             "circuits": [{"circuit": []} for _ in range(circuits_array_length)],
             "gateset": self.gateset,
