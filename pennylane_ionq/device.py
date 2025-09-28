@@ -172,6 +172,7 @@ class IonQDevice(QubitDevice):
         self.histograms = []
         self.input = {
             "format": "ionq.circuit.v0",
+            "type": "ionq.circuit.v1",
             "qubits": self.num_wires,
             "circuits": [{"circuit": []} for _ in range(circuits_array_length)],
             "gateset": self.gateset,
@@ -326,22 +327,35 @@ class IonQDevice(QubitDevice):
             circuit_index: index of the circuit to apply operation to
         """
         wires = self.map_wires(operation.wires).tolist()
+        if operation.name in {"QDrift", "TrotterProduct"}:
+            for subop in operation.decomposition():
+                self._apply_operation(subop, circuit_index)
+            return
+
         if operation.name == "Evolution":
+            num_steps = getattr(operation, "hyperparameters", {}).get("num_steps", None)
+            if num_steps is not None:
+                for subop in operation.decomposition():
+                    self._apply_operation(subop, circuit_index)
+                return
             self._apply_evolution_operation(operation, circuit_index, wires)
-        else:
-            self._apply_simple_operation(operation, circuit_index, wires)
+            return
+
+        self._apply_simple_operation(operation, circuit_index, wires)
 
     def _apply_evolution_operation(self, operation, circuit_index, wires):
         """Applies Evolution operations to the internal device state.
         The number of steps argument for Evolution gate will be ignored even if provided because
         IonQ implements hardware-efficient approximate compilation schemes for pauliexp gates.
         """
-        warnings.warn(
-            "The 'num_steps' argument for the Evolution gate will be ignored. The API maps this "
-            "gate to IonQ's 'pauliexp' gate, for which IonQ implements its own hardware-efficient "
-            "approximate compilation schemes.",
-            UserWarning,
-        )
+        num_steps = getattr(operation, "hyperparameters", {}).get("num_steps", None)
+        if num_steps is None:
+            warnings.warn(
+                "The 'num_steps' argument for the Evolution gate will be ignored. The API maps this "
+                "gate to IonQ's 'pauliexp' gate, for which IonQ implements its own hardware-efficient "
+                "approximate compilation schemes.",
+                UserWarning,
+            )
         name = operation.name
         terms = self._extract_evolution_pauli_terms(operation, wires)
         coefficients = self._extract_evolution_coefficients(operation, wires)
