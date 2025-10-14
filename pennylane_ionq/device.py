@@ -119,7 +119,7 @@ class IonQDevice(QubitDevice):
     # pylint: disable=too-many-instance-attributes
     name = "IonQ PennyLane plugin"
     short_name = "ionq"
-    pennylane_requires = ">=0.42.0"
+    pennylane_requires = ">=0.43.0"
     version = __version__
     author = "Xanadu Inc."
 
