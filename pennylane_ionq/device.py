@@ -343,32 +343,22 @@ class IonQDevice(QubitDevice):
             UserWarning,
         )
         name = operation.name
-        print(f"{operation=}")
         terms = self._extract_evolution_pauli_terms(operation, wires)
         coefficients = self._extract_evolution_coefficients(operation, wires)
         terms, coefficients = self._remove_trivial_terms(terms, coefficients)
-        print(f"{terms=}")
-        print(f"{coefficients=}")
-        print(f"{operation.param=}")
         if len(terms) > 0:
             gate = {"gate": self._operation_map[name]}
             gate["targets"] = wires
             gate["terms"] = terms
             gate["coefficients"] = [-1 * float(v) for v in coefficients]
-            gate["time"] = (
-                -1 * float(operation.param) if operation.param < 0 else float(operation.param)
-            )
+            gate["time"] = operation.param
             self.input["circuits"][circuit_index]["circuit"].append(gate)
 
     def _apply_simple_operation(self, operation, circuit_index, wires):
         """Applies regular operations (gates) to the internal device state."""
-        print(f"{operation=}")
         name = operation.name
-        print(f"{name=}")
         params = operation.parameters
-        print(f"{params=}")
         gate = {"gate": self._operation_map[name]}
-        print(f"{gate=}")
         if len(wires) == 2:
             if name in {"SWAP", "XX", "YY", "ZZ", "MS"}:
                 # these gates takes two targets
@@ -523,9 +513,6 @@ class IonQDevice(QubitDevice):
 
     def _submit_job(self):
 
-        import pprint
-
-        pprint.pprint(self.job)
         job = Job(api_key=self.api_key)
 
         # send job for exection
