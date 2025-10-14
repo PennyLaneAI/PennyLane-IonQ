@@ -388,3 +388,24 @@ class TestIonQPauliexp:
         assert np.allclose(
             result_ionq, result_simulator, atol=1e-2
         ), "The IonQ and simulator results do not agree."
+
+    def test_qdrift(self, requires_api):
+        """Test that the implementation of Evolution gate using pauliexp gate
+        works when applied Evolution is generated from an Hamiltonian using qdrift.
+        """
+
+        dev = qml.device("ionq.simulator", wires=2)
+        coeffs = [0.25, 0.75]
+        ops = [qml.X(0), qml.Z(0)]
+        H = qml.dot(coeffs, ops)
+
+        @qml.set_shots(10_000)
+        @qml.qnode(dev)
+        def circuit():
+            qml.Hadamard(0)
+            qml.QDrift(H, time=1.2, n=10, seed=10)
+            return qml.probs()
+
+        res = circuit()
+        expected = [0.65379493, 0.0, 0.34620507, 0.0]
+        assert np.allclose(res, expected, atol=1e-2), "The IonQ and expected results do not agree."

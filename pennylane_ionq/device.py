@@ -521,6 +521,7 @@ class IonQDevice(QubitDevice):
 
     def _submit_job(self):
 
+        print(f"{self.job=}")
         job = Job(api_key=self.api_key)
 
         # send job for exection
