@@ -365,7 +365,7 @@ class IonQDevice(QubitDevice):
             gate["targets"] = wires
             gate["terms"] = terms
             gate["coefficients"] = [-1 * float(v) for v in coefficients]
-            gate["time"] = operation.param
+            gate["time"] = abs(operation.param)
             self.input["circuits"][circuit_index]["circuit"].append(gate)
 
     def _apply_simple_operation(self, operation, circuit_index, wires):
