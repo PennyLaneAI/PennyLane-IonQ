@@ -355,7 +355,9 @@ class IonQDevice(QubitDevice):
             gate["targets"] = wires
             gate["terms"] = terms
             gate["coefficients"] = [-1 * float(v) for v in coefficients]
-            gate["time"] = float(operation.param)
+            gate["time"] = (
+                -1 * float(operation.param) if operation.param < 0 else float(operation.param)
+            )
             self.input["circuits"][circuit_index]["circuit"].append(gate)
 
     def _apply_simple_operation(self, operation, circuit_index, wires):
@@ -521,7 +523,9 @@ class IonQDevice(QubitDevice):
 
     def _submit_job(self):
 
-        print(f"{self.job=}")
+        import pprint
+
+        pprint.pprint(self.job)
         job = Job(api_key=self.api_key)
 
         # send job for exection
