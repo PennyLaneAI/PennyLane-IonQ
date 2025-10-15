@@ -1,6 +1,4 @@
-# Release 0.43.0-dev
-
-### New features since last release
+# Release 0.43.0
 
 ### Improvements 🛠
  
@@ -16,12 +14,6 @@
 
 * Remove support for Python 3.10 and add support for Python 3.13.
   [(#144)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/144)
-
-### Deprecations 👋
-
-### Documentation 📝
-
-### Bug fixes 🐛
 
 ### Contributors ✍️
 
