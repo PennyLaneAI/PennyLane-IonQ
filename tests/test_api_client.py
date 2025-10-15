@@ -112,7 +112,10 @@ class TestAPIClient:
         Test that initializing a default client generates an APIClient with the expected params.
         """
         client = api_client.APIClient(api_key="test")
+        assert client.USER_AGENT == "pennylane-ionq-api-client/0.4"
+        assert client.HOSTNAME == "api.ionq.co/v0.4"
         assert client.BASE_URL.startswith("https://")
+        assert client.BASE_URL.endswith(client.HOSTNAME)
         assert client.HEADERS["User-Agent"] == client.USER_AGENT
         assert client.TIMEOUT_SECONDS == 600
 
@@ -263,23 +266,52 @@ class TestResourceManager:
 
     def test_handle_refresh_data(self):
         """
-        Tests the ResourceManager.refresh_data method. Ensures that Field.set is called once with
-        the correct data value.
+        Tests the ResourceManager.refresh_data method.
         """
-        mock_resource = MagicMock()
+        # start by setting up mocks
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"some": "result"}
+
         mock_client = MagicMock()
+        mock_client.get.return_value = mock_response
 
-        fields = [MagicMock() for i in range(5)]
+        fields = [MagicMock(name=f"field_{i}") for i in range(5)]
+        for i, field in enumerate(fields):
+            field.name = f"key_{i}"
 
-        mock_resource.fields = {f: MagicMock() for f in fields}
-        mock_data = {f.name: MagicMock() for f in fields}
+        # mock data has matching keys to fields
+        mock_data = {f"key_{i}": f"value_{i}" for i in range(5)}
 
+        mock_url = "probability_url"
+        mock_data["results"] = {"probabilities": {"url": mock_url}}
+
+        mock_resource = MagicMock()
+        mock_resource.refresh_data = MagicMock()
+        mock_resource.fields = fields
+
+        # instantiate resource manager
         manager = ResourceManager(mock_resource, mock_client)
+        manager.join_path = MagicMock(return_value="joined_url")
 
-        manager.refresh_data(mock_data)
+        # call the method under test
+        manager.refresh_data(mock_data, params={"foo": "bar"})
 
-        for field in mock_resource.fields:
-            field.set.assert_called_once_with(mock_data[field.name])
+        # assert fields set method is called correctly
+        for i, field in enumerate(mock_resource.fields):
+            if i == 4:
+                # last field, expect two calls
+                assert field.set.call_count == 2
+                field.set.assert_any_call("value_4")
+                field.set.assert_any_call({"some": "result"})
+            else:
+                field.set.assert_called_once_with(mock_data.get(field.name))
+
+        # assert client.get was called correctly
+        manager.join_path.assert_called_once_with(mock_url)
+        mock_client.get.assert_called_once_with("joined_url", params={"foo": "bar"})
+
+        # assert resource.refresh_data was called
+        mock_resource.refresh_data.assert_called_once()
 
     def test_debug_mode(self, monkeypatch):
         """

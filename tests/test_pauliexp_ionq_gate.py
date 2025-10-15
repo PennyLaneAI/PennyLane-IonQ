@@ -118,6 +118,48 @@ class TestIonQPauliexp:
         ):
             dev.execute([tape])
 
+    def test_evolution_gate_single_circuit(self, requires_api):
+        """Test the implementation of Evolution gate
+        when using a single input circuit.
+        """
+
+        dev = qml.device("ionq.simulator", wires=2, gateset="qis")
+
+        time = 1
+        H = qml.X(0)
+        tape = qml.tape.QuantumScript([qml.evolve(H, time)], [qml.probs(wires=[0])])
+
+        result_ionq = dev.batch_execute([tape])
+
+        simulator = qml.device("default.qubit", wires=1)
+        # note that Pennylane is calculating exact results here instead of using Trotterization which
+        # is fine for this particular test since the two results should agree if number of Trotter steps is 1
+        result_simulator = qml.execute([tape], simulator)
+
+        assert np.allclose(result_ionq, result_simulator, atol=1e-2)
+
+    def test_evolution_gate_multi_circuits(self, requires_api):
+        """Test the implementation of Evolution gate
+        when using a single multiple input circuits.
+        """
+
+        dev = qml.device("ionq.simulator", wires=2, gateset="qis")
+
+        time = 1
+        H1 = qml.X(0)
+        H2 = qml.Z(0)
+        tape1 = qml.tape.QuantumScript([qml.evolve(H1, time)], [qml.probs(wires=[0])])
+        tape2 = qml.tape.QuantumScript([qml.evolve(H2, time)], [qml.probs(wires=[0])])
+
+        result_ionq = dev.batch_execute([tape1, tape2])
+
+        simulator = qml.device("default.qubit", wires=1)
+        # note that Pennylane is calculating exact results here instead of using Trotterization which
+        # is fine for this particular test since the two results should agree if number of Trotter steps is 1
+        result_simulator = qml.execute([tape1, tape2], simulator)
+
+        assert np.allclose(result_ionq, result_simulator, atol=1e-2)
+
     def test_identity_evolution_gate_generator(self, requires_api):
         """Test the implementation of Evolution gate using pauliexp gate
         works when applied Evolution is generated from an Identity operator.
