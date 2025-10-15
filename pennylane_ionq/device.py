@@ -86,6 +86,8 @@ _GATESET_OPS = {
 
 PAULI_MAP = {"PauliX": "X", "PauliY": "Y", "PauliZ": "Z", "Identity": "I"}
 
+NO_ANALYTIC_MSG = "The ionq device does not support analytic expectation values."
+
 
 class IonQDevice(QubitDevice):
     r"""IonQ device for PennyLane.
@@ -156,8 +158,6 @@ class IonQDevice(QubitDevice):
         noise=None,
         metadata=None,
     ):
-        if shots is None:
-            raise ValueError("The ionq device does not support analytic expectation values.")
 
         super().__init__(wires=wires, shots=shots)
         self._current_circuit_index = None
@@ -175,6 +175,13 @@ class IonQDevice(QubitDevice):
         self.histograms = []
         self._samples = None
         self.reset()
+
+    def batch_transform(self, circuit):
+        """Apply a batch transform for preprocessing a circuit prior to execution."""
+
+        if not circuit.shots:
+            raise ValueError(NO_ANALYTIC_MSG)
+        return super().batch_transform(circuit)
 
     def reset(self, circuits_array_length=1):
         """Reset the device"""
@@ -317,7 +324,7 @@ class IonQDevice(QubitDevice):
         if len(operations) == 0 and len(rotations) == 0:
             warnings.warn("Circuit is empty. Empty circuits return failures. Submitting anyway.")
 
-        for i, operation in enumerate(operations):
+        for operation in operations:
             self._apply_operation(operation, circuit_index)
 
         # diagonalize observables
@@ -383,6 +390,10 @@ class IonQDevice(QubitDevice):
             gate = {"gate": self._operation_map[name]}
             gate["targets"] = wires
             gate["terms"] = terms
+            # 1. Float conversion to prevent numpy types (np.float64) in the JSON payload.
+            # 2. IonQ API expects positive time values for their `pauliexp` gate.
+            gate["time"] = abs(float(operation.param))
+            # 3. Add missing sign convention to coefficients by multiplying by -1.
             gate["coefficients"] = [-1 * float(v) for v in coefficients]
             gate["time"] = operation.param
             if "circuits" in self.input:

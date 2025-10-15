@@ -1,6 +1,4 @@
-# Release 0.43.0-dev
-
-### New features since last release
+# Release 0.43.0
 
 * Update to v0.4 IonQ API
   [(#140)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/140)
@@ -9,22 +7,22 @@
  
 * The Pennylane Evolution gate is now decomposed to IonQ pauliexp gates before being sent to IonQ API.
   [(#134)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/134)
+  [(#155)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/155)
 
 ### Breaking changes 💔
 
+* Changed the default `shots` to `None` from `1024` for all devices. Additionally, shots validation now
+  happens at execution.
+  [(#149)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/149)
+
 * Remove support for Python 3.10 and add support for Python 3.13.
   [(#144)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/144)
-
-### Deprecations 👋
-
-### Documentation 📝
-
-### Bug fixes 🐛
 
 ### Contributors ✍️
 
 This release contains contributions from (in alphabetical order):
 
+Yushao Chen,
 Radu Marginean,
 Andrija Paurevic.
 Radu Marginean
