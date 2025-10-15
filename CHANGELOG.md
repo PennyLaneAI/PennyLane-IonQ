@@ -9,7 +9,7 @@
 ### Breaking changes 💔
 
 * Minimum supported version of PennyLane is now v0.43.0.
-  [(#)]()
+  [(#154)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/154)
 
 * Changed the default `shots` to `None` from `1024` for all devices. Additionally, shots validation now
   happens at execution.
