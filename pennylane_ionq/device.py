@@ -352,9 +352,10 @@ class IonQDevice(QubitDevice):
             gate["terms"] = terms
             # 1. Float conversion to prevent numpy types (np.float64) in the JSON payload.
             # 2. IonQ API expects positive time values for their `pauliexp` gate.
+            time_sign = np.sign(float(operation.param))
             gate["time"] = abs(float(operation.param))
-            # 3. Add missing negative sign convention to coefficients by multiplying by -1.
-            gate["coefficients"] = [-1 * float(v) for v in coefficients]
+            # 3. Add missing sign convention to coefficients by multiplying by sign of time.
+            gate["coefficients"] = [time_sign * float(v) for v in coefficients]
             self.input["circuits"][circuit_index]["circuit"].append(gate)
 
     def _apply_simple_operation(self, operation, circuit_index, wires):
