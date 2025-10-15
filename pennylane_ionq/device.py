@@ -355,7 +355,7 @@ class IonQDevice(QubitDevice):
             time_sign = np.sign(float(operation.param))
             gate["time"] = abs(float(operation.param))
             # 3. Add missing sign convention to coefficients by multiplying by sign of time.
-            gate["coefficients"] = [time_sign * float(v) for v in coefficients]
+            gate["coefficients"] = [float(v * time_sign) for v in coefficients]
             self.input["circuits"][circuit_index]["circuit"].append(gate)
 
     def _apply_simple_operation(self, operation, circuit_index, wires):
