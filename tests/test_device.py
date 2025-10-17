@@ -507,7 +507,7 @@ class TestJobAttribute:
 
         dev.apply(tape.operations)
 
-        assert dev.job["input"]["format"] == "ionq.circuit.v0"
+        assert dev.job["input"]["type"] == "ionq.circuit.v1"
         assert dev.job["input"]["gateset"] == "qis"
         assert dev.job["target"] == "foo"
         assert dev.job["input"]["qubits"] == 1
@@ -533,7 +533,7 @@ class TestJobAttribute:
         dev.reset(circuits_array_length=1)
         dev.batch_apply(tape.operations, circuit_index=0)
 
-        assert dev.job["input"]["format"] == "ionq.circuit.v0"
+        assert dev.job["input"]["type"] == "ionq.circuit.v1"
         assert dev.job["input"]["gateset"] == "qis"
         assert dev.job["target"] == "foo"
         assert dev.job["input"]["qubits"] == 1
@@ -559,7 +559,7 @@ class TestJobAttribute:
 
         dev.apply(tape.operations)
 
-        assert dev.job["input"]["format"] == "ionq.circuit.v0"
+        assert dev.job["input"]["type"] == "ionq.circuit.v1"
         assert dev.job["input"]["gateset"] == "qis"
         assert dev.job["input"]["qubits"] == 1
 
@@ -591,7 +591,7 @@ class TestJobAttribute:
         dev.reset(circuits_array_length=1)
         dev.batch_apply(tape.operations, circuit_index=0)
 
-        assert dev.job["input"]["format"] == "ionq.circuit.v0"
+        assert dev.job["input"]["type"] == "ionq.circuit.v1"
         assert dev.job["input"]["gateset"] == "qis"
         assert dev.job["input"]["qubits"] == 1
 
@@ -624,7 +624,7 @@ class TestJobAttribute:
 
         dev.apply(tape.operations)
 
-        assert dev.job["input"]["format"] == "ionq.circuit.v0"
+        assert dev.job["input"]["type"] == "ionq.circuit.v1"
         assert dev.job["input"]["gateset"] == "native"
         assert dev.job["input"]["qubits"] == 3
 
@@ -677,7 +677,7 @@ class TestJobAttribute:
         except StopExecute:
             pass
 
-        assert dev.job["input"]["format"] == "ionq.circuit.v0"
+        assert dev.job["input"]["type"] == "ionq.circuit.v1"
         assert dev.job["input"]["gateset"] == "native"
         assert dev.job["target"] == "simulator"
         assert dev.job["input"]["qubits"] == 1
