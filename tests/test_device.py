@@ -270,7 +270,7 @@ class TestDeviceIntegration:
         assert dev.tracker.history["resources"][0].depth == 1
         assert dev.tracker.history["resources"][0].gate_types == {"GPI": 1}
         assert dev.tracker.history["resources"][0].gate_sizes == {1: 1}
-        assert dev.tracker.history["resources"][0].shots.total_shots == 1024
+        assert dev.tracker.history["shots"].total_shots == 1024
         assert len(dev.tracker.history["results"]) == 2
 
     def test_not_recording_when_pennylane_tracker_not_active(self, requires_api):
