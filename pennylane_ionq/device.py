@@ -268,13 +268,8 @@ class IonQDevice(QubitDevice):
                     executions=1,
                     shots=self._shots,
                     results=results,
-                    resources=resources,
-self.tracker.update(
-executions=1,
-shots=self._shots,
-results=results,
-resources=tape_resources,
-)
+                    resources=tape_resources,
+                )
 
             self.tracker.update(batches=1, batch_len=len(circuits))
             self.tracker.record()
