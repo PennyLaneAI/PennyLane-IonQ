@@ -256,14 +256,6 @@ class IonQDevice(QubitDevice):
                 shots_from_dev = self._shots if not self.shot_vector else self._raw_shot_sequence
                 tape_resources = circuit.specs["resources"]
 
-                resources = Resources(  # temporary until shots get updated on tape !
-                    tape_resources.num_allocs,
-                    tape_resources.num_gates,
-                    tape_resources.gate_types,
-                    tape_resources.gate_sizes,
-                    tape_resources.depth,
-                    Shots(shots_from_dev),
-                )
                 self.tracker.update(
                     executions=1,
                     shots=self._shots,
