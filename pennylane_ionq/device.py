@@ -257,7 +257,7 @@ class IonQDevice(QubitDevice):
                 tape_resources = circuit.specs["resources"]
 
                 resources = Resources(  # temporary until shots get updated on tape !
-                    tape_resources.num_wires,
+                    tape_resources.num_allocs,
                     tape_resources.num_gates,
                     tape_resources.gate_types,
                     tape_resources.gate_sizes,
