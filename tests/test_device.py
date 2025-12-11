@@ -265,12 +265,11 @@ class TestDeviceIntegration:
         assert dev.tracker.history["batches"] == [1]
         assert dev.tracker.history["batch_len"] == [2]
         assert len(dev.tracker.history["resources"]) == 2
-        assert dev.tracker.history["resources"][0].num_wires == 1
+        assert dev.tracker.history["resources"][0].num_allocs == 1
         assert dev.tracker.history["resources"][0].num_gates == 1
         assert dev.tracker.history["resources"][0].depth == 1
         assert dev.tracker.history["resources"][0].gate_types == {"GPI": 1}
         assert dev.tracker.history["resources"][0].gate_sizes == {1: 1}
-        assert dev.tracker.history["resources"][0].shots.total_shots == 1024
         assert len(dev.tracker.history["results"]) == 2
 
     def test_not_recording_when_pennylane_tracker_not_active(self, requires_api):

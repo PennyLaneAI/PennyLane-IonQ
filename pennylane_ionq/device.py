@@ -31,10 +31,6 @@ from pennylane.ops.op_math import Exp, Sum, SProd
 from pennylane.ops import Identity, PauliX, PauliY, PauliZ
 from pennylane.ops.op_math.prod import Prod
 
-from pennylane.measurements import (
-    Shots,
-)
-from pennylane.resource import Resources
 from pennylane.ops.op_math.linear_combination import LinearCombination
 
 from .api_client import Job, JobExecutionError
@@ -253,22 +249,13 @@ class IonQDevice(QubitDevice):
 
         if self.tracker.active:
             for circuit in circuits:
-                shots_from_dev = self._shots if not self.shot_vector else self._raw_shot_sequence
                 tape_resources = circuit.specs["resources"]
 
-                resources = Resources(  # temporary until shots get updated on tape !
-                    tape_resources.num_wires,
-                    tape_resources.num_gates,
-                    tape_resources.gate_types,
-                    tape_resources.gate_sizes,
-                    tape_resources.depth,
-                    Shots(shots_from_dev),
-                )
                 self.tracker.update(
                     executions=1,
                     shots=self._shots,
                     results=results,
-                    resources=resources,
+                    resources=tape_resources,
                 )
 
             self.tracker.update(batches=1, batch_len=len(circuits))
