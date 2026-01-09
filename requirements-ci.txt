@@ -1,4 +1,4 @@
 numpy
-pennylane>=0.43
+pennylane>=0.44
 python-dateutil
 requests
