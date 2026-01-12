@@ -1,4 +1,6 @@
 numpy
-pennylane>=0.44
 python-dateutil
 requests
+
+
+git+https://github.com/PennyLaneAI/pennylane.git
