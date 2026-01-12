@@ -11,8 +11,8 @@ idna==3.11
 networkx==3.5
 numpy==2.3.4
 packaging==25.0
-pennylane==0.44.0
-pennylane-lightning==0.44.0
+pennylane>=0.44.0
+pennylane-lightning>=0.44.0
 python-dateutil==2.9.0.post0
 requests==2.32.5
 rustworkx==0.17.1
