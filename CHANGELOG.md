@@ -1,20 +1,23 @@
-# Release 0.44.0-dev
+# Release 0.44.0
 
-### New features since last release
+### Internal changes ⚙️
 
-### Improvements 🛠
+* Upgraded Sphinx to version 8.1.
+  [(#157)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/157)
 
-### Breaking changes 💔
+* Updated requirements files to include all dependencies explicitly.
+  [(#158)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/158)
 
-### Deprecations 👋
-
-### Documentation 📝
-
-### Bug fixes 🐛
+* Fixed resource specification in `IonQDevice` by aligning with the new resource definition from Pennylane.
+  [(#159)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/159)
 
 ### Contributors ✍️
 
 This release contains contributions from (in alphabetical order):
+
+Runor Agbaire,
+Yushao Chen,
+Andrija Paurevic.
 
 ---
 # Release 0.43.0
