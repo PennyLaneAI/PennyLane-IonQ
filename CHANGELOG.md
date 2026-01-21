@@ -41,6 +41,9 @@ Andrija Paurevic.
 ---
 # Release 0.43.0
 
+* Update to v0.4 IonQ API
+  [(#140)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/140)
+
 ### Improvements 🛠
  
 * The Pennylane Evolution gate is now decomposed to IonQ pauliexp gates before being sent to IonQ API.
@@ -66,6 +69,8 @@ This release contains contributions from (in alphabetical order):
 Yushao Chen,
 Radu Marginean,
 Andrija Paurevic.
+Radu Marginean
+Spencer Churchill
 
 ---
 # Release 0.42.0

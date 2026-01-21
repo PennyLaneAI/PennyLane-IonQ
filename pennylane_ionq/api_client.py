@@ -112,8 +112,8 @@ class APIClient:
         api_key (str): IonQ cloud platform API key
     """
 
-    USER_AGENT = "pennylane-ionq-api-client/0.3"
-    HOSTNAME = "api.ionq.co/v0.3"
+    USER_AGENT = "pennylane-ionq-api-client/0.4"
+    HOSTNAME = "api.ionq.co/v0.4"
     BASE_URL = f"https://{HOSTNAME}"
 
     def __init__(self, **kwargs):
@@ -352,9 +352,10 @@ class ResourceManager:
         for field in self.resource.fields:
             field.set(data.get(field.name, None))
 
-        if "results_url" in data.keys():
-            result = self.client.get(self.join_path(data["results_url"]), params=params)
-            self.resource.fields[-1].set(result.json())
+        url = ((data.get("results") or {}).get("probabilities") or {}).get("url")
+        if isinstance(url, str) and url:
+            resp = self.client.get(self.join_path(url), params=params)
+            self.resource.fields[-1].set(resp.json())
 
         if hasattr(self.resource, "refresh_data"):
             self.resource.refresh_data()
