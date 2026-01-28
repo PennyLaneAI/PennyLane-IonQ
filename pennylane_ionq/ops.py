@@ -14,6 +14,7 @@
 """
 Custom operations
 """
+
 import numpy as np
 from pennylane.operation import Operation
 
