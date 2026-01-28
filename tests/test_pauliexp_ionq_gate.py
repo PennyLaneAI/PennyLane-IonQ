@@ -388,3 +388,30 @@ class TestIonQPauliexp:
         assert np.allclose(
             result_ionq, result_simulator, atol=1e-2
         ), "The IonQ and simulator results do not agree."
+
+    @pytest.mark.parametrize("time", [0.5, -0.5])
+    def test_evolution_with_negative_time(self, time, requires_api):
+        """Test that Evolution gates with negative time are handled correctly.
+
+        This is a regression test for a bug where the sign of negative time
+        was not preserved, causing evolve(H, +t) and evolve(H, -t) to produce
+        identical results.
+        """
+        dev = qml.device("ionq.simulator", wires=1, gateset="qis")
+
+        H = qml.PauliZ(0)
+
+        tape = qml.tape.QuantumScript(
+            [qml.Hadamard(0), qml.evolve(H, time)],
+            [qml.probs(wires=[0])],
+            shots=1024,
+        )
+
+        result_ionq = dev.execute([tape])
+
+        simulator = qml.device("default.qubit", wires=1)
+        result_simulator = qml.execute([tape.copy(shots=None)], simulator)
+
+        assert np.allclose(
+            result_ionq, result_simulator, atol=1e-2
+        ), "The IonQ and simulator results do not agree."
