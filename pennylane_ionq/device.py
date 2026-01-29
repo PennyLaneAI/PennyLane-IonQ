@@ -341,7 +341,9 @@ class IonQDevice(QubitDevice):
             # 2. IonQ API expects positive time values for their `pauliexp` gate.
             gate["time"] = abs(float(operation.param))
             # 3. Add missing sign convention to coefficients by multiplying by -1.
-            gate["coefficients"] = [np.sign(operation.param) * (-1) * float(v) for v in coefficients]
+            gate["coefficients"] = [
+                np.sign(operation.param) * (-1) * float(v) for v in coefficients
+            ]
             self.input["circuits"][circuit_index]["circuit"].append(gate)
 
     def _apply_simple_operation(self, operation, circuit_index, wires):
