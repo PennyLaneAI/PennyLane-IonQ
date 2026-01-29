@@ -15,6 +15,7 @@
 PennyLane IonQ overview
 =======================
 """
+
 from .ops import GPI, GPI2, MS, XX, YY, ZZ
 from .device import SimulatorDevice, QPUDevice
 from ._version import __version__
