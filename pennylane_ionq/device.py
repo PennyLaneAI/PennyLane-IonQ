@@ -63,10 +63,14 @@ _qis_operation_map = {
     "T.inv": "ti",
     "SX": "v",
     "SX.inv": "vi",
-    # additional operations not native to PennyLane but present in IonQ
+    # Ising gates defined in this plugin for IonQ hardware
     "XX": "xx",
     "YY": "yy",
     "ZZ": "zz",
+    # PennyLane native Ising gates (equivalent to plugin gates above)
+    "IsingXX": "xx",
+    "IsingYY": "yy",
+    "IsingZZ": "zz",
 }
 
 _native_operation_map = {
@@ -352,7 +356,7 @@ class IonQDevice(QubitDevice):
         params = operation.parameters
         gate = {"gate": self._operation_map[name]}
         if len(wires) == 2:
-            if name in {"SWAP", "XX", "YY", "ZZ", "MS"}:
+            if name in {"SWAP", "XX", "YY", "ZZ", "IsingXX", "IsingYY", "IsingZZ", "MS"}:
                 # these gates takes two targets
                 gate["targets"] = wires
             else:

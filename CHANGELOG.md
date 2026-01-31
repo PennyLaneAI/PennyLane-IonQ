@@ -16,6 +16,8 @@
 
 This release contains contributions from (in alphabetical order):
 
+David Yonge-Mallo
+
 ---
 # Release 0.44.0
 
