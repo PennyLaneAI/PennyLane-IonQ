@@ -4,6 +4,9 @@
 
 ### Improvements 🛠
 
+* Support for PennyLane's `IsingXX`, `IsingYY` and `IsingZZ` gates has been added.
+  [(#163)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/163)
+
 ### Breaking changes 💔
 
 ### Deprecations 👋
