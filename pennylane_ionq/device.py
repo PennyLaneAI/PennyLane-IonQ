@@ -187,18 +187,14 @@ class IonQDevice(QubitDevice):
         self._current_circuit_index = None
         self._samples = None
         self.histograms = []
+        self.input = {
+            "qubits": self.num_wires,
+            "gateset": self.gateset,
+        }
         if circuits_array_length > 1:
-            self.input = {
-                "qubits": self.num_wires,
-                "circuits": [{"circuit": []} for _ in range(circuits_array_length)],
-                "gateset": self.gateset,
-            }
+            self.input["circuits"] = [{"circuit": []} for _ in range(circuits_array_length)]
         else:
-            self.input = {
-                "qubits": self.num_wires,
-                "circuit": [],
-                "gateset": self.gateset,
-            }
+            self.input["circuit"] = []
         self.job = {
             "type": ("ionq.multi-circuit.v1" if circuits_array_length > 1 else "ionq.circuit.v1"),
             "input": self.input,
@@ -210,9 +206,9 @@ class IonQDevice(QubitDevice):
             self.job["name"] = self.job_name
         if self.dry_run:
             self.job["dry_run"] = self.dry_run
-        if self.noise:
+        if self.noise is not None:
             self.job["noise"] = self.noise
-        if self.metadata:
+        if self.metadata is not None:
             self.job["metadata"] = self.metadata
         if self.compilation is not None:
             self.job["settings"] = {"compilation": self.compilation}
@@ -268,7 +264,7 @@ class IonQDevice(QubitDevice):
         self._submit_job()
 
         if self.dry_run:
-            return [[]]
+            return [[] for _ in circuits]
 
         results = []
         for circuit_index, circuit in enumerate(circuits):
@@ -473,10 +469,11 @@ class IonQDevice(QubitDevice):
                 ops = [generator.base]
                 coefficients = [generator.scalar]
             elif isinstance(generator.base, (Sum, Prod)):
+                base_coeffs, base_ops = generator.base.terms()
                 coefficients = [
-                    generator.scalar * float(c) for c in generator.base.terms()[0]
+                    generator.scalar * float(c) for c in base_coeffs
                 ]
-                ops = generator.base.terms()[1]
+                ops = base_ops
             elif isinstance(generator.base, Exp):
                 decomp = pauli_decompose(
                     generator.matrix(), wire_order=wires, pauli=False
@@ -562,12 +559,9 @@ class IonQDevice(QubitDevice):
         # e.g., {"0": 0.413, "9": 0.111, "17": 0.476}
         some_inner_value = next(iter(job.data.value.values()))
         if isinstance(some_inner_value, dict):
-            self.histograms = []
-            for key in job.data.value.keys():
-                self.histograms.append(job.data.value[key])
+            self.histograms = list(job.data.value.values())
         else:
-            self.histograms = []
-            self.histograms.append(job.data.value)
+            self.histograms = [job.data.value]
 
     @property
     def prob(self):
