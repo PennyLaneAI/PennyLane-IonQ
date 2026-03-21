@@ -30,10 +30,6 @@ from pennylane.ops.op_math import Exp, Sum, SProd
 from pennylane.ops import Identity, PauliX, PauliY, PauliZ
 from pennylane.ops.op_math.prod import Prod
 
-from pennylane.measurements import (
-    Shots,
-)
-from pennylane.resource import Resources
 from pennylane.ops.op_math.linear_combination import LinearCombination
 
 from .api_client import Job, JobExecutionError
@@ -66,10 +62,14 @@ _qis_operation_map = {
     "T.inv": "ti",
     "SX": "v",
     "SX.inv": "vi",
-    # additional operations not native to PennyLane but present in IonQ
+    # Ising gates defined in this plugin for IonQ hardware
     "XX": "xx",
     "YY": "yy",
     "ZZ": "zz",
+    # PennyLane native Ising gates (equivalent to plugin gates above)
+    "IsingXX": "xx",
+    "IsingYY": "yy",
+    "IsingZZ": "zz",
 }
 
 _native_operation_map = {
@@ -126,7 +126,7 @@ class IonQDevice(QubitDevice):
     # pylint: disable=too-many-instance-attributes
     name = "IonQ PennyLane plugin"
     short_name = "ionq"
-    pennylane_requires = ">=0.43.0"
+    pennylane_requires = ">=0.44.0"
     version = __version__
     author = "Xanadu Inc."
 
@@ -293,22 +293,13 @@ class IonQDevice(QubitDevice):
 
         if self.tracker.active:
             for circuit in circuits:
-                shots_from_dev = self._shots if not self.shot_vector else self._raw_shot_sequence
                 tape_resources = circuit.specs["resources"]
 
-                resources = Resources(  # temporary until shots get updated on tape !
-                    tape_resources.num_wires,
-                    tape_resources.num_gates,
-                    tape_resources.gate_types,
-                    tape_resources.gate_sizes,
-                    tape_resources.depth,
-                    Shots(shots_from_dev),
-                )
                 self.tracker.update(
                     executions=1,
                     shots=self._shots,
                     results=results,
-                    resources=resources,
+                    resources=tape_resources,
                 )
 
             self.tracker.update(batches=1, batch_len=len(circuits))
@@ -400,7 +391,9 @@ class IonQDevice(QubitDevice):
             # 2. IonQ API expects positive time values for their `pauliexp` gate.
             gate["time"] = abs(float(operation.param))
             # 3. Add missing sign convention to coefficients by multiplying by -1.
-            gate["coefficients"] = [-1 * float(v) for v in coefficients]
+            gate["coefficients"] = [
+                np.sign(operation.param) * (-1) * float(v) for v in coefficients
+            ]
             self._append_gate(gate, circuit_index)
 
     def _apply_simple_operation(self, operation, circuit_index, wires):
@@ -409,7 +402,7 @@ class IonQDevice(QubitDevice):
         params = operation.parameters
         gate = {"gate": self._operation_map[name]}
         if len(wires) == 2:
-            if name in {"SWAP", "XX", "YY", "ZZ", "MS"}:
+            if name in {"SWAP", "XX", "YY", "ZZ", "IsingXX", "IsingYY", "IsingZZ", "MS"}:
                 # these gates takes two targets
                 gate["targets"] = wires
             else:

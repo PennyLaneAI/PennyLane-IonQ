@@ -27,7 +27,7 @@ from pennylane_ionq.device import (
     SimulatorDevice,
     CircuitIndexNotSetException,
 )
-from pennylane_ionq.ops import GPI, GPI2, MS
+from pennylane_ionq.ops import GPI, GPI2, MS, XX, YY, ZZ
 from pennylane.measurements import SampleMeasurement, ShotCopies
 from unittest import mock
 
@@ -437,12 +437,11 @@ class TestDeviceIntegration:
         assert dev.tracker.history["batches"] == [1]
         assert dev.tracker.history["batch_len"] == [2]
         assert len(dev.tracker.history["resources"]) == 2
-        assert dev.tracker.history["resources"][0].num_wires == 1
+        assert dev.tracker.history["resources"][0].num_allocs == 1
         assert dev.tracker.history["resources"][0].num_gates == 1
         assert dev.tracker.history["resources"][0].depth == 1
         assert dev.tracker.history["resources"][0].gate_types == {"GPI": 1}
         assert dev.tracker.history["resources"][0].gate_sizes == {1: 1}
-        assert dev.tracker.history["resources"][0].shots.total_shots == 1024
         assert len(dev.tracker.history["results"]) == 2
 
     def test_not_recording_when_pennylane_tracker_not_active(self, requires_api):
@@ -1053,3 +1052,30 @@ class TestJobAttribute:
         assert np.allclose(
             result_ionq, result_simulator, atol=1e-5
         ), "The IonQ and simulator results do not agree."
+
+    @pytest.mark.parametrize(
+        "gate_class, expected_ionq_gate",
+        [
+            (qml.IsingXX, "xx"),
+            (qml.IsingYY, "yy"),
+            (qml.IsingZZ, "zz"),
+            (XX, "xx"),
+            (YY, "yy"),
+            (ZZ, "zz"),
+        ],
+    )
+    def test_ising_gate_circuit_generation(self, gate_class, expected_ionq_gate):
+        """Test that Ising gates generate correct circuit structure."""
+        dev = SimulatorDevice(wires=2, shots=1024)
+        dev.reset()
+
+        rotation = 1.23
+        op = gate_class(rotation, wires=[0, 1])
+        dev._apply_operation(op, circuit_index=0)
+
+        gate = dev.input["circuit"][0]
+        assert gate["gate"] == expected_ionq_gate
+        assert gate["targets"] == [0, 1]
+        assert "control" not in gate
+        assert "target" not in gate
+        assert gate["rotation"] == rotation
