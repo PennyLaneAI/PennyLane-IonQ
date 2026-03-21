@@ -192,11 +192,17 @@ class IonQDevice(QubitDevice):
             "gateset": self.gateset,
         }
         if circuits_array_length > 1:
-            self.input["circuits"] = [{"circuit": []} for _ in range(circuits_array_length)]
+            self.input["circuits"] = [
+                {"circuit": []} for _ in range(circuits_array_length)
+            ]
         else:
             self.input["circuit"] = []
         self.job = {
-            "type": ("ionq.multi-circuit.v1" if circuits_array_length > 1 else "ionq.circuit.v1"),
+            "type": (
+                "ionq.multi-circuit.v1"
+                if circuits_array_length > 1
+                else "ionq.circuit.v1"
+            ),
             "input": self.input,
             "backend": self.target,
         }
@@ -248,7 +254,8 @@ class IonQDevice(QubitDevice):
                 """Entry with args=(circuits=%s) called by=%s""",
                 circuits,
                 "::L".join(
-                    str(i) for i in inspect.getouterframes(inspect.currentframe(), 2)[1][1:3]
+                    str(i)
+                    for i in inspect.getouterframes(inspect.currentframe(), 2)[1][1:3]
                 ),
             )
 
@@ -309,7 +316,9 @@ class IonQDevice(QubitDevice):
         rotations = kwargs.pop("rotations", [])
 
         if len(operations) == 0 and len(rotations) == 0:
-            warnings.warn("Circuit is empty. Empty circuits return failures. Submitting anyway.")
+            warnings.warn(
+                "Circuit is empty. Empty circuits return failures. Submitting anyway."
+            )
 
         for operation in operations:
             self._apply_operation(operation, circuit_index)
@@ -334,9 +343,11 @@ class IonQDevice(QubitDevice):
         rotations = kwargs.pop("rotations", [])
 
         if len(operations) == 0 and len(rotations) == 0:
-            warnings.warn("Circuit is empty. Empty circuits return failures. Submitting anyway.")
+            warnings.warn(
+                "Circuit is empty. Empty circuits return failures. Submitting anyway."
+            )
 
-        for i, operation in enumerate(operations):
+        for operation in operations:
             self._apply_operation(operation)
 
         # diagonalize observables
@@ -398,7 +409,16 @@ class IonQDevice(QubitDevice):
         params = operation.parameters
         gate = {"gate": self._operation_map[name]}
         if len(wires) == 2:
-            if name in {"SWAP", "XX", "YY", "ZZ", "IsingXX", "IsingYY", "IsingZZ", "MS"}:
+            if name in {
+                "SWAP",
+                "XX",
+                "YY",
+                "ZZ",
+                "IsingXX",
+                "IsingYY",
+                "IsingZZ",
+                "MS",
+            }:
                 # these gates takes two targets
                 gate["targets"] = wires
             else:
@@ -421,7 +441,8 @@ class IonQDevice(QubitDevice):
     def _remove_trivial_terms(self, terms, coefficients):
         """Removes all-identity (II..I) terms from the list of terms."""
         filtered = [
-            (t, c) for t, c in zip(terms, coefficients)
+            (t, c)
+            for t, c in zip(terms, coefficients)
             if "X" in t or "Y" in t or "Z" in t
         ]
         if not filtered:
@@ -429,7 +450,9 @@ class IonQDevice(QubitDevice):
         terms, coefficients = zip(*filtered)
         return list(terms), list(coefficients)
 
-    def _decompose_evolution(self, operation, wires: list[int]) -> tuple[list[str], list[float]]:
+    def _decompose_evolution(
+        self, operation, wires: list[int]
+    ) -> tuple[list[str], list[float]]:
         """Decompose an Evolution gate's generator into IonQ Pauli terms and coefficients.
 
         Returns:
@@ -470,9 +493,7 @@ class IonQDevice(QubitDevice):
                 coefficients = [generator.scalar]
             elif isinstance(generator.base, (Sum, Prod)):
                 base_coeffs, base_ops = generator.base.terms()
-                coefficients = [
-                    generator.scalar * float(c) for c in base_coeffs
-                ]
+                coefficients = [generator.scalar * float(c) for c in base_coeffs]
                 ops = base_ops
             elif isinstance(generator.base, Exp):
                 decomp = pauli_decompose(
@@ -582,7 +603,9 @@ class IonQDevice(QubitDevice):
         # The IonQ API returns basis states using little-endian ordering.
         # Here, we rearrange the states to match the big-endian ordering
         # expected by PennyLane.
-        basis_states = (int(bin(int(k))[2:].rjust(self.num_wires, "0")[::-1], 2) for k in histogram)
+        basis_states = (
+            int(bin(int(k))[2:].rjust(self.num_wires, "0")[::-1], 2) for k in histogram
+        )
         idx = np.fromiter(basis_states, dtype=int)
 
         # convert the sparse probs into a probability array
@@ -601,7 +624,9 @@ class IonQDevice(QubitDevice):
         if shot_range is None and bin_size is None:
             return self.marginal_prob(self.prob, wires)
 
-        return self.estimate_probability(wires=wires, shot_range=shot_range, bin_size=bin_size)
+        return self.estimate_probability(
+            wires=wires, shot_range=shot_range, bin_size=bin_size
+        )
 
 
 class SimulatorDevice(IonQDevice):
