@@ -1,3 +1,22 @@
+# Release 0.44.0-dev
+
+### New features since last release
+
+### Improvements 🛠
+
+### Breaking changes 💔
+
+### Deprecations 👋
+
+### Documentation 📝
+
+### Bug fixes 🐛
+
+### Contributors ✍️
+
+This release contains contributions from (in alphabetical order):
+
+---
 # Release 0.43.0
 
 ### Improvements 🛠
@@ -11,6 +30,9 @@
 * Update to v0.4 IonQ API. The job payload now uses `backend` instead of `target`, `type` instead of
   `format`, and `error_mitigation`/`compilation` are nested under `settings`.
   [(#140)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/140)
+
+* Minimum supported version of PennyLane is now v0.43.0.
+  [(#154)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/154)
 
 * Changed the default `shots` to `None` from `1024` for all devices. Additionally, shots validation now
   happens at execution.
