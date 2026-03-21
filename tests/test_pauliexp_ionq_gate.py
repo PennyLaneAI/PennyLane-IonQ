@@ -123,7 +123,7 @@ class TestIonQPauliexp:
         when using a single input circuit.
         """
 
-        dev = qml.device("ionq.simulator", wires=2, gateset="qis")
+        dev = qml.device("ionq.simulator", wires=2, shots=1024, gateset="qis")
 
         time = 1
         H = qml.X(0)
@@ -140,10 +140,10 @@ class TestIonQPauliexp:
 
     def test_evolution_gate_multi_circuits(self, requires_api):
         """Test the implementation of Evolution gate
-        when using a single multiple input circuits.
+        when using multiple input circuits.
         """
 
-        dev = qml.device("ionq.simulator", wires=2, gateset="qis")
+        dev = qml.device("ionq.simulator", wires=2, shots=1024, gateset="qis")
 
         time = 1
         H1 = qml.X(0)

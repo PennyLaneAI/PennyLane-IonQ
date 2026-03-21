@@ -27,7 +27,7 @@ from pennylane_ionq.device import (
     SimulatorDevice,
     CircuitIndexNotSetException,
 )
-from pennylane_ionq.ops import GPI, GPI2, MS, XX, YY, ZZ
+from pennylane_ionq.ops import GPI, GPI2, MS
 from pennylane.measurements import SampleMeasurement, ShotCopies
 from unittest import mock
 
@@ -150,7 +150,7 @@ class TestDeviceIntegration:
         assert json.loads(spy.call_args[1]["data"])["shots"] == shots
 
     def test_dry_run_submit_job(self, monkeypatch, mocker):
-        """Test that dry_run are correctly specified when submitting a job to the API."""
+        """Test that dry_run is correctly specified when submitting a job to the API."""
 
         monkeypatch.setattr(
             requests, "post", lambda url, timeout, data, headers: (url, data, headers)
@@ -165,7 +165,7 @@ class TestDeviceIntegration:
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
-        dev = qml.device("ionq.simulator", wires=1, dry_run=True, api_key="test")
+        dev = qml.device("ionq.simulator", wires=1, shots=1024, dry_run=True, api_key="test")
 
         @qml.qnode(dev)
         def circuit():
@@ -176,12 +176,12 @@ class TestDeviceIntegration:
         spy = mocker.spy(requests, "post")
         circuit()
 
-        assert json.loads(spy.call_args[1]["data"])["dry_run"] == True
+        assert json.loads(spy.call_args[1]["data"])["dry_run"] is True
 
     def test_dry_run_execute(self, requires_api):
         """Send a job with dry_run option set to true to the API."""
 
-        dev = qml.device("ionq.simulator", wires=1, dry_run=True)
+        dev = qml.device("ionq.simulator", wires=1, shots=1024, dry_run=True)
 
         @qml.qnode(dev)
         def circuit():
@@ -192,7 +192,7 @@ class TestDeviceIntegration:
         assert res == []
 
     def test_noise_submit_job(self, monkeypatch, mocker):
-        """Test that noise are correctly specified when submitting a job to the API."""
+        """Test that noise is correctly specified when submitting a job to the API."""
 
         monkeypatch.setattr(
             requests, "post", lambda url, timeout, data, headers: (url, data, headers)
@@ -208,7 +208,7 @@ class TestDeviceIntegration:
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
         dev = qml.device(
-            "ionq.simulator", wires=1, noise={"model": "ideal", "seed": 7}, api_key="test"
+            "ionq.simulator", wires=1, shots=1024, noise={"model": "ideal", "seed": 7}, api_key="test"
         )
 
         @qml.qnode(dev)
@@ -238,7 +238,7 @@ class TestDeviceIntegration:
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
-        dev = qml.device("ionq.simulator", wires=1, metadata={"key": "value"}, api_key="test")
+        dev = qml.device("ionq.simulator", wires=1, shots=1024, metadata={"key": "value"}, api_key="test")
 
         @qml.qnode(dev)
         def circuit():
@@ -267,7 +267,7 @@ class TestDeviceIntegration:
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
-        dev = qml.device("ionq.simulator", wires=1, job_name="test_name", api_key="test")
+        dev = qml.device("ionq.simulator", wires=1, shots=1024, job_name="test_name", api_key="test")
 
         @qml.qnode(dev)
         def circuit():

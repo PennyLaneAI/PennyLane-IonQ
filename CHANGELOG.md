@@ -1,15 +1,16 @@
 # Release 0.43.0
 
-* Update to v0.4 IonQ API
-  [(#140)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/140)
-
 ### Improvements 🛠
- 
+
 * The Pennylane Evolution gate is now decomposed to IonQ pauliexp gates before being sent to IonQ API.
   [(#134)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/134)
   [(#155)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/155)
 
 ### Breaking changes 💔
+
+* Update to v0.4 IonQ API. The job payload now uses `backend` instead of `target`, `type` instead of
+  `format`, and `error_mitigation`/`compilation` are nested under `settings`.
+  [(#140)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/140)
 
 * Changed the default `shots` to `None` from `1024` for all devices. Additionally, shots validation now
   happens at execution.
@@ -23,10 +24,9 @@
 This release contains contributions from (in alphabetical order):
 
 Yushao Chen,
+Andrija Paurevic,
 Radu Marginean,
-Andrija Paurevic.
-Radu Marginean
-Spencer Churchill
+Spencer Churchill.
 
 ---
 # Release 0.42.0
