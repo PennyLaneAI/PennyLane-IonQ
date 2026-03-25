@@ -9,6 +9,10 @@
 
 ### Breaking changes 💔
 
+* Update to v0.4 IonQ API. The job payload now uses `backend` instead of `target`, `type` instead of
+  `format`, and `error_mitigation`/`compilation` are nested under `settings`.
+  [(#140)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/140)
+
 ### Deprecations 👋
 
 ### Documentation 📝
@@ -20,7 +24,9 @@
 This release contains contributions from (in alphabetical order):
 
 Andrija Paurevic,
-David Yonge-Mallo.
+David Yonge-Mallo,
+Radu Marginean,
+Spencer Churchill.
 
 ---
 # Release 0.44.0
@@ -55,10 +61,6 @@ Andrija Paurevic.
 
 ### Breaking changes 💔
 
-* Update to v0.4 IonQ API. The job payload now uses `backend` instead of `target`, `type` instead of
-  `format`, and `error_mitigation`/`compilation` are nested under `settings`.
-  [(#140)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/140)
-
 * Minimum supported version of PennyLane is now v0.43.0.
   [(#154)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/154)
 
@@ -73,10 +75,8 @@ Andrija Paurevic.
 
 This release contains contributions from (in alphabetical order):
 
-Yushao Chen,
 Andrija Paurevic,
-Radu Marginean,
-Spencer Churchill.
+Yushao Chen.
 
 ---
 # Release 0.42.0
