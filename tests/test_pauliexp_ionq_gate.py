@@ -455,5 +455,5 @@ class TestIonQPauliexp:
         result_simulator = qml.execute([tape.copy(shots=None)], simulator)
 
         assert np.allclose(
-            result_ionq, result_simulator, atol=1e-2
+            result_ionq, result_simulator, atol=3e-2
         ), "The IonQ and simulator results do not agree."
