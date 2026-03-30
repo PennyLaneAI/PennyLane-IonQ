@@ -255,6 +255,11 @@ class IonQDevice(QubitDevice):
 
         self.reset(circuits_array_length=len(circuits))
 
+        # Use tape-level shots if device shots are not set
+        tape_shots = circuits[0].shots.total_shots if circuits[0].shots else None
+        if self.shots is None and tape_shots is not None:
+            self.job["shots"] = tape_shots
+
         for circuit_index, circuit in enumerate(circuits):
             self.check_validity(circuit.operations, circuit.observables)
             self.batch_apply(
@@ -270,6 +275,9 @@ class IonQDevice(QubitDevice):
         results = []
         for circuit_index, circuit in enumerate(circuits):
             self.set_current_circuit_index(circuit_index)
+            if self.shots is None and circuit.shots:
+                self._shot_vector = circuit.shots.shot_vector
+                self.shots = circuit.shots.total_shots
             self._samples = self.generate_samples()
 
             # compute the required statistics

@@ -135,11 +135,11 @@ class TestIonQPauliexp:
         when using a single input circuit.
         """
 
-        dev = qml.device("ionq.simulator", wires=2, shots=1024, gateset="qis")
+        dev = qml.device("ionq.simulator", wires=2, gateset="qis")
 
         time = 1
         H = qml.X(0)
-        tape = qml.tape.QuantumScript([qml.evolve(H, time)], [qml.probs(wires=[0])])
+        tape = qml.tape.QuantumScript([qml.evolve(H, time)], [qml.probs(wires=[0])], shots=1024)
 
         result_ionq = dev.batch_execute([tape])
 
@@ -155,13 +155,13 @@ class TestIonQPauliexp:
         when using multiple input circuits.
         """
 
-        dev = qml.device("ionq.simulator", wires=2, shots=1024, gateset="qis")
+        dev = qml.device("ionq.simulator", wires=2, gateset="qis")
 
         time = 1
         H1 = qml.X(0)
         H2 = qml.Z(0)
-        tape1 = qml.tape.QuantumScript([qml.evolve(H1, time)], [qml.probs(wires=[0])])
-        tape2 = qml.tape.QuantumScript([qml.evolve(H2, time)], [qml.probs(wires=[0])])
+        tape1 = qml.tape.QuantumScript([qml.evolve(H1, time)], [qml.probs(wires=[0])], shots=1024)
+        tape2 = qml.tape.QuantumScript([qml.evolve(H2, time)], [qml.probs(wires=[0])], shots=1024)
 
         result_ionq = dev.batch_execute([tape1, tape2])
 
