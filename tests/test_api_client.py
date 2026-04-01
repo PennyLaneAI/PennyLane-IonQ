@@ -271,6 +271,30 @@ class TestResourceManager:
         manager.handle_response(mock_response)
         mock_handle_success_response.assert_called_once_with(mock_response, params=None)
 
+    def test_handle_response_non_json_error(self):
+        """
+        Tests that a non-JSON error response (e.g. Cloudflare HTML) does not raise
+        JSONDecodeError and is handled gracefully.
+        """
+        mock_resource = MagicMock()
+        mock_client = MagicMock()
+
+        mock_response = MagicMock()
+        mock_response.status_code = 503
+        mock_response.json.side_effect = json.JSONDecodeError("msg", "doc", 0)
+        mock_response.text = "<html>503 Service Unavailable</html>"
+        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError()
+
+        manager = ResourceManager(mock_resource, mock_client)
+
+        with pytest.raises(Exception, match="503 Service Unavailable"):
+            manager.handle_response(mock_response)
+
+        assert manager.http_response_data is None
+        assert manager.http_response_status_code == 503
+        assert manager.errors[0]["status_code"] == 503
+        assert manager.errors[0]["content"] == "<html>503 Service Unavailable</html>"
+
     def test_handle_refresh_data(self):
         """
         Tests the ResourceManager.refresh_data method.
