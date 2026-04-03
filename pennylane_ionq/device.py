@@ -108,7 +108,7 @@ class IonQDevice(QubitDevice):
         compilation (dict | None): Settings for compilation when creating a job. Defaults to None.
             Example: ``{"opt": 0, "precision": "1E-3"}``. See
             `IonQ API Job Creation <https://docs.ionq.com/api-reference/v0.4/jobs/create-job>`_ for details.
-        error_mitigation (dict): settings for error mitigation when creating a job. Defaults to None.
+        error_mitigation (dict | None): settings for error mitigation when creating a job. Defaults to None.
             Not available on all backends. Set by default on some hardware systems. See
             `IonQ API Job Creation <https://docs.ionq.com/api-reference/v0.4/jobs/create-job>`_  and
             `IonQ Debiasing and Sharpening <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
@@ -625,8 +625,8 @@ class SimulatorDevice(IonQDevice):
             Defaults to None.
         api_key (str): The IonQ API key. If not provided, the environment
             variable ``IONQ_API_KEY`` is used.
-        noise (dict): {"model": str, "seed": int or None}. Defaults to None.
-        metadata (dict): optional metadata to attach to the job. Defaults to None.
+        noise (dict | None): {"model": str, "seed": int or None}. Defaults to None.
+        metadata (dict | None): optional metadata to attach to the job. Defaults to None.
     """
 
     name = "IonQ Simulator PennyLane plugin"
@@ -680,7 +680,7 @@ class QPUDevice(IonQDevice):
             circuit evaluations are batched over the list of shots.
         api_key (str): The IonQ API key. If not provided, the environment
             variable ``IONQ_API_KEY`` is used.
-        error_mitigation (dict): settings for error mitigation when creating a job. Defaults to None.
+        error_mitigation (dict | None): settings for error mitigation when creating a job. Defaults to None.
             Not available on all backends. Set by default on some hardware systems. See
             `IonQ API Job Creation <https://docs.ionq.com/api-reference/v0.4/jobs/create-job>`_  and
             `IonQ Debiasing and Sharpening <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
