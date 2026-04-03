@@ -76,6 +76,7 @@ Andrija Paurevic.
 This release contains contributions from (in alphabetical order):
 
 Andrija Paurevic,
+Radu Marginean,
 Yushao Chen.
 
 ---

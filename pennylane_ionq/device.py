@@ -102,10 +102,10 @@ class IonQDevice(QubitDevice):
         shots (int, list[int], None): Number of circuit evaluations/random samples used to estimate
             expectation values of observables. Defaults to None.
             If a list of integers is passed, the circuit evaluations are batched over the list of shots.
-        job_name (str): Optional job name. Defaults to None.
+        job_name (str | None): Optional job name. Defaults to None.
         api_key (str): The IonQ API key. If not provided, the environment
             variable ``IONQ_API_KEY`` is used.
-        compilation (dict): Settings for compilation when creating a job. Defaults to None.
+        compilation (dict | None): Settings for compilation when creating a job. Defaults to None.
             Example: ``{"opt": 0, "precision": "1E-3"}``. See
             `IonQ API Job Creation <https://docs.ionq.com/api-reference/v0.4/jobs/create-job>`_ for details.
         error_mitigation (dict): settings for error mitigation when creating a job. Defaults to None.
@@ -118,10 +118,10 @@ class IonQDevice(QubitDevice):
             (no value passed at job retrieval). Will generally return more accurate results if your expected output
             distribution has peaks. See `IonQ Debiasing and Sharpening
             <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
-        noise (dict): {"model": str, "seed": int or None}. Defaults to None.
+        noise (dict | None): {"model": str, "seed": int or None}. Defaults to None.
         dry_run (bool): If True, the job will be submitted by the API client but not processed remotely.
             Useful for obtaining cost estimates. Defaults to False.
-        metadata (dict): optional metadata to attach to the job. Defaults to None.
+        metadata (dict | None): optional metadata to attach to the job. Defaults to None.
     """
 
     # pylint: disable=too-many-instance-attributes
@@ -691,7 +691,7 @@ class QPUDevice(IonQDevice):
             your expected output distribution has peaks. See `IonQ Debiasing and Sharpening
             <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
         dry_run (bool): whether to run the job in dry run mode. Defaults to False.
-        metadata (dict): optional metadata to attach to the job. Defaults to None.
+        metadata (dict | None): optional metadata to attach to the job. Defaults to None.
     """
 
     name = "IonQ QPU PennyLane plugin"

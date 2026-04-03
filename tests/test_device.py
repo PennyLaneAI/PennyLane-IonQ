@@ -60,15 +60,11 @@ class TestDevice:
 
         unique_outcomes1 = np.unique(sample1, axis=0)
         unique_outcomes2 = np.unique(sample2, axis=0)
-        assert np.all(
-            unique_outcomes1 == unique_outcomes2
-        )  # possible outcomes are the same
+        assert np.all(unique_outcomes1 == unique_outcomes2)  # possible outcomes are the same
 
         sorted_outcomes1 = np.sort(sample1, axis=0)
         sorted_outcomes2 = np.sort(sample2, axis=0)
-        assert np.all(
-            sorted_outcomes1 == sorted_outcomes2
-        )  # set of outcomes is the same
+        assert np.all(sorted_outcomes1 == sorted_outcomes2)  # set of outcomes is the same
 
 
 class TestDeviceIntegration:
@@ -117,9 +113,7 @@ class TestDeviceIntegration:
         monkeypatch.setattr(
             requests, "post", lambda url, timeout, data, headers: (url, data, headers)
         )
-        monkeypatch.setattr(
-            ResourceManager, "handle_response", lambda self, response: None
-        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", False)
         monkeypatch.setattr(Job, "is_failed", True)
 
@@ -134,23 +128,19 @@ class TestDeviceIntegration:
         monkeypatch.setattr(
             requests, "post", lambda url, timeout, data, headers: (url, data, headers)
         )
-        monkeypatch.setattr(
-            ResourceManager, "handle_response", lambda self, response: None
-        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
         def fake_response(self, resource_id=None, params=None):
             """Return fake response data"""
             fake_json = {"0": 1}
-            setattr(
-                self.resource, "data", type("data", tuple(), {"value": fake_json})()
-            )
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
-        dev = qml.device("ionq.simulator", wires=1, shots=shots, api_key="test")
+        dev = qml.device("ionq.simulator", wires=1, api_key="test")
 
-        @qml.qnode(dev)
+        @qml.qnode(dev, shots=shots)
         def circuit():
             """Reference QNode"""
             qml.PauliX(wires=0)
@@ -166,25 +156,19 @@ class TestDeviceIntegration:
         monkeypatch.setattr(
             requests, "post", lambda url, timeout, data, headers: (url, data, headers)
         )
-        monkeypatch.setattr(
-            ResourceManager, "handle_response", lambda self, response: None
-        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
         def fake_response(self, resource_id=None, params=None):
             """Return fake response data"""
             fake_json = {"0": 1}
-            setattr(
-                self.resource, "data", type("data", tuple(), {"value": fake_json})()
-            )
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
-        dev = qml.device(
-            "ionq.simulator", wires=1, shots=1024, dry_run=True, api_key="test"
-        )
+        dev = qml.device("ionq.simulator", wires=1, dry_run=True, api_key="test")
 
-        @qml.qnode(dev)
+        @qml.qnode(dev, shots=1024)
         def circuit():
             """Reference QNode"""
             qml.Identity(wires=0)
@@ -198,9 +182,9 @@ class TestDeviceIntegration:
     def test_dry_run_execute(self, requires_api):
         """Send a job with dry_run option set to true to the API."""
 
-        dev = qml.device("ionq.simulator", wires=1, shots=1024, dry_run=True)
+        dev = qml.device("ionq.simulator", wires=1, dry_run=True)
 
-        @qml.qnode(dev)
+        @qml.qnode(dev, shots=1024)
         def circuit():
             qml.Identity(wires=0)
             return qml.probs(wires=[0])
@@ -214,29 +198,24 @@ class TestDeviceIntegration:
         monkeypatch.setattr(
             requests, "post", lambda url, timeout, data, headers: (url, data, headers)
         )
-        monkeypatch.setattr(
-            ResourceManager, "handle_response", lambda self, response: None
-        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
         def fake_response(self, resource_id=None, params=None):
             """Return fake response data"""
             fake_json = {"0": 1}
-            setattr(
-                self.resource, "data", type("data", tuple(), {"value": fake_json})()
-            )
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
         dev = qml.device(
             "ionq.simulator",
             wires=1,
-            shots=1024,
             noise={"model": "ideal", "seed": 7},
             api_key="test",
         )
 
-        @qml.qnode(dev)
+        @qml.qnode(dev, shots=1024)
         def circuit():
             """Reference QNode"""
             qml.Identity(wires=0)
@@ -256,29 +235,24 @@ class TestDeviceIntegration:
         monkeypatch.setattr(
             requests, "post", lambda url, timeout, data, headers: (url, data, headers)
         )
-        monkeypatch.setattr(
-            ResourceManager, "handle_response", lambda self, response: None
-        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
         def fake_response(self, resource_id=None, params=None):
             """Return fake response data"""
             fake_json = {"0": 1}
-            setattr(
-                self.resource, "data", type("data", tuple(), {"value": fake_json})()
-            )
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
         dev = qml.device(
             "ionq.simulator",
             wires=1,
-            shots=1024,
             metadata={"key": "value"},
             api_key="test",
         )
 
-        @qml.qnode(dev)
+        @qml.qnode(dev, shots=1024)
         def circuit():
             """Reference QNode"""
             qml.Identity(wires=0)
@@ -295,25 +269,19 @@ class TestDeviceIntegration:
         monkeypatch.setattr(
             requests, "post", lambda url, timeout, data, headers: (url, data, headers)
         )
-        monkeypatch.setattr(
-            ResourceManager, "handle_response", lambda self, response: None
-        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
         def fake_response(self, resource_id=None, params=None):
             """Return fake response data"""
             fake_json = {"0": 1}
-            setattr(
-                self.resource, "data", type("data", tuple(), {"value": fake_json})()
-            )
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
-        dev = qml.device(
-            "ionq.simulator", wires=1, shots=1024, job_name="test_name", api_key="test"
-        )
+        dev = qml.device("ionq.simulator", wires=1, job_name="test_name", api_key="test")
 
-        @qml.qnode(dev)
+        @qml.qnode(dev, shots=1024)
         def circuit():
             """Reference QNode"""
             qml.Identity(wires=0)
@@ -331,29 +299,24 @@ class TestDeviceIntegration:
         monkeypatch.setattr(
             requests, "post", lambda url, timeout, data, headers: (url, data, headers)
         )
-        monkeypatch.setattr(
-            ResourceManager, "handle_response", lambda self, response: None
-        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
         def fake_response(self, resource_id=None, params=None):
             """Return fake response data"""
             fake_json = {"0": 1}
-            setattr(
-                self.resource, "data", type("data", tuple(), {"value": fake_json})()
-            )
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
         dev = qml.device(
             "ionq.qpu",
             wires=1,
-            shots=5000,
             api_key="test",
             compilation=compilation,
         )
 
-        @qml.qnode(dev)
+        @qml.qnode(dev, shots=5000)
         def circuit():
             """Reference QNode"""
             qml.PauliX(wires=0)
@@ -362,46 +325,36 @@ class TestDeviceIntegration:
         spy = mocker.spy(requests, "post")
         circuit()
         if compilation is not None:
-            assert (
-                json.loads(spy.call_args[1]["data"])["settings"]["compilation"]
-                == compilation
-            )
+            assert json.loads(spy.call_args[1]["data"])["settings"]["compilation"] == compilation
         else:
             with pytest.raises(KeyError, match="settings"):
                 json.loads(spy.call_args[1]["data"])["settings"]
 
-    @pytest.mark.parametrize(
-        "error_mitigation", [None, {"debiasing": True}, {"debiasing": False}]
-    )
+    @pytest.mark.parametrize("error_mitigation", [None, {"debiasing": True}, {"debiasing": False}])
     def test_error_mitigation(self, error_mitigation, monkeypatch, mocker):
         """Test that error mitigation settings are properly handled when submitting a job to the API."""
 
         monkeypatch.setattr(
             requests, "post", lambda url, timeout, data, headers: (url, data, headers)
         )
-        monkeypatch.setattr(
-            ResourceManager, "handle_response", lambda self, response: None
-        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
         def fake_response(self, resource_id=None, params=None):
             """Return fake response data"""
             fake_json = {"0": 1}
-            setattr(
-                self.resource, "data", type("data", tuple(), {"value": fake_json})()
-            )
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
         dev = qml.device(
             "ionq.qpu",
             wires=1,
-            shots=5000,
             api_key="test",
             error_mitigation=error_mitigation,
         )
 
-        @qml.qnode(dev)
+        @qml.qnode(dev, shots=5000)
         def circuit():
             """Reference QNode"""
             qml.PauliX(wires=0)
@@ -621,9 +574,7 @@ you want to access must be first set via the set_current_circuit_index device me
         assert results[0] == pytest.approx(-1, abs=0.1)
         assert results[1] == pytest.approx(0, abs=0.1)
 
-    def test_batch_execute_expectation_value_with_diagonalization_rotations(
-        self, requires_api
-    ):
+    def test_batch_execute_expectation_value_with_diagonalization_rotations(self, requires_api):
         """Test batch_execute method when computing expectation value of an
         observable that requires rotations for diagonalization."""
         dev = SimulatorDevice(wires=(0,), gateset="qis", shots=1024)
@@ -694,13 +645,9 @@ you want to access must be first set via the set_current_circuit_index device me
                 wires = list(range(len(state)))
                 super().__init__(wires=wires)
 
-            def process_samples(
-                self, samples, wire_order, shot_range=None, bin_size=None
-            ):
+            def process_samples(self, samples, wire_order, shot_range=None, bin_size=None):
                 counts_mp = qml.counts(wires=self._wires)
-                counts = counts_mp.process_samples(
-                    samples, wire_order, shot_range, bin_size
-                )
+                counts = counts_mp.process_samples(samples, wire_order, shot_range, bin_size)
                 return float(counts.get(self.state, 0))
 
             def process_counts(self, counts, wire_order):
@@ -967,9 +914,7 @@ class TestJobAttribute:
         def mock_submit_job(*args):
             raise StopExecute()
 
-        mocker.patch(
-            "pennylane_ionq.device.SimulatorDevice._submit_job", mock_submit_job
-        )
+        mocker.patch("pennylane_ionq.device.SimulatorDevice._submit_job", mock_submit_job)
         dev = SimulatorDevice(wires=(0,), gateset="native")
 
         with qml.tape.QuantumTape(shots=1024) as tape:
@@ -1007,9 +952,7 @@ class TestJobAttribute:
         def mock_submit_job(*args):
             raise StopExecute()
 
-        mocker.patch(
-            "pennylane_ionq.device.SimulatorDevice._submit_job", mock_submit_job
-        )
+        mocker.patch("pennylane_ionq.device.SimulatorDevice._submit_job", mock_submit_job)
         dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
 
         with qml.tape.QuantumTape(shots=1024) as tape1:

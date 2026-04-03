@@ -353,7 +353,9 @@ class ResourceManager:
         for field in self.resource.fields:
             field.set(data.get(field.name, None))
 
-        url = ((data.get("results") or {}).get("probabilities") or {}).get("url")
+        results = data.get("results") or {}
+        probabilities = results.get("probabilities") or {}
+        url = probabilities.get("url")
         if isinstance(url, str) and url:
             resp = self.client.get(self.join_path(url), params=params)
             self.resource.fields[-1].set(resp.json())
