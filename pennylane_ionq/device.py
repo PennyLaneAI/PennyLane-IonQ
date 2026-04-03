@@ -114,7 +114,6 @@ class IonQDevice(QubitDevice):
             `IonQ Debiasing and Sharpening <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
             Valid keys include: ``debiasing`` (bool).
         sharpen (bool): whether to use sharpening when accessing the results of an executed job. Defaults to None
-
             (no value passed at job retrieval). Will generally return more accurate results if your expected output
             distribution has peaks. See `IonQ Debiasing and Sharpening
             <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
