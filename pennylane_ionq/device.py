@@ -101,6 +101,7 @@ class IonQDevice(QubitDevice):
 
                 Custom wire labels (e.g., strings or non-consecutive integers) are used for user convenience only.
                 They have no effect on the transpilation process or the final qubit layout on the hardware.
+
     Kwargs:
         target (str): the target device, either ``"simulator"`` or ``"qpu"``. Defaults to ``simulator``.
         gateset (str): the target gateset, either ``"qis"`` or ``"native"``. Defaults to ``qis``.
