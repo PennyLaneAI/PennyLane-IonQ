@@ -122,7 +122,14 @@ class IonQDevice(QubitDevice):
             (no value passed at job retrieval). Will generally return more accurate results if your expected output
             distribution has peaks. See `IonQ Debiasing and Sharpening
             <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
-        noise (dict | None): {"model": str, "seed": int or None}. Defaults to None.
+        noise_model (str): the noise model to use for simulation. Only applies when ``target="simulator"``.
+            Valid values are ``"ideal"``, ``"harmony"``, ``"aria-1"``, ``"aria-2"``, ``"forte-1"``,
+            and ``"forte-enterprise-1"``. Defaults to None (ideal simulation). See
+            `IonQ Simulation with Noise Models <https://docs.ionq.com/guides/simulation-with-noise-models>`_
+            for details.
+        noise_seed (int): seed for the noise model random number generator, for reproducible noisy
+            simulation results. Must be between 1 and 2^31. Only used when ``noise_model`` is set.
+            Defaults to None (random seed).
         dry_run (bool): If True, the job will be submitted by the API client but not processed remotely.
             Useful for obtaining cost estimates. Defaults to False.
         metadata (dict | None): optional metadata to attach to the job. Defaults to None.
@@ -146,6 +153,15 @@ class IonQDevice(QubitDevice):
     observables = {"PauliX", "PauliY", "PauliZ", "Hadamard", "Identity", "Prod"}
 
     # pylint: disable=too-many-arguments
+    NOISE_MODELS = {
+        "ideal",
+        "harmony",
+        "aria-1",
+        "aria-2",
+        "forte-1",
+        "forte-enterprise-1",
+    }
+
     def __init__(
         self,
         wires,
@@ -158,10 +174,22 @@ class IonQDevice(QubitDevice):
         compilation=None,
         error_mitigation=None,
         sharpen=None,
+        noise_model=None,
+        noise_seed=None,
         dry_run=False,
-        noise=None,
         metadata=None,
     ):
+
+        if noise_model is not None and noise_model not in self.NOISE_MODELS:
+            raise ValueError(
+                f"Invalid noise model '{noise_model}'. Valid options are: "
+                f"{', '.join(sorted(self.NOISE_MODELS))}."
+            )
+        if noise_seed is not None:
+            if not isinstance(noise_seed, int) or noise_seed < 1 or noise_seed > 2**31:
+                raise ValueError(
+                    f"noise_seed must be an integer between 1 and 2^31, got {noise_seed}."
+                )
 
         super().__init__(wires=wires, shots=shots)
         self._current_circuit_index = None
@@ -172,8 +200,9 @@ class IonQDevice(QubitDevice):
         self.compilation = compilation
         self.error_mitigation = error_mitigation
         self.sharpen = sharpen
+        self.noise_model = noise_model
+        self.noise_seed = noise_seed
         self.dry_run = dry_run
-        self.noise = noise
         self.metadata = metadata
         self._operation_map = _GATESET_OPS[gateset]
         self.histograms = []
@@ -197,11 +226,17 @@ class IonQDevice(QubitDevice):
             "gateset": self.gateset,
         }
         if circuits_array_length > 1:
-            self.input["circuits"] = [{"circuit": []} for _ in range(circuits_array_length)]
+            self.input["circuits"] = [
+                {"circuit": []} for _ in range(circuits_array_length)
+            ]
         else:
             self.input["circuit"] = []
         self.job = {
-            "type": ("ionq.multi-circuit.v1" if circuits_array_length > 1 else "ionq.circuit.v1"),
+            "type": (
+                "ionq.multi-circuit.v1"
+                if circuits_array_length > 1
+                else "ionq.circuit.v1"
+            ),
             "input": self.input,
             "backend": self.target,
         }
@@ -211,8 +246,11 @@ class IonQDevice(QubitDevice):
             self.job["name"] = self.job_name
         if self.dry_run:
             self.job["dry_run"] = self.dry_run
-        if self.noise is not None:
-            self.job["noise"] = self.noise
+        if self.noise_model is not None:
+            noise = {"model": self.noise_model}
+            if self.noise_seed is not None:
+                noise["seed"] = self.noise_seed
+            self.job["noise"] = noise
         if self.metadata is not None:
             self.job["metadata"] = self.metadata
         if self.compilation is not None:
@@ -253,7 +291,8 @@ class IonQDevice(QubitDevice):
                 """Entry with args=(circuits=%s) called by=%s""",
                 circuits,
                 "::L".join(
-                    str(i) for i in inspect.getouterframes(inspect.currentframe(), 2)[1][1:3]
+                    str(i)
+                    for i in inspect.getouterframes(inspect.currentframe(), 2)[1][1:3]
                 ),
             )
 
@@ -262,7 +301,9 @@ class IonQDevice(QubitDevice):
         # Use tape-level shots if device shots are not set
         tape_shots = circuits[0].shots.total_shots if circuits[0].shots else None
         if self.shots is None and tape_shots is not None:
-            self.job["shots"] = tape_shots  # pylint: disable=access-member-before-definition
+            self.job["shots"] = (
+                tape_shots  # pylint: disable=access-member-before-definition
+            )
 
         for circuit_index, circuit in enumerate(circuits):
             self.check_validity(circuit.operations, circuit.observables)
@@ -277,7 +318,9 @@ class IonQDevice(QubitDevice):
             return [[] for _ in circuits]
 
         original_shots = self.shots  # pylint: disable=access-member-before-definition
-        original_shot_vector = self._shot_vector  # pylint: disable=access-member-before-definition
+        original_shot_vector = (
+            self._shot_vector
+        )  # pylint: disable=access-member-before-definition
 
         results = []
         for circuit_index, circuit in enumerate(circuits):
@@ -328,7 +371,9 @@ class IonQDevice(QubitDevice):
         rotations = kwargs.pop("rotations", [])
 
         if len(operations) == 0 and len(rotations) == 0:
-            warnings.warn("Circuit is empty. Empty circuits return failures. Submitting anyway.")
+            warnings.warn(
+                "Circuit is empty. Empty circuits return failures. Submitting anyway."
+            )
 
         for operation in operations:
             self._apply_operation(operation, circuit_index)
@@ -353,7 +398,9 @@ class IonQDevice(QubitDevice):
         rotations = kwargs.pop("rotations", [])
 
         if len(operations) == 0 and len(rotations) == 0:
-            warnings.warn("Circuit is empty. Empty circuits return failures. Submitting anyway.")
+            warnings.warn(
+                "Circuit is empty. Empty circuits return failures. Submitting anyway."
+            )
 
         for operation in operations:
             self._apply_operation(operation)
@@ -448,13 +495,19 @@ class IonQDevice(QubitDevice):
 
     def _remove_trivial_terms(self, terms, coefficients):
         """Removes all-identity (II..I) terms from the list of terms."""
-        filtered = [(t, c) for t, c in zip(terms, coefficients) if "X" in t or "Y" in t or "Z" in t]
+        filtered = [
+            (t, c)
+            for t, c in zip(terms, coefficients)
+            if "X" in t or "Y" in t or "Z" in t
+        ]
         if not filtered:
             return [], []
         terms, coefficients = zip(*filtered)
         return list(terms), list(coefficients)
 
-    def _decompose_evolution(self, operation, wires: list[int]) -> tuple[list[str], list[float]]:
+    def _decompose_evolution(
+        self, operation, wires: list[int]
+    ) -> tuple[list[str], list[float]]:
         """Decompose an Evolution gate's generator into IonQ Pauli terms and coefficients.
 
         Returns:
@@ -478,11 +531,15 @@ class IonQDevice(QubitDevice):
                     ops.extend(o)
                 else:
                     op_wires = scaled.wires.tolist()
-                    decomp = pauli_decompose(scaled.matrix(), wire_order=op_wires, pauli=False)
+                    decomp = pauli_decompose(
+                        scaled.matrix(), wire_order=op_wires, pauli=False
+                    )
                     coefficients.extend(decomp.coeffs.tolist())
                     ops.extend(decomp.ops)
         elif isinstance(generator, SparseHamiltonian):
-            decomp = pauli_decompose(generator.H.toarray(), wire_order=wires, pauli=False)
+            decomp = pauli_decompose(
+                generator.H.toarray(), wire_order=wires, pauli=False
+            )
             ops = decomp.ops
             coefficients = decomp.coeffs.tolist()
         elif isinstance(generator, SProd):
@@ -494,7 +551,9 @@ class IonQDevice(QubitDevice):
                 coefficients = [generator.scalar * float(c) for c in base_coeffs]
                 ops = base_ops
             elif isinstance(generator.base, Exp):
-                decomp = pauli_decompose(generator.matrix(), wire_order=wires, pauli=False)
+                decomp = pauli_decompose(
+                    generator.matrix(), wire_order=wires, pauli=False
+                )
                 ops = decomp.ops
                 coefficients = decomp.coeffs.tolist()
 
@@ -599,7 +658,9 @@ class IonQDevice(QubitDevice):
         # The IonQ API returns basis states using little-endian ordering.
         # Here, we rearrange the states to match the big-endian ordering
         # expected by PennyLane.
-        basis_states = (int(bin(int(k))[2:].rjust(self.num_wires, "0")[::-1], 2) for k in histogram)
+        basis_states = (
+            int(bin(int(k))[2:].rjust(self.num_wires, "0")[::-1], 2) for k in histogram
+        )
         idx = np.fromiter(basis_states, dtype=int)
 
         # convert the sparse probs into a probability array
@@ -618,7 +679,9 @@ class IonQDevice(QubitDevice):
         if shot_range is None and bin_size is None:
             return self.marginal_prob(self.prob, wires)
 
-        return self.estimate_probability(wires=wires, shot_range=shot_range, bin_size=bin_size)
+        return self.estimate_probability(
+            wires=wires, shot_range=shot_range, bin_size=bin_size
+        )
 
 
 class SimulatorDevice(IonQDevice):
@@ -642,7 +705,14 @@ class SimulatorDevice(IonQDevice):
             Defaults to None.
         api_key (str): The IonQ API key. If not provided, the environment
             variable ``IONQ_API_KEY`` is used.
-        noise (dict | None): {"model": str, "seed": int or None}. Defaults to None.
+        noise_model (str): the noise model to use for simulation. Valid values are ``"ideal"``,
+            ``"harmony"``, ``"aria-1"``, ``"aria-2"``, ``"forte-1"``, and ``"forte-enterprise-1"``.
+            Defaults to None (ideal simulation). See
+            `IonQ Simulation with Noise Models <https://docs.ionq.com/guides/simulation-with-noise-models>`_
+            for details.
+        noise_seed (int): seed for the noise model random number generator, for reproducible noisy
+            simulation results. Must be between 1 and 2^31. Only used when ``noise_model`` is set.
+            Defaults to None (random seed).
         metadata (dict | None): optional metadata to attach to the job. Defaults to None.
     """
 
@@ -658,8 +728,9 @@ class SimulatorDevice(IonQDevice):
         job_name=None,
         compilation=None,
         api_key=None,
+        noise_model=None,
+        noise_seed=None,
         dry_run=False,
-        noise=None,
         metadata=None,
     ):
         super().__init__(
@@ -670,8 +741,9 @@ class SimulatorDevice(IonQDevice):
             job_name=job_name,
             api_key=api_key,
             compilation=compilation,
+            noise_model=noise_model,
+            noise_seed=noise_seed,
             dry_run=dry_run,
-            noise=noise,
             metadata=metadata,
         )
 
