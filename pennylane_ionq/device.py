@@ -97,6 +97,11 @@ class IonQDevice(QubitDevice):
             or iterable that contains unique labels for the subsystems as numbers (i.e., ``[-1, 0, 2]``)
             or strings (``['ancilla', 'q1', 'q2']``).
 
+            .. note::
+
+                Custom wire labels (e.g., strings or non-consecutive integers) are used for user convenience only.
+                They have no effect on the transpilation process or the final qubit layout on the hardware.
+
     Kwargs:
         target (str): the target device, either ``"simulator"`` or ``"qpu"``. Defaults to ``simulator``.
         gateset (str): the target gateset, either ``"qis"`` or ``"native"``. Defaults to ``qis``.
@@ -587,6 +592,12 @@ class SimulatorDevice(IonQDevice):
         wires (int or Iterable[Number, str]]): Number of wires to initialize the device with,
             or iterable that contains unique labels for the subsystems as numbers (i.e., ``[-1, 0, 2]``)
             or strings (``['ancilla', 'q1', 'q2']``).
+
+            .. note::
+
+                Custom wire labels (e.g., strings or non-consecutive integers) are used for user convenience only.
+                They have no effect on the transpilation process or the final qubit layout on the hardware.
+
         gateset (str): the target gateset, either ``"qis"`` or ``"native"``. Defaults to ``qis``.
         shots (int, list[int], None): Number of circuit evaluations/random samples used to estimate
             expectation values of observables. If ``None``, the device calculates probability, expectation values,
@@ -623,6 +634,12 @@ class QPUDevice(IonQDevice):
         wires (int or Iterable[Number, str]]): Number of wires to initialize the device with,
             or iterable that contains unique labels for the subsystems as numbers (i.e., ``[-1, 0, 2]``)
             or strings (``['ancilla', 'q1', 'q2']``).
+
+            .. note::
+
+                Custom wire labels (e.g., strings or non-consecutive integers) are used for user convenience only.
+                They have no effect on the transpilation process or the final qubit layout on the hardware.
+
         gateset (str): the target gateset, either ``"qis"`` or ``"native"``. Defaults to ``qis``.
         backend (str): Optional specifier for an IonQ backend. Can be ``"aria-1"``, ``"aria-2"``, etc.
             Default to ``aria-1``.
