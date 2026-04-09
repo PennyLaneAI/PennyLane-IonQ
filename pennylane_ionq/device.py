@@ -271,6 +271,9 @@ class IonQDevice(QubitDevice):
         if self.dry_run:
             return [[] for _ in circuits]
 
+        original_shots = self.shots
+        original_shot_vector = self._shot_vector
+
         results = []
         for circuit_index, circuit in enumerate(circuits):
             self.set_current_circuit_index(circuit_index)
@@ -291,6 +294,9 @@ class IonQDevice(QubitDevice):
             self.set_current_circuit_index(None)
             self._samples = None
             results.append(result)
+
+        self.shots = original_shots
+        self._shot_vector = original_shot_vector
 
         # increment counter for number of executions of qubit device
         self._num_executions += 1
