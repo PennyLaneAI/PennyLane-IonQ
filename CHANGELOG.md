@@ -9,8 +9,9 @@
 
 ### Breaking changes 💔
 
-* Update to v0.4 IonQ API. The job payload now uses `backend` instead of `target`, `type` instead of
-  `format`, and `error_mitigation`/`compilation` are nested under `settings`.
+* Update to [v0.4 IonQ API](https://docs.ionq.com/api-reference/v0.4/introduction). The job payload
+  now uses `backend` instead of `target`, `type` instead of `format`, and
+  `error_mitigation`/`compilation` are nested under `settings`.
   [(#140)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/140)
 
 ### Deprecations 👋

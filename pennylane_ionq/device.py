@@ -257,7 +257,7 @@ class IonQDevice(QubitDevice):
         # Use tape-level shots if device shots are not set
         tape_shots = circuits[0].shots.total_shots if circuits[0].shots else None
         if self.shots is None and tape_shots is not None:
-            self.job["shots"] = tape_shots
+            self.job["shots"] = tape_shots  # pylint: disable=access-member-before-definition
 
         for circuit_index, circuit in enumerate(circuits):
             self.check_validity(circuit.operations, circuit.observables)
@@ -271,8 +271,8 @@ class IonQDevice(QubitDevice):
         if self.dry_run:
             return [[] for _ in circuits]
 
-        original_shots = self.shots
-        original_shot_vector = self._shot_vector
+        original_shots = self.shots  # pylint: disable=access-member-before-definition
+        original_shot_vector = self._shot_vector  # pylint: disable=access-member-before-definition
 
         results = []
         for circuit_index, circuit in enumerate(circuits):
