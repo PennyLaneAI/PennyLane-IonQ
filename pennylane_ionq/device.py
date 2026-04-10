@@ -19,7 +19,6 @@ This module contains the device class for constructing IonQ devices for PennyLan
 
 import inspect
 import logging
-from typing import List
 import warnings
 from time import sleep
 
@@ -105,20 +104,28 @@ class IonQDevice(QubitDevice):
     Kwargs:
         target (str): the target device, either ``"simulator"`` or ``"qpu"``. Defaults to ``simulator``.
         gateset (str): the target gateset, either ``"qis"`` or ``"native"``. Defaults to ``qis``.
-        shots (int, list[int]): Number of circuit evaluations/random samples used to estimate
-            expectation values of observables. Defaults to 1024.
+        shots (int, list[int], None): Number of circuit evaluations/random samples used to estimate
+            expectation values of observables. Defaults to None.
             If a list of integers is passed, the circuit evaluations are batched over the list of shots.
+        job_name (str | None): Optional job name. Defaults to None.
         api_key (str): The IonQ API key. If not provided, the environment
             variable ``IONQ_API_KEY`` is used.
-        error_mitigation (dict): settings for error mitigation when creating a job. Defaults to None.
+        compilation (dict | None): Settings for compilation when creating a job. Defaults to None.
+            Example: ``{"opt": 0, "precision": "1E-3"}``. See
+            `IonQ API Job Creation <https://docs.ionq.com/api-reference/v0.4/jobs/create-job>`_ for details.
+        error_mitigation (dict | None): settings for error mitigation when creating a job. Defaults to None.
             Not available on all backends. Set by default on some hardware systems. See
-            `IonQ API Job Creation <https://docs.ionq.com/#tag/jobs/operation/createJob>`_  and
+            `IonQ API Job Creation <https://docs.ionq.com/api-reference/v0.4/jobs/create-job>`_  and
             `IonQ Debiasing and Sharpening <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
-            Valid keys include: ``debias`` (bool).
+            Valid keys include: ``debiasing`` (bool).
         sharpen (bool): whether to use sharpening when accessing the results of an executed job. Defaults to None
             (no value passed at job retrieval). Will generally return more accurate results if your expected output
             distribution has peaks. See `IonQ Debiasing and Sharpening
             <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
+        noise (dict | None): {"model": str, "seed": int or None}. Defaults to None.
+        dry_run (bool): If True, the job will be submitted by the API client but not processed remotely.
+            Useful for obtaining cost estimates. Defaults to False.
+        metadata (dict | None): optional metadata to attach to the job. Defaults to None.
     """
 
     # pylint: disable=too-many-instance-attributes
@@ -146,18 +153,28 @@ class IonQDevice(QubitDevice):
         target="simulator",
         gateset="qis",
         shots=None,
+        job_name=None,
         api_key=None,
+        compilation=None,
         error_mitigation=None,
-        sharpen=False,
+        sharpen=None,
+        dry_run=False,
+        noise=None,
+        metadata=None,
     ):
 
         super().__init__(wires=wires, shots=shots)
         self._current_circuit_index = None
+        self.job_name = job_name
         self.target = target
         self.api_key = api_key
         self.gateset = gateset
+        self.compilation = compilation
         self.error_mitigation = error_mitigation
         self.sharpen = sharpen
+        self.dry_run = dry_run
+        self.noise = noise
+        self.metadata = metadata
         self._operation_map = _GATESET_OPS[gateset]
         self.histograms = []
         self._samples = None
@@ -176,20 +193,36 @@ class IonQDevice(QubitDevice):
         self._samples = None
         self.histograms = []
         self.input = {
-            "format": "ionq.circuit.v0",
             "qubits": self.num_wires,
-            "circuits": [{"circuit": []} for _ in range(circuits_array_length)],
             "gateset": self.gateset,
         }
+        if circuits_array_length > 1:
+            self.input["circuits"] = [{"circuit": []} for _ in range(circuits_array_length)]
+        else:
+            self.input["circuit"] = []
         self.job = {
+            "type": ("ionq.multi-circuit.v1" if circuits_array_length > 1 else "ionq.circuit.v1"),
             "input": self.input,
-            "target": self.target,
-            "shots": self.shots,
+            "backend": self.target,
         }
+        if self.shots is not None:
+            self.job["shots"] = self.shots
+        if self.job_name is not None:
+            self.job["name"] = self.job_name
+        if self.dry_run:
+            self.job["dry_run"] = self.dry_run
+        if self.noise is not None:
+            self.job["noise"] = self.noise
+        if self.metadata is not None:
+            self.job["metadata"] = self.metadata
+        if self.compilation is not None:
+            self.job["settings"] = {"compilation": self.compilation}
         if self.error_mitigation is not None:
-            self.job["error_mitigation"] = self.error_mitigation
-        if self.job["target"] == "qpu":
-            self.job["target"] = "qpu.aria-1"
+            if "settings" not in self.job:
+                self.job["settings"] = {}
+            self.job["settings"]["error_mitigation"] = self.error_mitigation
+        if self.job["backend"] == "qpu":
+            self.job["backend"] = "qpu.aria-1"
             warnings.warn(
                 "The ionq_qpu backend is deprecated. Defaulting to ionq_qpu.aria-1.",
                 UserWarning,
@@ -226,6 +259,11 @@ class IonQDevice(QubitDevice):
 
         self.reset(circuits_array_length=len(circuits))
 
+        # Use tape-level shots if device shots are not set
+        tape_shots = circuits[0].shots.total_shots if circuits[0].shots else None
+        if self.shots is None and tape_shots is not None:
+            self.job["shots"] = tape_shots  # pylint: disable=access-member-before-definition
+
         for circuit_index, circuit in enumerate(circuits):
             self.check_validity(circuit.operations, circuit.observables)
             self.batch_apply(
@@ -235,9 +273,18 @@ class IonQDevice(QubitDevice):
             )
         self._submit_job()
 
+        if self.dry_run:
+            return [[] for _ in circuits]
+
+        original_shots = self.shots  # pylint: disable=access-member-before-definition
+        original_shot_vector = self._shot_vector  # pylint: disable=access-member-before-definition
+
         results = []
         for circuit_index, circuit in enumerate(circuits):
             self.set_current_circuit_index(circuit_index)
+            if self.shots is None and circuit.shots:
+                self._shot_vector = circuit.shots.shot_vector
+                self.shots = circuit.shots.total_shots
             self._samples = self.generate_samples()
 
             # compute the required statistics
@@ -252,6 +299,9 @@ class IonQDevice(QubitDevice):
             self.set_current_circuit_index(None)
             self._samples = None
             results.append(result)
+
+        self.shots = original_shots
+        self._shot_vector = original_shot_vector
 
         # increment counter for number of executions of qubit device
         self._num_executions += 1
@@ -305,7 +355,7 @@ class IonQDevice(QubitDevice):
         if len(operations) == 0 and len(rotations) == 0:
             warnings.warn("Circuit is empty. Empty circuits return failures. Submitting anyway.")
 
-        for i, operation in enumerate(operations):
+        for operation in operations:
             self._apply_operation(operation)
 
         # diagonalize observables
@@ -327,6 +377,13 @@ class IonQDevice(QubitDevice):
         else:
             self._apply_simple_operation(operation, circuit_index, wires)
 
+    def _append_gate(self, gate, circuit_index):
+        """Appends a gate dict to the appropriate circuit in the input payload."""
+        if "circuits" in self.input:
+            self.input["circuits"][circuit_index]["circuit"].append(gate)
+        else:
+            self.input["circuit"].append(gate)
+
     def _apply_evolution_operation(self, operation, circuit_index, wires):
         """Applies Evolution operations to the internal device state.
         The number of steps argument for Evolution gate will be ignored even if provided because
@@ -339,8 +396,7 @@ class IonQDevice(QubitDevice):
             UserWarning,
         )
         name = operation.name
-        terms = self._extract_evolution_pauli_terms(operation, wires)
-        coefficients = self._extract_evolution_coefficients(operation, wires)
+        terms, coefficients = self._decompose_evolution(operation, wires)
         terms, coefficients = self._remove_trivial_terms(terms, coefficients)
         if len(terms) > 0:
             gate = {"gate": self._operation_map[name]}
@@ -353,7 +409,7 @@ class IonQDevice(QubitDevice):
             gate["coefficients"] = [
                 np.sign(operation.param) * (-1) * float(v) for v in coefficients
             ]
-            self.input["circuits"][circuit_index]["circuit"].append(gate)
+            self._append_gate(gate, circuit_index)
 
     def _apply_simple_operation(self, operation, circuit_index, wires):
         """Applies regular operations (gates) to the internal device state."""
@@ -361,7 +417,16 @@ class IonQDevice(QubitDevice):
         params = operation.parameters
         gate = {"gate": self._operation_map[name]}
         if len(wires) == 2:
-            if name in {"SWAP", "XX", "YY", "ZZ", "IsingXX", "IsingYY", "IsingZZ", "MS"}:
+            if name in {
+                "SWAP",
+                "XX",
+                "YY",
+                "ZZ",
+                "IsingXX",
+                "IsingYY",
+                "IsingZZ",
+                "MS",
+            }:
                 # these gates takes two targets
                 gate["targets"] = wires
             else:
@@ -379,99 +444,70 @@ class IonQDevice(QubitDevice):
                 gate["phase"] = float(params[0])
         elif params:
             gate["rotation"] = float(params[0])
-        self.input["circuits"][circuit_index]["circuit"].append(gate)
+        self._append_gate(gate, circuit_index)
 
     def _remove_trivial_terms(self, terms, coefficients):
-        """Removes II..I terms from the list of terms."""
-        cleaned_up_terms = []
-        cleaned_up_coefficients = []
-        for i, term in enumerate(terms):
-            if not "X" in term and not "Y" in term and not "Z" in term:
-                continue
-            cleaned_up_terms.append(term)
-            cleaned_up_coefficients.append(coefficients[i])
-        return cleaned_up_terms, cleaned_up_coefficients
+        """Removes all-identity (II..I) terms from the list of terms."""
+        filtered = [(t, c) for t, c in zip(terms, coefficients) if "X" in t or "Y" in t or "Z" in t]
+        if not filtered:
+            return [], []
+        terms, coefficients = zip(*filtered)
+        return list(terms), list(coefficients)
 
-    def _extract_evolution_coefficients(self, operation, wires: List[int]) -> List[float]:
-        coefficients = None
-        operation_generator = operation.generator()
-        if isinstance(operation_generator, LinearCombination):
-            coefficients = []
-            coeffs = operation_generator.coeffs.tolist()
-            operations = operation_generator.ops
-            for i, _ in enumerate(operations):
-                operation = coeffs[i] * operations[i]
-                if isinstance(operations[i], (Sum, Prod, PauliX, PauliY, PauliZ, Identity)):
-                    coefficients.extend(operation.terms()[0])
-                else:
-                    op_wires = operation.wires.tolist()
-                    pauli_decomp = pauli_decompose(
-                        operation.matrix(), wire_order=op_wires, pauli=False
-                    )
-                    coefficients.extend(pauli_decomp.coeffs.tolist())
-        elif isinstance(operation_generator, SparseHamiltonian):
-            dense_matrix = operation_generator.H.toarray()
-            linear_combination = pauli_decompose(dense_matrix, wire_order=wires, pauli=False)
-            coefficients = linear_combination.coeffs.tolist()
-        elif isinstance(operation_generator, SProd):
-            if isinstance(operation_generator.base, (PauliX, PauliY, PauliZ, Identity)):
-                coefficients = [operation_generator.scalar]
-            elif isinstance(operation_generator.base, (Sum, Prod)):
-                coefficients = [
-                    operation_generator.scalar * float(c)
-                    for c in operation_generator.base.terms()[0]
-                ]
-            elif isinstance(operation_generator.base, Exp):
-                # can we do anything smarter here?
-                pauli_rep = pauli_decompose(
-                    operation_generator.matrix(), wire_order=wires, pauli=False
-                )
-                coefficients = pauli_rep.coeffs.tolist()
+    def _decompose_evolution(self, operation, wires: list[int]) -> tuple[list[str], list[float]]:
+        """Decompose an Evolution gate's generator into IonQ Pauli terms and coefficients.
 
-        if any(isinstance(c, complex) for c in coefficients):
-            raise ComplexEvolutionCoefficientsNotSupported()
-
-        return coefficients
-
-    def _extract_evolution_pauli_terms(self, operation, wires: List[int]) -> List[str]:
+        Returns:
+            tuple: (terms, coefficients) where terms is a list of Pauli strings
+                and coefficients is a list of floats.
+        """
         ops = None
-        operation_generator = operation.generator()
-        if isinstance(operation_generator, LinearCombination):
+        coefficients = None
+        generator = operation.generator()
+
+        if isinstance(generator, LinearCombination):
             ops = []
-            coeffs = operation_generator.coeffs.tolist()
-            operations = operation_generator.ops
-            for i, _ in enumerate(operations):
-                operation = coeffs[i] * operations[i]
-                if isinstance(operations[i], (Sum, Prod, PauliX, PauliY, PauliZ, Identity)):
-                    ops.extend(operation.terms()[1])
+            coefficients = []
+            coeffs = generator.coeffs.tolist()
+            gen_ops = generator.ops
+            for coeff, gen_op in zip(coeffs, gen_ops):
+                scaled = coeff * gen_op
+                if isinstance(gen_op, (Sum, Prod, PauliX, PauliY, PauliZ, Identity)):
+                    c, o = scaled.terms()
+                    coefficients.extend(c)
+                    ops.extend(o)
                 else:
-                    op_wires = operation.wires.tolist()
-                    pauli_decomp = pauli_decompose(
-                        operation.matrix(), wire_order=op_wires, pauli=False
-                    )
-                    ops.extend(pauli_decomp.ops)
-        elif isinstance(operation_generator, SparseHamiltonian):
-            dense_mat = operation_generator.H.toarray()
-            pauli_rep = pauli_decompose(dense_mat, wire_order=wires, pauli=False)
-            ops = pauli_rep.ops
-        elif isinstance(operation_generator, SProd):
-            if isinstance(operation_generator.base, (PauliX, PauliY, PauliZ, Identity)):
-                ops = [operation_generator.base]
-            elif isinstance(operation_generator.base, (Sum, Prod)):
-                ops = operation_generator.base.terms()[1]
-            elif isinstance(operation_generator.base, Exp):
-                # can we do anything smarter here?
-                pauli_rep = pauli_decompose(
-                    operation_generator.matrix(), wire_order=wires, pauli=False
-                )
-                ops = pauli_rep.ops
+                    op_wires = scaled.wires.tolist()
+                    decomp = pauli_decompose(scaled.matrix(), wire_order=op_wires, pauli=False)
+                    coefficients.extend(decomp.coeffs.tolist())
+                    ops.extend(decomp.ops)
+        elif isinstance(generator, SparseHamiltonian):
+            decomp = pauli_decompose(generator.H.toarray(), wire_order=wires, pauli=False)
+            ops = decomp.ops
+            coefficients = decomp.coeffs.tolist()
+        elif isinstance(generator, SProd):
+            if isinstance(generator.base, (PauliX, PauliY, PauliZ, Identity)):
+                ops = [generator.base]
+                coefficients = [generator.scalar]
+            elif isinstance(generator.base, (Sum, Prod)):
+                base_coeffs, base_ops = generator.base.terms()
+                coefficients = [generator.scalar * float(c) for c in base_coeffs]
+                ops = base_ops
+            elif isinstance(generator.base, Exp):
+                decomp = pauli_decompose(generator.matrix(), wire_order=wires, pauli=False)
+                ops = decomp.ops
+                coefficients = decomp.coeffs.tolist()
 
         if ops is None:
             raise NotSupportedEvolutionInstance()
 
-        return self._operations_to_ionq_pauli_names(ops, wires)
+        if any(isinstance(c, complex) for c in coefficients):
+            raise ComplexEvolutionCoefficientsNotSupported()
 
-    def _operations_to_ionq_pauli_names(self, ops, wires) -> List[str]:
+        terms = self._operations_to_ionq_pauli_names(ops, wires)
+        return terms, coefficients
+
+    def _operations_to_ionq_pauli_names(self, ops, wires) -> list[str]:
         """Converts a list of operations to a list of IonQ compatible Pauli matrix names."""
 
         def map_operand_to_term(operand):
@@ -516,8 +552,11 @@ class IonQDevice(QubitDevice):
 
         job = Job(api_key=self.api_key)
 
-        # send job for exection
+        # send job for execution
         job.manager.create(**self.job)
+
+        if self.dry_run:
+            return
 
         # retrieve results
         while not job.is_complete:
@@ -537,12 +576,9 @@ class IonQDevice(QubitDevice):
         # e.g., {"0": 0.413, "9": 0.111, "17": 0.476}
         some_inner_value = next(iter(job.data.value.values()))
         if isinstance(some_inner_value, dict):
-            self.histograms = []
-            for key in job.data.value.keys():
-                self.histograms.append(job.data.value[key])
+            self.histograms = list(job.data.value.values())
         else:
-            self.histograms = []
-            self.histograms.append(job.data.value)
+            self.histograms = [job.data.value]
 
     @property
     def prob(self):
@@ -603,21 +639,40 @@ class SimulatorDevice(IonQDevice):
             expectation values of observables. If ``None``, the device calculates probability, expectation values,
             and variances analytically. If an integer, it specifies the number of samples to estimate these quantities.
             If a list of integers is passed, the circuit evaluations are batched over the list of shots.
-            Defaults to 1024.
+            Defaults to None.
         api_key (str): The IonQ API key. If not provided, the environment
             variable ``IONQ_API_KEY`` is used.
+        noise (dict | None): {"model": str, "seed": int or None}. Defaults to None.
+        metadata (dict | None): optional metadata to attach to the job. Defaults to None.
     """
 
     name = "IonQ Simulator PennyLane plugin"
     short_name = "ionq.simulator"
 
-    def __init__(self, wires, *, gateset="qis", shots=None, api_key=None):
+    def __init__(
+        self,
+        wires,
+        *,
+        gateset="qis",
+        shots=None,
+        job_name=None,
+        compilation=None,
+        api_key=None,
+        dry_run=False,
+        noise=None,
+        metadata=None,
+    ):
         super().__init__(
             wires=wires,
             target="simulator",
             gateset=gateset,
             shots=shots,
+            job_name=job_name,
             api_key=api_key,
+            compilation=compilation,
+            dry_run=dry_run,
+            noise=noise,
+            metadata=metadata,
         )
 
     def generate_samples(self):
@@ -643,20 +698,22 @@ class QPUDevice(IonQDevice):
         gateset (str): the target gateset, either ``"qis"`` or ``"native"``. Defaults to ``qis``.
         backend (str): Optional specifier for an IonQ backend. Can be ``"aria-1"``, ``"aria-2"``, etc.
             Default to ``aria-1``.
-        shots (int, list[int]): Number of circuit evaluations/random samples used to estimate
-            expectation values of observables. Defaults to 1024. If a list of integers is passed, the
+        shots (int, list[int], None): Number of circuit evaluations/random samples used to estimate
+            expectation values of observables. Defaults to None. If a list of integers is passed, the
             circuit evaluations are batched over the list of shots.
         api_key (str): The IonQ API key. If not provided, the environment
             variable ``IONQ_API_KEY`` is used.
-        error_mitigation (dict): settings for error mitigation when creating a job. Defaults to None.
+        error_mitigation (dict | None): settings for error mitigation when creating a job. Defaults to None.
             Not available on all backends. Set by default on some hardware systems. See
-            `IonQ API Job Creation <https://docs.ionq.com/#tag/jobs/operation/createJob>`_  and
+            `IonQ API Job Creation <https://docs.ionq.com/api-reference/v0.4/jobs/create-job>`_  and
             `IonQ Debiasing and Sharpening <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
-            Valid keys include: ``debias`` (bool).
+            Valid keys include: ``debiasing`` (bool).
         sharpen (bool): whether to use sharpening when accessing the results of an executed job.
             Defaults to None (no value passed at job retrieval). Will generally return more accurate results if
             your expected output distribution has peaks. See `IonQ Debiasing and Sharpening
             <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
+        dry_run (bool): whether to run the job in dry run mode. Defaults to False.
+        metadata (dict | None): optional metadata to attach to the job. Defaults to None.
     """
 
     name = "IonQ QPU PennyLane plugin"
@@ -669,10 +726,14 @@ class QPUDevice(IonQDevice):
         *,
         gateset="qis",
         shots=None,
+        job_name=None,
         backend="aria-1",
+        compilation=None,
         error_mitigation=None,
         sharpen=None,
         api_key=None,
+        dry_run=False,
+        metadata=None,
     ):
         target = "qpu"
         self.backend = backend
@@ -683,9 +744,13 @@ class QPUDevice(IonQDevice):
             target=target,
             gateset=gateset,
             shots=shots,
+            job_name=job_name,
             api_key=api_key,
+            compilation=compilation,
             error_mitigation=error_mitigation,
             sharpen=sharpen,
+            dry_run=dry_run,
+            metadata=metadata,
         )
 
     def generate_samples(self):

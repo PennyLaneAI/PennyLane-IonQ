@@ -9,6 +9,11 @@
 
 ### Breaking changes 💔
 
+* Update to [v0.4 IonQ API](https://docs.ionq.com/api-reference/v0.4/introduction). The job payload
+  now uses `backend` instead of `target`, `type` instead of `format`, and
+  `error_mitigation`/`compilation` are nested under `settings`.
+  [(#140)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/140)
+
 ### Deprecations 👋
 
 ### Documentation 📝
@@ -20,7 +25,9 @@
 This release contains contributions from (in alphabetical order):
 
 Andrija Paurevic,
-David Yonge-Mallo.
+David Yonge-Mallo,
+Radu Marginean,
+Spencer Churchill.
 
 ---
 # Release 0.44.0
@@ -48,7 +55,7 @@ Andrija Paurevic.
 # Release 0.43.0
 
 ### Improvements 🛠
- 
+
 * The Pennylane Evolution gate is now decomposed to IonQ pauliexp gates before being sent to IonQ API.
   [(#134)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/134)
   [(#155)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/155)
@@ -69,9 +76,9 @@ Andrija Paurevic.
 
 This release contains contributions from (in alphabetical order):
 
-Yushao Chen,
+Andrija Paurevic,
 Radu Marginean,
-Andrija Paurevic.
+Yushao Chen.
 
 ---
 # Release 0.42.0

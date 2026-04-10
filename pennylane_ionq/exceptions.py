@@ -39,7 +39,7 @@ class OperatorNotSupportedInEvolutionGateGenerator(Exception):
 
 
 class ComplexEvolutionCoefficientsNotSupported(Exception):
-    """Raised when a coeffcient in Evolution gate is complex."""
+    """Raised when a coefficient in Evolution gate is complex."""
 
     def __init__(self):
         self.message = "Complex coefficients in Evolution gates are not supported."

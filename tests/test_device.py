@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Tests that plugin devices are accessible and integrate with PennyLane"""
+
 import json
 import logging
 import numpy as np
@@ -139,8 +140,7 @@ class TestDeviceIntegration:
 
         dev = qml.device("ionq.simulator", wires=1, api_key="test")
 
-        @qml.set_shots(shots)
-        @qml.qnode(dev)
+        @qml.qnode(dev, shots=shots)
         def circuit():
             """Reference QNode"""
             qml.PauliX(wires=0)
@@ -150,9 +150,189 @@ class TestDeviceIntegration:
         circuit()
         assert json.loads(spy.call_args[1]["data"])["shots"] == shots
 
-    @pytest.mark.parametrize("error_mitigation", [None, {"debias": True}, {"debias": False}])
+    def test_dry_run_submit_job(self, monkeypatch, mocker):
+        """Test that dry_run is correctly specified when submitting a job to the API."""
+
+        monkeypatch.setattr(
+            requests, "post", lambda url, timeout, data, headers: (url, data, headers)
+        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
+        monkeypatch.setattr(Job, "is_complete", True)
+
+        def fake_response(self, resource_id=None, params=None):
+            """Return fake response data"""
+            fake_json = {"0": 1}
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
+
+        monkeypatch.setattr(ResourceManager, "get", fake_response)
+
+        dev = qml.device("ionq.simulator", wires=1, dry_run=True, api_key="test")
+
+        @qml.qnode(dev, shots=1024)
+        def circuit():
+            """Reference QNode"""
+            qml.Identity(wires=0)
+            return qml.probs(wires=[0])
+
+        spy = mocker.spy(requests, "post")
+        circuit()
+
+        assert json.loads(spy.call_args[1]["data"])["dry_run"] is True
+
+    def test_dry_run_execute(self, requires_api):
+        """Send a job with dry_run option set to true to the API."""
+
+        dev = qml.device("ionq.simulator", wires=1, dry_run=True)
+
+        @qml.qnode(dev, shots=1024)
+        def circuit():
+            qml.Identity(wires=0)
+            return qml.probs(wires=[0])
+
+        res = circuit()
+        assert res == []
+
+    def test_noise_submit_job(self, monkeypatch, mocker):
+        """Test that noise is correctly specified when submitting a job to the API."""
+
+        monkeypatch.setattr(
+            requests, "post", lambda url, timeout, data, headers: (url, data, headers)
+        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
+        monkeypatch.setattr(Job, "is_complete", True)
+
+        def fake_response(self, resource_id=None, params=None):
+            """Return fake response data"""
+            fake_json = {"0": 1}
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
+
+        monkeypatch.setattr(ResourceManager, "get", fake_response)
+
+        dev = qml.device(
+            "ionq.simulator",
+            wires=1,
+            noise={"model": "ideal", "seed": 7},
+            api_key="test",
+        )
+
+        @qml.qnode(dev, shots=1024)
+        def circuit():
+            """Reference QNode"""
+            qml.Identity(wires=0)
+            return qml.probs(wires=[0])
+
+        spy = mocker.spy(requests, "post")
+        circuit()
+
+        assert json.loads(spy.call_args[1]["data"])["noise"] == {
+            "model": "ideal",
+            "seed": 7,
+        }
+
+    def test_metadata_submit_job(self, monkeypatch, mocker):
+        """Test that metadata is correctly specified when submitting a job to the API."""
+
+        monkeypatch.setattr(
+            requests, "post", lambda url, timeout, data, headers: (url, data, headers)
+        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
+        monkeypatch.setattr(Job, "is_complete", True)
+
+        def fake_response(self, resource_id=None, params=None):
+            """Return fake response data"""
+            fake_json = {"0": 1}
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
+
+        monkeypatch.setattr(ResourceManager, "get", fake_response)
+
+        dev = qml.device(
+            "ionq.simulator",
+            wires=1,
+            metadata={"key": "value"},
+            api_key="test",
+        )
+
+        @qml.qnode(dev, shots=1024)
+        def circuit():
+            """Reference QNode"""
+            qml.Identity(wires=0)
+            return qml.probs(wires=[0])
+
+        spy = mocker.spy(requests, "post")
+        circuit()
+
+        assert json.loads(spy.call_args[1]["data"])["metadata"] == {"key": "value"}
+
+    def test_job_name_submit_job(self, monkeypatch, mocker):
+        """Test that name is correctly specified when submitting a job to the API."""
+
+        monkeypatch.setattr(
+            requests, "post", lambda url, timeout, data, headers: (url, data, headers)
+        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
+        monkeypatch.setattr(Job, "is_complete", True)
+
+        def fake_response(self, resource_id=None, params=None):
+            """Return fake response data"""
+            fake_json = {"0": 1}
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
+
+        monkeypatch.setattr(ResourceManager, "get", fake_response)
+
+        dev = qml.device("ionq.simulator", wires=1, job_name="test_name", api_key="test")
+
+        @qml.qnode(dev, shots=1024)
+        def circuit():
+            """Reference QNode"""
+            qml.Identity(wires=0)
+            return qml.probs(wires=[0])
+
+        spy = mocker.spy(requests, "post")
+        circuit()
+
+        assert json.loads(spy.call_args[1]["data"])["name"] == "test_name"
+
+    @pytest.mark.parametrize("compilation", [None, {"opt": 0, "precision": "1E-3"}])
+    def test_compilation(self, compilation, monkeypatch, mocker):
+        """Test that compilation settings are properly handled when submitting a job to the API."""
+
+        monkeypatch.setattr(
+            requests, "post", lambda url, timeout, data, headers: (url, data, headers)
+        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
+        monkeypatch.setattr(Job, "is_complete", True)
+
+        def fake_response(self, resource_id=None, params=None):
+            """Return fake response data"""
+            fake_json = {"0": 1}
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
+
+        monkeypatch.setattr(ResourceManager, "get", fake_response)
+
+        dev = qml.device(
+            "ionq.qpu",
+            wires=1,
+            api_key="test",
+            compilation=compilation,
+        )
+
+        @qml.qnode(dev, shots=5000)
+        def circuit():
+            """Reference QNode"""
+            qml.PauliX(wires=0)
+            return qml.expval(qml.PauliZ(0))
+
+        spy = mocker.spy(requests, "post")
+        circuit()
+        if compilation is not None:
+            assert json.loads(spy.call_args[1]["data"])["settings"]["compilation"] == compilation
+        else:
+            with pytest.raises(KeyError, match="settings"):
+                json.loads(spy.call_args[1]["data"])["settings"]
+
+    @pytest.mark.parametrize("error_mitigation", [None, {"debiasing": True}, {"debiasing": False}])
     def test_error_mitigation(self, error_mitigation, monkeypatch, mocker):
-        """Test that shots are correctly specified when submitting a job to the API."""
+        """Test that error mitigation settings are properly handled when submitting a job to the API."""
 
         monkeypatch.setattr(
             requests, "post", lambda url, timeout, data, headers: (url, data, headers)
@@ -174,8 +354,7 @@ class TestDeviceIntegration:
             error_mitigation=error_mitigation,
         )
 
-        @qml.set_shots(5000)
-        @qml.qnode(dev)
+        @qml.qnode(dev, shots=5000)
         def circuit():
             """Reference QNode"""
             qml.PauliX(wires=0)
@@ -184,10 +363,13 @@ class TestDeviceIntegration:
         spy = mocker.spy(requests, "post")
         circuit()
         if error_mitigation is not None:
-            assert json.loads(spy.call_args[1]["data"])["error_mitigation"] == error_mitigation
+            assert (
+                json.loads(spy.call_args[1]["data"])["settings"]["error_mitigation"]
+                == error_mitigation
+            )
         else:
-            with pytest.raises(KeyError, match="error_mitigation"):
-                json.loads(spy.call_args[1]["data"])["error_mitigation"]
+            with pytest.raises(KeyError, match="settings"):
+                json.loads(spy.call_args[1]["data"])["settings"]
 
     @pytest.mark.parametrize("shots", [8192])
     def test_one_qubit_circuit(self, shots, requires_api, tol):
@@ -506,18 +688,17 @@ class TestJobAttribute:
 
         dev.apply(tape.operations)
 
-        assert dev.job["input"]["format"] == "ionq.circuit.v0"
+        assert dev.job["type"] == "ionq.circuit.v1"
         assert dev.job["input"]["gateset"] == "qis"
-        assert dev.job["target"] == "foo"
+        assert dev.job["backend"] == "foo"
         assert dev.job["input"]["qubits"] == 1
 
-        assert len(dev.job["input"]["circuits"][0]) == 1
-        assert dev.job["input"]["circuits"][0]["circuit"][0] == {
+        assert dev.job["input"]["circuit"][0] == {
             "gate": "x",
             "target": 0,
         }
 
-    def test_nonparametrized_tape_batch_submit(self, mocker):
+    def test_nonparametrized_tape_batch_submit_single_circuit(self, mocker):
         """Tests job attribute after single paulix tape, on batch submit."""
 
         def mock_submit_job(*args):
@@ -532,13 +713,43 @@ class TestJobAttribute:
         dev.reset(circuits_array_length=1)
         dev.batch_apply(tape.operations, circuit_index=0)
 
-        assert dev.job["input"]["format"] == "ionq.circuit.v0"
+        assert dev.job["type"] == "ionq.circuit.v1"
         assert dev.job["input"]["gateset"] == "qis"
-        assert dev.job["target"] == "foo"
+        assert dev.job["backend"] == "foo"
         assert dev.job["input"]["qubits"] == 1
 
-        assert len(dev.job["input"]["circuits"]) == 1
+        assert dev.job["input"]["circuit"][0] == {
+            "gate": "x",
+            "target": 0,
+        }
+
+    def test_nonparametrized_tape_batch_submit_multiple_circuits(self, mocker):
+        """Tests job attribute after single paulix tape, on batch submit."""
+
+        def mock_submit_job(*args):
+            pass
+
+        mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
+        dev = IonQDevice(wires=(0,), target="foo")
+
+        with qml.tape.QuantumTape() as tape:
+            qml.PauliX(0)
+
+        dev.reset(circuits_array_length=2)
+        dev.batch_apply(tape.operations, circuit_index=0)
+        dev.batch_apply(tape.operations, circuit_index=1)
+
+        assert dev.job["type"] == "ionq.multi-circuit.v1"
+        assert dev.job["input"]["gateset"] == "qis"
+        assert dev.job["backend"] == "foo"
+        assert dev.job["input"]["qubits"] == 1
+        assert len(dev.job["input"]["circuits"]) == 2
+
         assert dev.job["input"]["circuits"][0]["circuit"][0] == {
+            "gate": "x",
+            "target": 0,
+        }
+        assert dev.job["input"]["circuits"][1]["circuit"][0] == {
             "gate": "x",
             "target": 0,
         }
@@ -558,23 +769,23 @@ class TestJobAttribute:
 
         dev.apply(tape.operations)
 
-        assert dev.job["input"]["format"] == "ionq.circuit.v0"
+        assert dev.job["type"] == "ionq.circuit.v1"
         assert dev.job["input"]["gateset"] == "qis"
         assert dev.job["input"]["qubits"] == 1
 
-        assert len(dev.job["input"]["circuits"][0]["circuit"]) == 2
-        assert dev.job["input"]["circuits"][0]["circuit"][0] == {
+        assert len(dev.job["input"]["circuit"]) == 2
+        assert dev.job["input"]["circuit"][0] == {
             "gate": "rx",
             "target": 0,
             "rotation": 1.2345,
         }
-        assert dev.job["input"]["circuits"][0]["circuit"][1] == {
+        assert dev.job["input"]["circuit"][1] == {
             "gate": "ry",
             "target": 0,
             "rotation": 2.3456,
         }
 
-    def test_parameterized_op_batch_submit(self, mocker):
+    def test_parameterized_op_batch_submit_job_single_circuit(self, mocker):
         """Tests job attribute several parameterized operations."""
 
         def mock_submit_job(*args):
@@ -590,17 +801,60 @@ class TestJobAttribute:
         dev.reset(circuits_array_length=1)
         dev.batch_apply(tape.operations, circuit_index=0)
 
-        assert dev.job["input"]["format"] == "ionq.circuit.v0"
+        assert dev.job["type"] == "ionq.circuit.v1"
         assert dev.job["input"]["gateset"] == "qis"
         assert dev.job["input"]["qubits"] == 1
 
+        assert dev.job["input"]["circuit"][0] == {
+            "gate": "rx",
+            "target": 0,
+            "rotation": 1.2345,
+        }
+        assert dev.job["input"]["circuit"][1] == {
+            "gate": "ry",
+            "target": 0,
+            "rotation": 2.3456,
+        }
+
+    def test_parameterized_op_batch_submit_job_multi_circuit(self, mocker):
+        """Tests job attribute several parameterized operations."""
+
+        def mock_submit_job(*args):
+            pass
+
+        mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
+        dev = IonQDevice(wires=(0,))
+
+        with qml.tape.QuantumTape() as tape:
+            qml.RX(1.2345, wires=0)
+            qml.RY(qml.numpy.array(2.3456), wires=0)
+
+        dev.reset(circuits_array_length=2)
+        dev.batch_apply(tape.operations, circuit_index=0)
+        dev.batch_apply(tape.operations, circuit_index=1)
+
+        assert dev.job["type"] == "ionq.multi-circuit.v1"
+        assert dev.job["input"]["gateset"] == "qis"
+        assert dev.job["input"]["qubits"] == 1
         assert len(dev.job["input"]["circuits"][0]["circuit"]) == 2
+
         assert dev.job["input"]["circuits"][0]["circuit"][0] == {
             "gate": "rx",
             "target": 0,
             "rotation": 1.2345,
         }
         assert dev.job["input"]["circuits"][0]["circuit"][1] == {
+            "gate": "ry",
+            "target": 0,
+            "rotation": 2.3456,
+        }
+
+        assert dev.job["input"]["circuits"][1]["circuit"][0] == {
+            "gate": "rx",
+            "target": 0,
+            "rotation": 1.2345,
+        }
+        assert dev.job["input"]["circuits"][1]["circuit"][1] == {
             "gate": "ry",
             "target": 0,
             "rotation": 2.3456,
@@ -623,35 +877,73 @@ class TestJobAttribute:
 
         dev.apply(tape.operations)
 
-        assert dev.job["input"]["format"] == "ionq.circuit.v0"
+        assert dev.job["type"] == "ionq.circuit.v1"
         assert dev.job["input"]["gateset"] == "native"
         assert dev.job["input"]["qubits"] == 3
 
-        assert len(dev.job["input"]["circuits"][0]["circuit"]) == 4
-        assert dev.job["input"]["circuits"][0]["circuit"][0] == {
+        assert len(dev.job["input"]["circuit"]) == 4
+        assert dev.job["input"]["circuit"][0] == {
             "gate": "gpi",
             "target": 0,
             "phase": 0.1,
         }
-        assert dev.job["input"]["circuits"][0]["circuit"][1] == {
+        assert dev.job["input"]["circuit"][1] == {
             "gate": "gpi2",
             "target": 1,
             "phase": 0.2,
         }
-        assert dev.job["input"]["circuits"][0]["circuit"][2] == {
+        assert dev.job["input"]["circuit"][2] == {
             "gate": "ms",
             "targets": [1, 2],
             "phases": [0.2, 0.3],
             "angle": 0.25,
         }
-        assert dev.job["input"]["circuits"][0]["circuit"][3] == {
+        assert dev.job["input"]["circuit"][3] == {
             "gate": "ms",
             "targets": [1, 2],
             "phases": [0.4, 0.5],
             "angle": 0.1,
         }
 
-    def test_parameterized_native_op_batch_submit(self, mocker):
+    def test_parameterized_native_op_batch_submit_job_single_circuit(self, mocker):
+        """Tests job attribute for several parameterized native operations with batch_execute."""
+
+        class StopExecute(Exception):
+            pass
+
+        def mock_submit_job(*args):
+            raise StopExecute()
+
+        mocker.patch("pennylane_ionq.device.SimulatorDevice._submit_job", mock_submit_job)
+        dev = SimulatorDevice(wires=(0,), gateset="native")
+
+        with qml.tape.QuantumTape(shots=1024) as tape:
+            GPI(0.7, wires=[0])
+            GPI2(0.8, wires=[0])
+            qml.expval(qml.PauliZ(0))
+
+        try:
+            dev.batch_execute([tape])
+        except StopExecute:
+            pass
+
+        assert dev.job["type"] == "ionq.circuit.v1"
+        assert dev.job["input"]["gateset"] == "native"
+        assert dev.job["backend"] == "simulator"
+        assert dev.job["input"]["qubits"] == 1
+
+        assert dev.job["input"]["circuit"][0] == {
+            "gate": "gpi",
+            "target": 0,
+            "phase": 0.7,
+        }
+        assert dev.job["input"]["circuit"][1] == {
+            "gate": "gpi2",
+            "target": 0,
+            "phase": 0.8,
+        }
+
+    def test_parameterized_native_op_batch_submit_job_multi_circuit(self, mocker):
         """Tests job attribute for several parameterized native operations with batch_execute."""
 
         class StopExecute(Exception):
@@ -676,9 +968,9 @@ class TestJobAttribute:
         except StopExecute:
             pass
 
-        assert dev.job["input"]["format"] == "ionq.circuit.v0"
+        assert dev.job["type"] == "ionq.multi-circuit.v1"
         assert dev.job["input"]["gateset"] == "native"
-        assert dev.job["target"] == "simulator"
+        assert dev.job["backend"] == "simulator"
         assert dev.job["input"]["qubits"] == 1
         assert len(dev.job["input"]["circuits"]) == 2
         assert dev.job["input"]["circuits"][0]["circuit"][0] == {
@@ -791,7 +1083,7 @@ class TestJobAttribute:
         op = gate_class(rotation, wires=[0, 1])
         dev._apply_operation(op, circuit_index=0)
 
-        gate = dev.input["circuits"][0]["circuit"][0]
+        gate = dev.input["circuit"][0]
         assert gate["gate"] == expected_ionq_gate
         assert gate["targets"] == [0, 1]
         assert "control" not in gate
