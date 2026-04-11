@@ -376,6 +376,7 @@ class TestDeviceIntegration:
         "noise_model,noise_seed",
         [
             (None, None),
+            ("ideal", None),
             ("aria-1", None),
             ("harmony", None),
             ("forte-1", 42),
@@ -435,28 +436,25 @@ class TestDeviceIntegration:
         """Test that an invalid noise seed raises ValueError."""
         with pytest.raises(ValueError, match="noise_seed must be an integer"):
             qml.device(
-                "ionq.simulator",
-                wires=1,
-                api_key="test",
-                noise_model="aria-1",
-                noise_seed=0,
+                "ionq.simulator", wires=1, api_key="test", noise_model="aria-1", noise_seed=0
             )
         with pytest.raises(ValueError, match="noise_seed must be an integer"):
             qml.device(
-                "ionq.simulator",
-                wires=1,
-                api_key="test",
-                noise_model="aria-1",
-                noise_seed=-1,
+                "ionq.simulator", wires=1, api_key="test", noise_model="aria-1", noise_seed=-1
             )
         with pytest.raises(ValueError, match="noise_seed must be an integer"):
             qml.device(
-                "ionq.simulator",
-                wires=1,
-                api_key="test",
-                noise_model="aria-1",
-                noise_seed=2**31 + 1,
+                "ionq.simulator", wires=1, api_key="test", noise_model="aria-1", noise_seed=2**31
             )
+        with pytest.raises(ValueError, match="noise_seed must be an integer"):
+            qml.device(
+                "ionq.simulator", wires=1, api_key="test", noise_model="aria-1", noise_seed=True
+            )
+
+    def test_noise_seed_without_model(self):
+        """Test that noise_seed without noise_model raises ValueError."""
+        with pytest.raises(ValueError, match="noise_seed requires noise_model"):
+            qml.device("ionq.simulator", wires=1, api_key="test", noise_seed=42)
 
     @pytest.mark.parametrize("shots", [8192])
     def test_one_qubit_circuit(self, shots, requires_api, tol):

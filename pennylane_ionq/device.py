@@ -128,7 +128,7 @@ class IonQDevice(QubitDevice):
             `IonQ Simulation with Noise Models <https://docs.ionq.com/guides/simulation-with-noise-models>`_
             for details.
         noise_seed (int): seed for the noise model random number generator, for reproducible noisy
-            simulation results. Must be between 1 and 2^31. Only used when ``noise_model`` is set.
+            simulation results. Must be an integer between 1 and 2^31 - 1. Only used when ``noise_model`` is set.
             Defaults to None (random seed).
         dry_run (bool): If True, the job will be submitted by the API client but not processed remotely.
             Useful for obtaining cost estimates. Defaults to False.
@@ -185,10 +185,16 @@ class IonQDevice(QubitDevice):
                 f"Invalid noise model '{noise_model}'. Valid options are: "
                 f"{', '.join(sorted(self.NOISE_MODELS))}."
             )
+        if noise_seed is not None and noise_model is None:
+            raise ValueError("noise_seed requires noise_model to be set.")
         if noise_seed is not None:
-            if not isinstance(noise_seed, int) or noise_seed < 1 or noise_seed > 2**31:
+            if (
+                isinstance(noise_seed, bool)
+                or not isinstance(noise_seed, int)
+                or not 1 <= noise_seed <= 2**31 - 1
+            ):
                 raise ValueError(
-                    f"noise_seed must be an integer between 1 and 2^31, got {noise_seed}."
+                    f"noise_seed must be an integer between 1 and 2^31 - 1, got {noise_seed}."
                 )
 
         super().__init__(wires=wires, shots=shots)
@@ -680,7 +686,7 @@ class SimulatorDevice(IonQDevice):
             `IonQ Simulation with Noise Models <https://docs.ionq.com/guides/simulation-with-noise-models>`_
             for details.
         noise_seed (int): seed for the noise model random number generator, for reproducible noisy
-            simulation results. Must be between 1 and 2^31. Only used when ``noise_model`` is set.
+            simulation results. Must be an integer between 1 and 2^31 - 1. Only used when ``noise_model`` is set.
             Defaults to None (random seed).
         metadata (dict | None): optional metadata to attach to the job. Defaults to None.
     """
