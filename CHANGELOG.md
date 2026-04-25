@@ -30,8 +30,6 @@ Andrija Paurevic,
 Alex Preciado,
 David Yonge-Mallo.
 
-
-
 ---
 # Release 0.44.0
 
