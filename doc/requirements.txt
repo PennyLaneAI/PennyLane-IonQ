@@ -1,10 +1,11 @@
+# Documentation Engine
 sphinx==8.1
-sphinx-automodapi==0.19
-sphinxcontrib-applehelp==2.0.0
-sphinxcontrib-devhelp==2.0.0
-sphinxcontrib-htmlhelp==2.0.6
-sphinxcontrib-jsmath==1.0.1
-sphinxcontrib-qthelp==2.0.0
-sphinxcontrib-serializinghtml==2.0.0
-pennylane-sphinx-theme  # do not pin this
+
+# Sphinx Extensions
+sphinx-automodapi==0.22.0
+
+# PennyLane Sphinx theme (do not pin this)
+pennylane-sphinx-theme
+
+# Core dependency (latest PennyLane development version)
 git+https://github.com/PennyLaneAI/pennylane.git@main
