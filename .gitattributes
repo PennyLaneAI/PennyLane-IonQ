@@ -6,6 +6,7 @@
 # Ensure code and config are always treated as text and use LF
 *.py    text eol=lf
 *.yml   text eol=lf
+*.yaml  text eol=lf
 *.txt   text eol=lf
 *.md    text eol=lf
 *.rst   text eol=lf
@@ -28,4 +29,4 @@
 # For large auto-generated files or specific folders we want 
 # to hide from the language statistics or diffs:
 tests/* linguist-vendored
-docs/_static/* linguist-generated
+doc/_static/* linguist-generated
