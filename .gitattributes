@@ -1,0 +1,31 @@
+# Universal Line Ending Normalization
+# Handle everything as text and use LF on check-in
+* text=auto eol=lf
+
+# Explicit Text Formats
+# Ensure code and config are always treated as text and use LF
+*.py    text eol=lf
+*.yml   text eol=lf
+*.txt   text eol=lf
+*.md    text eol=lf
+*.rst   text eol=lf
+*.toml  text eol=lf
+*.json  text eol=lf
+
+# Protect Binary Files
+# Prevent Git from trying to "fix" line endings in non-text files,
+# which can corrupt them.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.pdf   binary
+*.whl   binary
+*.zip   binary
+
+# GitHub UI (Linguist) Overrides
+# For large auto-generated files or specific folders we want 
+# to hide from the language statistics or diffs:
+tests/* linguist-vendored
+docs/_static/* linguist-generated
