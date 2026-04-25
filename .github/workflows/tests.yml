@@ -38,7 +38,7 @@ jobs:
           uv pip install --system --pre --upgrade pennylane-lightning
 
           # Install test tools defined in setup.py [test] extras
-          uv pip install --system -e ".[test]"
+          uv pip install --system -e ".[dev]"
 
       - name: Build and Install Plugin Wheel
         run: |
@@ -81,7 +81,7 @@ jobs:
           uv pip install --system --pre --upgrade pennylane-lightning
 
           # Install test tools defined in setup.py [test] extras
-          uv pip install --system -e ".[test]"
+          uv pip install --system -e ".[dev]"
 
       - name: Build and Install Plugin Wheel
         run: |
