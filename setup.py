@@ -24,7 +24,13 @@ with open("pennylane_ionq/_version.py") as f:
 requirements = ["pennylane>=0.44", "numpy", "python-dateutil", "requests"]
 
 extras_require = {
-    "dev" : ["pytest", "pytest-cov", "pytest-mock","flaky",]
+    "dev" : [
+        "flaky",
+        "pytest",
+        "pytest-benchmark",
+        "pytest-cov",
+        "pytest-mock",
+    ],
 }
 
 info = {
