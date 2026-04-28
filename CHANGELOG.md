@@ -2,6 +2,11 @@
 
 ### New features since last release
 
+* Added configurable timeout, retry logic with exponential backoff, and retriable
+  HTTP status codes for IonQ API requests. Devices now accept `timeout`, `max_retries`,
+  and `retry_delay` keyword arguments.
+  [(#103)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/103)
+
 ### Improvements 🛠
 
 * Support for PennyLane's `IsingXX`, `IsingYY` and `IsingZZ` gates has been added.

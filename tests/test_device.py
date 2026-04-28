@@ -35,6 +35,19 @@ from unittest import mock
 FAKE_API_KEY = "ABC123"
 
 
+class MockPOSTResponse:
+    """Mock POST response for tests that need a response object with status_code."""
+
+    def __init__(self, status_code=201, url=None, data=None, headers=None):
+        self.status_code = status_code
+        self.url = url
+        self.data = data
+        self.headers = headers
+
+    def json(self):
+        return {}
+
+
 class TestDevice:
     """Tests for the IonQDevice class."""
 
@@ -111,7 +124,8 @@ class TestDeviceIntegration:
 
     def test_failedcircuit(self, monkeypatch):
         monkeypatch.setattr(
-            requests, "post", lambda url, timeout, data, headers: (url, data, headers)
+            requests, "post",
+            lambda url, timeout, data, headers: MockPOSTResponse(201, url, data, headers)
         )
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", False)
@@ -126,7 +140,8 @@ class TestDeviceIntegration:
         """Test that shots are correctly specified when submitting a job to the API."""
 
         monkeypatch.setattr(
-            requests, "post", lambda url, timeout, data, headers: (url, data, headers)
+            requests, "post",
+            lambda url, timeout, data, headers: MockPOSTResponse(201, url, data, headers)
         )
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
@@ -335,7 +350,8 @@ class TestDeviceIntegration:
         """Test that error mitigation settings are properly handled when submitting a job to the API."""
 
         monkeypatch.setattr(
-            requests, "post", lambda url, timeout, data, headers: (url, data, headers)
+            requests, "post",
+            lambda url, timeout, data, headers: MockPOSTResponse(201, url, data, headers)
         )
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
