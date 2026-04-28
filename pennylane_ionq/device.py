@@ -128,7 +128,7 @@ class IonQDevice(QubitDevice):
             `IonQ Simulation with Noise Models <https://docs.ionq.com/guides/simulation-with-noise-models>`_
             for details.
         noise_seed (int): seed for the noise model random number generator, for reproducible noisy
-            simulation results. Must be an integer between 1 and 2^31 - 1. Only used when ``noise_model`` is set.
+            simulation results. Must be an integer between 1 and 2\ :sup:`31` - 1. Only used when ``noise_model`` is set.
             Defaults to None (random seed).
         dry_run (bool): If True, the job will be submitted by the API client but not processed remotely.
             Useful for obtaining cost estimates. Defaults to False.
@@ -686,7 +686,7 @@ class SimulatorDevice(IonQDevice):
             `IonQ Simulation with Noise Models <https://docs.ionq.com/guides/simulation-with-noise-models>`_
             for details.
         noise_seed (int): seed for the noise model random number generator, for reproducible noisy
-            simulation results. Must be an integer between 1 and 2^31 - 1. Only used when ``noise_model`` is set.
+            simulation results. Must be an integer between 1 and 2\ :sup:`31` - 1. Only used when ``noise_model`` is set.
             Defaults to None (random seed).
         metadata (dict | None): optional metadata to attach to the job. Defaults to None.
     """
