@@ -129,7 +129,8 @@ class APIClient:  # pylint: disable=too-many-instance-attributes
         timeout (float): Request timeout in seconds (default: 600, i.e., 10 minutes).
             A value of 0 means no timeout.
         max_retries (int): Maximum number of retries for retriable HTTP errors (default: 3)
-        retry_delay (float): Base delay in seconds between retries (default: 0.5)
+        retry_delay (float): Base delay in seconds between retries. Every subsequent k-th retry
+            will be delayed by ``retry_delay * (2 ** k)`` (default: 0.5)
     """
 
     USER_AGENT = "pennylane-ionq-api-client/0.4"
