@@ -122,9 +122,11 @@ class IonQDevice(QubitDevice):
             (no value passed at job retrieval). Will generally return more accurate results if your expected output
             distribution has peaks. See `IonQ Debiasing and Sharpening
             <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
-        noise (dict | None): {"model": str, "seed": int or None}. Defaults to None.
         dry_run (bool): If True, the job will be submitted by the API client but not processed remotely.
             Useful for obtaining cost estimates. Defaults to False.
+        memory (bool): whether to return individual shot results or just the probability distribution.
+            Defaults to True (return individual shot results).
+        noise (dict | None): {"model": str, "seed": int or None}. Defaults to None.
         metadata (dict | None): optional metadata to attach to the job. Defaults to None.
         timeout (float): Request timeout in seconds. Defaults to None, which uses the
             ``APIClient`` default.
@@ -165,6 +167,7 @@ class IonQDevice(QubitDevice):
         error_mitigation=None,
         sharpen=None,
         dry_run=False,
+        memory=True,
         noise=None,
         metadata=None,
         timeout=None,
@@ -182,10 +185,12 @@ class IonQDevice(QubitDevice):
         self.error_mitigation = error_mitigation
         self.sharpen = sharpen
         self.dry_run = dry_run
+        self.memory = memory
         self.noise = noise
         self.metadata = metadata
         self._operation_map = _GATESET_OPS[gateset]
         self.histograms = []
+        self.shotwise_results = None
         self._samples = None
 
         # API client configuration.
@@ -207,6 +212,7 @@ class IonQDevice(QubitDevice):
         self._current_circuit_index = None
         self._samples = None
         self.histograms = []
+        self.shotwise_results = None
         self.input = {
             "qubits": self.num_wires,
             "gateset": self.gateset,
@@ -584,7 +590,9 @@ class IonQDevice(QubitDevice):
             if job.is_failed:
                 raise JobExecutionError("Job failed")
 
-        params = {} if self.sharpen is None else {"sharpen": self.sharpen}
+        params = {"retrieve_shots": self.memory}
+        if self.sharpen is not None:
+            params["sharpen"] = self.sharpen
 
         job.manager.get(resource_id=job.id.value, params=params)
 
@@ -593,11 +601,16 @@ class IonQDevice(QubitDevice):
         # state (as a base-10 integer string) to the probability
         # as a floating point value between 0 and 1.
         # e.g., {"0": 0.413, "9": 0.111, "17": 0.476}
-        some_inner_value = next(iter(job.data.value.values()))
+        # TODO: must review this again, also update comment above
+        some_inner_value = next(iter(job.data.value["probabilities"].values()))
         if isinstance(some_inner_value, dict):
-            self.histograms = list(job.data.value.values())
+            self.histograms = list(job.data.value["probabilities"].values())
+            if "shots" in job.data.value:
+                self.shotwise_results = list(job.data.value["shots"].values())
         else:
-            self.histograms = [job.data.value]
+            self.histograms = [job.data.value["probabilities"]]
+            if "shots" in job.data.value:
+                self.shotwise_results = [job.data.value["shots"]]
 
     @property
     def prob(self):
@@ -661,6 +674,8 @@ class SimulatorDevice(IonQDevice):
             Defaults to None.
         api_key (str): The IonQ API key. If not provided, the environment
             variable ``IONQ_API_KEY`` is used.
+        memory (bool): whether to return individual shot results or just the probability distribution.
+            Defaults to True however shotwise results will not be returned for ideal simulations.
         noise (dict | None): {"model": str, "seed": int or None}. Defaults to None.
         metadata (dict | None): optional metadata to attach to the job. Defaults to None.
         timeout (float): Request timeout in seconds. Defaults to None, which uses the
@@ -684,6 +699,7 @@ class SimulatorDevice(IonQDevice):
         compilation=None,
         api_key=None,
         dry_run=False,
+        memory=True,
         noise=None,
         metadata=None,
         timeout=None,
@@ -699,6 +715,7 @@ class SimulatorDevice(IonQDevice):
             api_key=api_key,
             compilation=compilation,
             dry_run=dry_run,
+            memory=memory,
             noise=noise,
             metadata=metadata,
             timeout=timeout,
@@ -744,6 +761,8 @@ class QPUDevice(IonQDevice):
             your expected output distribution has peaks. See `IonQ Debiasing and Sharpening
             <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
         dry_run (bool): whether to run the job in dry run mode. Defaults to False.
+        memory (bool): whether to return individual shot results or just the probability distribution.
+            Defaults to True (return individual shot results).
         metadata (dict | None): optional metadata to attach to the job. Defaults to None.
         timeout (float): Request timeout in seconds. Defaults to None, which uses the
             ``APIClient`` default.
@@ -770,6 +789,7 @@ class QPUDevice(IonQDevice):
         sharpen=None,
         api_key=None,
         dry_run=False,
+        memory=True,
         metadata=None,
         timeout=None,
         max_retries=None,
@@ -790,6 +810,7 @@ class QPUDevice(IonQDevice):
             error_mitigation=error_mitigation,
             sharpen=sharpen,
             dry_run=dry_run,
+            memory=memory,
             metadata=metadata,
             timeout=timeout,
             max_retries=max_retries,
