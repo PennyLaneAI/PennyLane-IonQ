@@ -59,10 +59,25 @@ import urllib
 import json
 import warnings
 import os
+import time
 
 import dateutil.parser
 
 import requests
+
+# HTTP status codes that are retriable, based on qiskit-ionq implementation.
+# Includes Cloudflare-specific codes since IonQ uses Cloudflare.
+RETRIABLE_STATUS_CODES = (
+    429,  # Too Many Requests
+    500,  # Internal Server Error
+    502,  # Bad Gateway
+    503,  # Service Unavailable
+    504,  # Gateway Timeout
+    *range(520, 530),  # Cloudflare-specific errors
+)
+
+# 409 Conflict is retriable only for GET requests (Cloudflare DNS resolution errors).
+RETRIABLE_FOR_GET = (409,)
 
 
 def join_path(base_path, path):
@@ -105,17 +120,23 @@ class JobExecutionError(Exception):
     """
 
 
-class APIClient:
+class APIClient:  # pylint: disable=too-many-instance-attributes
     """
     Allows the user to connect to the IonQ Platform API.
 
     Keyword Args:
         api_key (str): IonQ cloud platform API key
+        timeout (float): Request timeout in seconds (default: 600, i.e., 10 minutes).
+            A value of 0 means no timeout.
+        max_retries (int): Maximum number of retries for retriable HTTP errors (default: 3)
+        retry_delay (float): Base delay in seconds between retries. Every subsequent k-th retry
+            will be delayed by ``retry_delay * (2 ** k)`` (default: 0.5)
     """
 
     USER_AGENT = "pennylane-ionq-api-client/0.4"
     HOSTNAME = "api.ionq.co/v0.4"
     BASE_URL = f"https://{HOSTNAME}"
+    DEFAULT_TIMEOUT = 600
 
     def __init__(self, **kwargs):
         self.AUTHENTICATION_TOKEN = (
@@ -134,8 +155,21 @@ class APIClient:
 
         self.HEADERS = {"User-Agent": self.USER_AGENT}
 
-        # Ten minute timeout on requests.
-        self.TIMEOUT_SECONDS = 60 * 10
+        # Configurable timeout on requests.
+        timeout = kwargs.get("timeout")
+        if timeout is not None and timeout < 0:
+            raise ValueError(f"timeout must be non-negative, got {timeout}")
+        self.TIMEOUT_SECONDS = self.DEFAULT_TIMEOUT if timeout is None else timeout
+
+        # Retry configuration.
+        max_retries = kwargs.get("max_retries")
+        retry_delay = kwargs.get("retry_delay")
+        if max_retries is not None and max_retries < 0:
+            raise ValueError(f"max_retries must be non-negative, got {max_retries}")
+        if retry_delay is not None and retry_delay < 0:
+            raise ValueError(f"retry_delay must be non-negative, got {retry_delay}")
+        self.max_retries = 3 if max_retries is None else max_retries
+        self.retry_delay = 0.5 if retry_delay is None else retry_delay
 
         if self.AUTHENTICATION_TOKEN:
             self.set_authorization_header(self.AUTHENTICATION_TOKEN)
@@ -174,6 +208,10 @@ class APIClient:
         parameters to ``self.errors`` if the request is not successful, and the response to
         ``self.responses`` if a response is returned from the server.
 
+        Implements retry logic with exponential backoff. Status code retries
+        apply only to GET requests (see ``RETRIABLE_STATUS_CODES`` and
+        ``RETRIABLE_FOR_GET``). Connection error retries apply to all methods.
+
         Args:
             method: one of ``requests.get`` or ``requests.post``
             **params: the parameters to pass on to the method (e.g. ``url``, ``data``, etc.)
@@ -187,19 +225,52 @@ class APIClient:
 
         params["headers"] = self.HEADERS
 
-        params["timeout"] = self.TIMEOUT_SECONDS
+        # A timeout of 0 means no timeout; requests expects None for this.
+        params["timeout"] = self.TIMEOUT_SECONDS or None
 
-        try:
-            response = method(**params)
-        except Exception as e:
-            if self.DEBUG:
-                self.errors.append((method, params, e))
-            raise
+        for attempt in range(self.max_retries + 1):
+            try:
+                response = method(**params)
 
-        if self.DEBUG:
-            self.responses.append(response)
+                # Only retry on status codes for GET requests; POST is not
+                # idempotent, so retrying could create duplicate jobs.
+                is_retriable = method == requests.get and (
+                    response.status_code in RETRIABLE_STATUS_CODES + RETRIABLE_FOR_GET
+                )
 
-        return response
+                if is_retriable and attempt < self.max_retries:
+                    # Exponential backoff.
+                    delay = self.retry_delay * (2**attempt)
+                    if self.DEBUG:
+                        self.errors.append(
+                            (
+                                method,
+                                params,
+                                f"Retriable status {response.status_code}, retrying in {delay}s",
+                            )
+                        )
+                    time.sleep(delay)
+                    continue
+
+                if self.DEBUG:
+                    self.responses.append(response)
+
+                return response
+
+            except Exception as e:
+                if self.DEBUG:
+                    self.errors.append((method, params, e))
+
+                # Retry only on requests-related exceptions.
+                if (
+                    isinstance(e, requests.exceptions.RequestException)
+                    and attempt < self.max_retries
+                ):
+                    # Exponential backoff for connection errors.
+                    delay = self.retry_delay * (2**attempt)
+                    time.sleep(delay)
+                    continue
+                raise
 
     def get(self, path, params=None):
         """
@@ -238,15 +309,21 @@ class ResourceManager:
     http_response_status_code = None
     errors = None
 
-    def __init__(self, resource, client=None, api_key=None):
+    def __init__(self, resource, client=None, api_key=None, **kwargs):
         """
         Initialize the manager with resource and client instances. A client
         instance is used as a persistent HTTP communications object, and a
         resource instance corresponds to a particular type of resource (e.g.,
         Job)
+
+        Args:
+            resource: The resource instance to manage.
+            client: An optional APIClient instance.
+            api_key: API key for authentication.
+            **kwargs: Additional arguments passed to APIClient (timeout, max_retries, retry_delay).
         """
         self.resource = resource
-        self.client = client or APIClient(api_key=api_key)
+        self.client = client or APIClient(api_key=api_key, **kwargs)
         self.errors = []
 
     def join_path(self, path):
@@ -302,12 +379,16 @@ class ResourceManager:
             response (requests.Response): a response object to be parsed
         """
         if hasattr(response, "status_code"):
-            self.http_response_data = response.json()
             self.http_response_status_code = response.status_code
 
             if response.status_code in (200, 201):
+                self.http_response_data = response.json()
                 self.handle_success_response(response, params=params)
             else:
+                try:
+                    self.http_response_data = response.json()
+                except (json.JSONDecodeError, ValueError):
+                    self.http_response_data = None
                 self.handle_error_response(response)
         else:
             self.handle_no_response()
@@ -335,7 +416,11 @@ class ResourceManager:
             response (requests.Response): a response object to be parsed
         """
 
-        error = {"status_code": response.status_code, "content": response.json()}
+        try:
+            content = response.json()
+        except (json.JSONDecodeError, ValueError):
+            content = response.text
+        error = {"status_code": response.status_code, "content": content}
         self.errors.append(error)
         try:
             response.raise_for_status()
@@ -373,14 +458,16 @@ class Resource:
     PATH = ""
     fields = ()
 
-    def __init__(self, client=None, api_key=None):
+    def __init__(self, client=None, api_key=None, **kwargs):
         """
         Initialize the Resource by populating attributes based on fields and setting a manager.
 
         Args:
             client (APIClient): An APIClient instance to use as a client.
+            api_key: API key for authentication.
+            **kwargs: Additional arguments passed to APIClient (timeout, max_retries, retry_delay).
         """
-        self.manager = ResourceManager(self, client=client, api_key=api_key)
+        self.manager = ResourceManager(self, client=client, api_key=api_key, **kwargs)
         for field in self.fields:
             setattr(self, field.name, field)
 
@@ -453,9 +540,14 @@ class Job(Resource):
     SUPPORTED_METHODS = ("GET", "POST")
     PATH = "jobs"
 
-    def __init__(self, client=None, api_key=None):
+    def __init__(self, client=None, api_key=None, **kwargs):
         """
         Initialize the Job resource with a set of pre-defined fields.
+
+        Args:
+            client (APIClient): An APIClient instance to use as a client.
+            api_key: API key for authentication.
+            **kwargs: Additional arguments passed to APIClient (timeout, max_retries, retry_delay).
         """
         self.fields = (
             Field("id", str),
@@ -470,7 +562,7 @@ class Job(Resource):
         self.result = None
         self.circuit = None
 
-        super().__init__(client=client, api_key=api_key)
+        super().__init__(client=client, api_key=api_key, **kwargs)
 
     @property
     def is_complete(self):

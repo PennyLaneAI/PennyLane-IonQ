@@ -133,6 +133,12 @@ class IonQDevice(QubitDevice):
         dry_run (bool): If True, the job will be submitted by the API client but not processed remotely.
             Useful for obtaining cost estimates. Defaults to False.
         metadata (dict | None): optional metadata to attach to the job. Defaults to None.
+        timeout (float): Request timeout in seconds. Defaults to None, which uses the
+            ``APIClient`` default.
+        max_retries (int): Maximum number of retries for retriable HTTP errors. Defaults to
+            None, which uses the ``APIClient`` default.
+        retry_delay (float): Base delay in seconds between retries (uses exponential backoff).
+            Defaults to None, which uses the ``APIClient`` default.
     """
 
     # pylint: disable=too-many-instance-attributes
@@ -178,6 +184,9 @@ class IonQDevice(QubitDevice):
         noise_seed=None,
         dry_run=False,
         metadata=None,
+        timeout=None,
+        max_retries=None,
+        retry_delay=None,
     ):
 
         if noise_model is not None and noise_model not in self.NOISE_MODELS:
@@ -213,6 +222,12 @@ class IonQDevice(QubitDevice):
         self._operation_map = _GATESET_OPS[gateset]
         self.histograms = []
         self._samples = None
+
+        # API client configuration.
+        self.timeout = timeout
+        self.max_retries = max_retries
+        self.retry_delay = retry_delay
+
         self.reset()
 
     def batch_transform(self, circuit):
@@ -587,8 +602,12 @@ class IonQDevice(QubitDevice):
         return ionq_terms
 
     def _submit_job(self):
-
-        job = Job(api_key=self.api_key)
+        job = Job(
+            api_key=self.api_key,
+            timeout=self.timeout,
+            max_retries=self.max_retries,
+            retry_delay=self.retry_delay,
+        )
 
         # send job for execution
         job.manager.create(**self.job)
@@ -689,6 +708,12 @@ class SimulatorDevice(IonQDevice):
             simulation results. Must be an integer between 1 and 2\ :sup:`31` - 1. Only used when ``noise_model`` is set.
             Defaults to None (random seed).
         metadata (dict | None): optional metadata to attach to the job. Defaults to None.
+        timeout (float): Request timeout in seconds. Defaults to None, which uses the
+            ``APIClient`` default.
+        max_retries (int): Maximum number of retries for retriable HTTP errors. Defaults to
+            None, which uses the ``APIClient`` default.
+        retry_delay (float): Base delay in seconds between retries (uses exponential backoff).
+            Defaults to None, which uses the ``APIClient`` default.
     """
 
     name = "IonQ Simulator PennyLane plugin"
@@ -707,6 +732,9 @@ class SimulatorDevice(IonQDevice):
         noise_seed=None,
         dry_run=False,
         metadata=None,
+        timeout=None,
+        max_retries=None,
+        retry_delay=None,
     ):
         super().__init__(
             wires=wires,
@@ -720,6 +748,9 @@ class SimulatorDevice(IonQDevice):
             noise_seed=noise_seed,
             dry_run=dry_run,
             metadata=metadata,
+            timeout=timeout,
+            max_retries=max_retries,
+            retry_delay=retry_delay,
         )
 
     def generate_samples(self):
@@ -761,6 +792,12 @@ class QPUDevice(IonQDevice):
             <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
         dry_run (bool): whether to run the job in dry run mode. Defaults to False.
         metadata (dict | None): optional metadata to attach to the job. Defaults to None.
+        timeout (float): Request timeout in seconds. Defaults to None, which uses the
+            ``APIClient`` default.
+        max_retries (int): Maximum number of retries for retriable HTTP errors. Defaults to
+            None, which uses the ``APIClient`` default.
+        retry_delay (float): Base delay in seconds between retries (uses exponential backoff).
+            Defaults to None, which uses the ``APIClient`` default.
     """
 
     name = "IonQ QPU PennyLane plugin"
@@ -781,6 +818,9 @@ class QPUDevice(IonQDevice):
         api_key=None,
         dry_run=False,
         metadata=None,
+        timeout=None,
+        max_retries=None,
+        retry_delay=None,
     ):
         target = "qpu"
         self.backend = backend
@@ -798,6 +838,9 @@ class QPUDevice(IonQDevice):
             sharpen=sharpen,
             dry_run=dry_run,
             metadata=metadata,
+            timeout=timeout,
+            max_retries=max_retries,
+            retry_delay=retry_delay,
         )
 
     def generate_samples(self):
