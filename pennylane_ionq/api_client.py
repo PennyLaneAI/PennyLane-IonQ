@@ -437,13 +437,25 @@ class ResourceManager:
         """
         for field in self.resource.fields:
             field.set(data.get(field.name, None))
-
         results = data.get("results") or {}
+
+        response_data = {}
+
         probabilities = results.get("probabilities") or {}
         url = probabilities.get("url")
         if isinstance(url, str) and url:
             resp = self.client.get(self.join_path(url), params=params)
-            self.resource.fields[-1].set(resp.json())
+            response_data["probabilities"] = resp.json()
+
+        if params and "retrieve_shots" in params and params["retrieve_shots"]:
+            shots = results.get("shots") or {}
+            url = shots.get("url")
+            if isinstance(url, str) and url:
+                resp = self.client.get(self.join_path(url), params=params)
+                response_data["shots"] = resp.json()
+
+        if response_data:
+            self.resource.fields[-1].set(response_data)
 
         if hasattr(self.resource, "refresh_data"):
             self.resource.refresh_data()
