@@ -226,7 +226,8 @@ class TestDeviceIntegration:
         dev = qml.device(
             "ionq.simulator",
             wires=1,
-            noise={"model": "ideal", "seed": 7},
+            noise_model="ideal",
+            noise_seed=7,
             api_key="test",
         )
 
@@ -386,6 +387,90 @@ class TestDeviceIntegration:
         else:
             with pytest.raises(KeyError, match="settings"):
                 json.loads(spy.call_args[1]["data"])["settings"]
+
+    @pytest.mark.parametrize(
+        "noise_model,noise_seed",
+        [
+            (None, None),
+            ("ideal", None),
+            ("aria-1", None),
+            ("harmony", None),
+            ("forte-1", 42),
+            ("aria-2", 12345),
+        ],
+    )
+    def test_noise_model(self, noise_model, noise_seed, monkeypatch, mocker):
+        """Test that noise model parameters are correctly sent in the job payload."""
+
+        monkeypatch.setattr(
+            requests, "post", lambda url, timeout, data, headers: (url, data, headers)
+        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
+        monkeypatch.setattr(Job, "is_complete", True)
+
+        def fake_response(self, resource_id=None, params=None):
+            """Return fake response data"""
+            fake_json = {"0": 1}
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
+
+        monkeypatch.setattr(ResourceManager, "get", fake_response)
+
+        dev = qml.device(
+            "ionq.simulator",
+            wires=1,
+            api_key="test",
+            noise_model=noise_model,
+            noise_seed=noise_seed,
+        )
+
+        @qml.set_shots(5000)
+        @qml.qnode(dev)
+        def circuit():
+            """Reference QNode"""
+            qml.PauliX(wires=0)
+            return qml.expval(qml.PauliZ(0))
+
+        spy = mocker.spy(requests, "post")
+        circuit()
+        payload = json.loads(spy.call_args[1]["data"])
+
+        if noise_model is not None:
+            assert payload["noise"]["model"] == noise_model
+            if noise_seed is not None:
+                assert payload["noise"]["seed"] == noise_seed
+            else:
+                assert "seed" not in payload["noise"]
+        else:
+            assert "noise" not in payload
+
+    def test_noise_model_invalid(self):
+        """Test that an invalid noise model raises ValueError."""
+        with pytest.raises(ValueError, match="Invalid noise model"):
+            qml.device("ionq.simulator", wires=1, api_key="test", noise_model="invalid")
+
+    def test_noise_seed_invalid(self):
+        """Test that an invalid noise seed raises ValueError."""
+        with pytest.raises(ValueError, match="noise_seed must be an integer"):
+            qml.device(
+                "ionq.simulator", wires=1, api_key="test", noise_model="aria-1", noise_seed=0
+            )
+        with pytest.raises(ValueError, match="noise_seed must be an integer"):
+            qml.device(
+                "ionq.simulator", wires=1, api_key="test", noise_model="aria-1", noise_seed=-1
+            )
+        with pytest.raises(ValueError, match="noise_seed must be an integer"):
+            qml.device(
+                "ionq.simulator", wires=1, api_key="test", noise_model="aria-1", noise_seed=2**31
+            )
+        with pytest.raises(ValueError, match="noise_seed must be an integer"):
+            qml.device(
+                "ionq.simulator", wires=1, api_key="test", noise_model="aria-1", noise_seed=True
+            )
+
+    def test_noise_seed_without_model(self):
+        """Test that noise_seed without noise_model raises ValueError."""
+        with pytest.raises(ValueError, match="noise_seed requires noise_model"):
+            qml.device("ionq.simulator", wires=1, api_key="test", noise_seed=42)
 
     @pytest.mark.parametrize("shots", [8192])
     def test_one_qubit_circuit(self, shots, requires_api, tol):

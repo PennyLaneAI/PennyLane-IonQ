@@ -122,7 +122,14 @@ class IonQDevice(QubitDevice):
             (no value passed at job retrieval). Will generally return more accurate results if your expected output
             distribution has peaks. See `IonQ Debiasing and Sharpening
             <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
-        noise (dict | None): {"model": str, "seed": int or None}. Defaults to None.
+        noise_model (str): the noise model to use for simulation. Only applies when ``target="simulator"``.
+            Valid values are ``"ideal"``, ``"harmony"``, ``"aria-1"``, ``"aria-2"``, ``"forte-1"``,
+            and ``"forte-enterprise-1"``. Defaults to None (ideal simulation). See
+            `IonQ Simulation with Noise Models <https://docs.ionq.com/guides/simulation-with-noise-models>`_
+            for details.
+        noise_seed (int): seed for the noise model random number generator, for reproducible noisy
+            simulation results. Must be an integer between 1 and 2\ :sup:`31` - 1. Only used when ``noise_model`` is set.
+            Defaults to None (random seed).
         dry_run (bool): If True, the job will be submitted by the API client but not processed remotely.
             Useful for obtaining cost estimates. Defaults to False.
         metadata (dict | None): optional metadata to attach to the job. Defaults to None.
@@ -152,6 +159,15 @@ class IonQDevice(QubitDevice):
     observables = {"PauliX", "PauliY", "PauliZ", "Hadamard", "Identity", "Prod"}
 
     # pylint: disable=too-many-arguments
+    NOISE_MODELS = {
+        "ideal",
+        "harmony",
+        "aria-1",
+        "aria-2",
+        "forte-1",
+        "forte-enterprise-1",
+    }
+
     def __init__(
         self,
         wires,
@@ -164,13 +180,31 @@ class IonQDevice(QubitDevice):
         compilation=None,
         error_mitigation=None,
         sharpen=None,
+        noise_model=None,
+        noise_seed=None,
         dry_run=False,
-        noise=None,
         metadata=None,
         timeout=None,
         max_retries=None,
         retry_delay=None,
     ):
+
+        if noise_model is not None and noise_model not in self.NOISE_MODELS:
+            raise ValueError(
+                f"Invalid noise model '{noise_model}'. Valid options are: "
+                f"{', '.join(sorted(self.NOISE_MODELS))}."
+            )
+        if noise_seed is not None and noise_model is None:
+            raise ValueError("noise_seed requires noise_model to be set.")
+        if noise_seed is not None:
+            if (
+                isinstance(noise_seed, bool)
+                or not isinstance(noise_seed, int)
+                or not 1 <= noise_seed <= 2**31 - 1
+            ):
+                raise ValueError(
+                    f"noise_seed must be an integer between 1 and 2^31 - 1, got {noise_seed}."
+                )
 
         super().__init__(wires=wires, shots=shots)
         self._current_circuit_index = None
@@ -181,8 +215,9 @@ class IonQDevice(QubitDevice):
         self.compilation = compilation
         self.error_mitigation = error_mitigation
         self.sharpen = sharpen
+        self.noise_model = noise_model
+        self.noise_seed = noise_seed
         self.dry_run = dry_run
-        self.noise = noise
         self.metadata = metadata
         self._operation_map = _GATESET_OPS[gateset]
         self.histograms = []
@@ -226,8 +261,11 @@ class IonQDevice(QubitDevice):
             self.job["name"] = self.job_name
         if self.dry_run:
             self.job["dry_run"] = self.dry_run
-        if self.noise is not None:
-            self.job["noise"] = self.noise
+        if self.noise_model is not None:
+            noise = {"model": self.noise_model}
+            if self.noise_seed is not None:
+                noise["seed"] = self.noise_seed
+            self.job["noise"] = noise
         if self.metadata is not None:
             self.job["metadata"] = self.metadata
         if self.compilation is not None:
@@ -661,7 +699,14 @@ class SimulatorDevice(IonQDevice):
             Defaults to None.
         api_key (str): The IonQ API key. If not provided, the environment
             variable ``IONQ_API_KEY`` is used.
-        noise (dict | None): {"model": str, "seed": int or None}. Defaults to None.
+        noise_model (str): the noise model to use for simulation. Valid values are ``"ideal"``,
+            ``"harmony"``, ``"aria-1"``, ``"aria-2"``, ``"forte-1"``, and ``"forte-enterprise-1"``.
+            Defaults to None (ideal simulation). See
+            `IonQ Simulation with Noise Models <https://docs.ionq.com/guides/simulation-with-noise-models>`_
+            for details.
+        noise_seed (int): seed for the noise model random number generator, for reproducible noisy
+            simulation results. Must be an integer between 1 and 2\ :sup:`31` - 1. Only used when ``noise_model`` is set.
+            Defaults to None (random seed).
         metadata (dict | None): optional metadata to attach to the job. Defaults to None.
         timeout (float): Request timeout in seconds. Defaults to None, which uses the
             ``APIClient`` default.
@@ -683,8 +728,9 @@ class SimulatorDevice(IonQDevice):
         job_name=None,
         compilation=None,
         api_key=None,
+        noise_model=None,
+        noise_seed=None,
         dry_run=False,
-        noise=None,
         metadata=None,
         timeout=None,
         max_retries=None,
@@ -698,8 +744,9 @@ class SimulatorDevice(IonQDevice):
             job_name=job_name,
             api_key=api_key,
             compilation=compilation,
+            noise_model=noise_model,
+            noise_seed=noise_seed,
             dry_run=dry_run,
-            noise=noise,
             metadata=metadata,
             timeout=timeout,
             max_retries=max_retries,
