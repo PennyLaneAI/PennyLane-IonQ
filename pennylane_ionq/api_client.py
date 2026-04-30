@@ -448,11 +448,18 @@ class ResourceManager:
             response_data["probabilities"] = resp.json()
 
         if params and "retrieve_shots" in params and params["retrieve_shots"]:
-            shots = results.get("shots") or {}
-            url = shots.get("url")
-            if isinstance(url, str) and url:
-                resp = self.client.get(self.join_path(url), params=params)
-                response_data["shots"] = resp.json()
+            child_job_ids = data.get("child_job_ids")
+            if child_job_ids:
+                response_data["shots"] = {}
+                for job_id in child_job_ids:
+                    resp = self.client.get(self.join_path(f"{job_id}/results/shots"), params=params)
+                    response_data["shots"][job_id] = resp.json()
+            else:
+                shots = results.get("shots") or {}
+                url = shots.get("url")
+                if isinstance(url, str) and url:
+                    resp = self.client.get(self.join_path(url), params=params)
+                    response_data["shots"] = resp.json()
 
         if response_data:
             self.resource.fields[-1].set(response_data)

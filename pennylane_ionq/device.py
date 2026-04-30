@@ -590,9 +590,15 @@ class IonQDevice(QubitDevice):
             if job.is_failed:
                 raise JobExecutionError("Job failed")
 
-        params = {"retrieve_shots": self.memory}
+        params = {}
         if self.sharpen is not None:
             params["sharpen"] = self.sharpen
+        if self.memory is not None and (
+            self.target.startswith("qpu") or (self.target == "simulator" and self.noise is not None)
+        ):
+            params["retrieve_shots"] = self.memory
+        else:
+            params["retrieve_shots"] = False
 
         job.manager.get(resource_id=job.id.value, params=params)
 
@@ -601,16 +607,73 @@ class IonQDevice(QubitDevice):
         # state (as a base-10 integer string) to the probability
         # as a floating point value between 0 and 1.
         # e.g., {"0": 0.413, "9": 0.111, "17": 0.476}
-        # TODO: must review this again, also update comment above
+        #
+        # The returned shots data is of the form: [str], and
+        # represents a list of shots as base-10 integer strings.
+        # For a 5 shots job, the list will have 5 elements,
+        # and each element will be a string representation of the
+        # measurement result in computational basis state for that shot:
+        # e.g., ["0", "17", "2", "9", "17",]
         some_inner_value = next(iter(job.data.value["probabilities"].values()))
         if isinstance(some_inner_value, dict):
             self.histograms = list(job.data.value["probabilities"].values())
             if "shots" in job.data.value:
-                self.shotwise_results = list(job.data.value["shots"].values())
+                raw_shots = list(job.data.value["shots"].values())
+                # TODO
+                self.shotwise_results = self._build_memory(
+                    raw_shots, self.n_qubits, self.clbits, self.width
+                )
         else:
             self.histograms = [job.data.value["probabilities"]]
             if "shots" in job.data.value:
-                self.shotwise_results = [job.data.value["shots"]]
+                raw_shots = [job.data.value["shots"]]
+                # TODO
+                self.shotwise_results = self._build_memory(
+                    raw_shots, self.n_qubits, self.clbits, self.width
+                )
+
+        print(f"Job {job.id.value} completed with histograms: {self.histograms}")
+        print(f"Job {job.id.value} completed with shotwise results: {self.shotwise_results}")
+
+    # TODO: fix endianess note: IonQ uses little-endian ordering for qubits, but PennyLane uses big-endian ordering.
+    def _build_memory(
+        raw_shots: list[int | str],
+        n_qubits: int,
+        clbits: list[int] | None,
+        width: int | None = None,
+    ) -> list[str]:
+        """TODO: fix comments
+        Convert IonQ shot integers into Qiskit memory bitstrings, applying the same
+        classical-bit mapping (clbits) used for counts. Returns strings with MSB on
+        the left, matching Qiskit's display convention.
+
+        Args:
+            raw_shots: Iterable of per-shot outcomes from the API (ints or numeric strings).
+            n_qubits: Number of qubits used by the circuit (header n_qubits).
+            clbits: List mapping classical-bit index -> measured qubit index.
+                    If None, defaults to identity [0..n_qubits-1].
+            width: Number of memory bits to display (header memory_slots). If None,
+                uses len(clbits) if available, else n_qubits.
+
+        Returns:
+            list[str]: Remapped bitstrings (e.g., "110"), one per shot, MSB-left.
+        """
+        # Default mappings / widths
+        if not clbits:
+            clbits = list(range(n_qubits))
+        out_width = int(width) if width is not None else len(clbits) if clbits else n_qubits
+
+        def remap_one(val: int | str) -> str:
+            x = int(val)
+            # IonQ integer -> per-qubit bitstring with index == qubit id (LSB at index 0)
+            raw = bin(x)[2:].rjust(n_qubits, "0")[::-1]
+            # Select in classical-bit order, then reverse to MSB-left for display
+            mapped = "".join(
+                raw[b] if b is not None and 0 <= b < n_qubits else "0" for b in clbits
+            )[::-1]
+            return mapped.rjust(out_width, "0")
+
+        return [remap_one(s) for s in raw_shots]
 
     @property
     def prob(self):
