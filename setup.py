@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
-import os
 from setuptools import setup
 
 with open("pennylane_ionq/_version.py") as f:
@@ -25,11 +23,21 @@ with open("pennylane_ionq/_version.py") as f:
 # only where required.
 requirements = ["pennylane>=0.44", "numpy", "python-dateutil", "requests"]
 
+extras_require = {
+    "dev" : [
+        "flaky",
+        "pytest",
+        "pytest-benchmark",
+        "pytest-cov",
+        "pytest-mock",
+    ],
+}
+
 info = {
     # 'name' is the name that will be used by pip for installation
     "name": "PennyLane-IonQ",
     "version": version,
-    "maintainer": "Xanadu Inc.",
+    "maintainer": "Xanadu Quantum Technologies Inc.",
     "maintainer_email": "software@xanadu.ai",
     "url": "http://xanadu.ai",
     "license": "Apache License 2.0",
@@ -44,6 +52,7 @@ info = {
     "long_description": open("README.rst").read(),
     "provides": ["pennylane_ionq"],
     "install_requires": requirements,
+    "extras_require": extras_require,
 }
 
 classifiers = [
