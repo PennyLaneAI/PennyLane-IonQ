@@ -124,8 +124,9 @@ class TestDeviceIntegration:
 
     def test_failedcircuit(self, monkeypatch):
         monkeypatch.setattr(
-            requests, "post",
-            lambda url, timeout, data, headers: MockPOSTResponse(201, url, data, headers)
+            requests,
+            "post",
+            lambda url, timeout, data, headers: MockPOSTResponse(201, url, data, headers),
         )
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", False)
@@ -140,15 +141,16 @@ class TestDeviceIntegration:
         """Test that shots are correctly specified when submitting a job to the API."""
 
         monkeypatch.setattr(
-            requests, "post",
-            lambda url, timeout, data, headers: MockPOSTResponse(201, url, data, headers)
+            requests,
+            "post",
+            lambda url, timeout, data, headers: MockPOSTResponse(201, url, data, headers),
         )
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
         def fake_response(self, resource_id=None, params=None):
             """Return fake response data"""
-            fake_json = {"0": 1}
+            fake_json = {"probabilities": {"0": 1}}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
@@ -176,7 +178,7 @@ class TestDeviceIntegration:
 
         def fake_response(self, resource_id=None, params=None):
             """Return fake response data"""
-            fake_json = {"0": 1}
+            fake_json = {"probabilities": {"0": 1}}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
@@ -218,7 +220,7 @@ class TestDeviceIntegration:
 
         def fake_response(self, resource_id=None, params=None):
             """Return fake response data"""
-            fake_json = {"0": 1}
+            fake_json = {"probabilities": {"0": 1}}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
@@ -255,7 +257,7 @@ class TestDeviceIntegration:
 
         def fake_response(self, resource_id=None, params=None):
             """Return fake response data"""
-            fake_json = {"0": 1}
+            fake_json = {"probabilities": {"0": 1}}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
@@ -278,6 +280,52 @@ class TestDeviceIntegration:
 
         assert json.loads(spy.call_args[1]["data"])["metadata"] == {"key": "value"}
 
+    @pytest.mark.parametrize(
+        "device_name,device_kwargs,expected_shotwise",
+        [
+            ("ionq.simulator", {}, False),
+            (
+                "ionq.simulator",
+                {"noise": {"model": "depolarizing", "seed": 7}},
+                True,
+            ),
+            ("ionq.qpu", {}, True),
+        ],
+    )
+    def test_retrieve_shots_only_for_qpu_or_noisy_simulator(
+        self, monkeypatch, device_name, device_kwargs, expected_shotwise
+    ):
+        """Test shot retrieval is requested only for qpu or noisy simulator jobs."""
+
+        monkeypatch.setattr(
+            requests, "post", lambda url, timeout, data, headers: (url, data, headers)
+        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
+        monkeypatch.setattr(Job, "is_complete", True)
+
+        seen_params = []
+
+        def fake_response(self, resource_id=None, params=None):
+            """Return fake response data and capture request params."""
+            seen_params.append(params)
+            fake_json = {"probabilities": {"0": 1}}
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
+
+        monkeypatch.setattr(ResourceManager, "get", fake_response)
+
+        dev = qml.device(device_name, wires=1, api_key="test", **device_kwargs)
+
+        @qml.qnode(dev, shots=1024)
+        def circuit():
+            """Reference QNode"""
+            qml.Identity(wires=0)
+            return qml.probs(wires=[0])
+
+        circuit()
+
+        assert len(seen_params) == 1
+        assert seen_params[0] == {"shotwise": expected_shotwise}
+
     def test_job_name_submit_job(self, monkeypatch, mocker):
         """Test that name is correctly specified when submitting a job to the API."""
 
@@ -289,7 +337,7 @@ class TestDeviceIntegration:
 
         def fake_response(self, resource_id=None, params=None):
             """Return fake response data"""
-            fake_json = {"0": 1}
+            fake_json = {"probabilities": {"0": 1}}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
@@ -319,7 +367,7 @@ class TestDeviceIntegration:
 
         def fake_response(self, resource_id=None, params=None):
             """Return fake response data"""
-            fake_json = {"0": 1}
+            fake_json = {"probabilities": {"0": 1}}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
@@ -350,15 +398,16 @@ class TestDeviceIntegration:
         """Test that error mitigation settings are properly handled when submitting a job to the API."""
 
         monkeypatch.setattr(
-            requests, "post",
-            lambda url, timeout, data, headers: MockPOSTResponse(201, url, data, headers)
+            requests,
+            "post",
+            lambda url, timeout, data, headers: MockPOSTResponse(201, url, data, headers),
         )
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
         def fake_response(self, resource_id=None, params=None):
             """Return fake response data"""
-            fake_json = {"0": 1}
+            fake_json = {"probabilities": {"0": 1}}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)

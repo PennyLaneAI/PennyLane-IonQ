@@ -441,19 +441,32 @@ class ResourceManager:
 
         response_data = {}
 
+        retrieve_shots = True
+        if params:
+            if params.pop("shotwise", True) is False:
+                retrieve_shots = False
+
         probabilities = results.get("probabilities") or {}
         url = probabilities.get("url")
         if isinstance(url, str) and url:
             resp = self.client.get(self.join_path(url), params=params)
             response_data["probabilities"] = resp.json()
 
-        if params and "retrieve_shots" in params and params["retrieve_shots"]:
+        if retrieve_shots:
             child_job_ids = data.get("child_job_ids")
             if child_job_ids:
                 response_data["shots"] = {}
                 for job_id in child_job_ids:
-                    resp = self.client.get(self.join_path(f"{job_id}/results/shots"), params=params)
-                    response_data["shots"][job_id] = resp.json()
+                    response = self.client.get(self.join_path(str(job_id)), params=params)
+                    child_response_data = response.json()
+                    results = child_response_data.get("results") or {}
+                    if "shots" in results:
+                        shots = results.get("shots") or {}
+                        if "url" in shots:
+                            url = shots.get("url")
+                            if isinstance(url, str) and url:
+                                resp = self.client.get(self.join_path(url), params=params)
+                                response_data["shots"][job_id] = resp.json()
             else:
                 shots = results.get("shots") or {}
                 url = shots.get("url")

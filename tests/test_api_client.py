@@ -29,7 +29,7 @@ from pennylane_ionq.api_client import (
     MethodNotSupportedException,
 )
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 status_codes = requests.status_codes.codes
 
@@ -126,17 +126,13 @@ class TestAPIClient:
 
         authentication_token = MagicMock()
         client.set_authorization_header(authentication_token)
-        assert client.HEADERS["Authorization"] == "apiKey {}".format(
-            authentication_token
-        )
+        assert client.HEADERS["Authorization"] == "apiKey {}".format(authentication_token)
 
     def test_join_path(self, client):
         """
         Test that two paths can be joined and separated by a forward slash.
         """
-        assert client.join_path("jobs") == "{client.BASE_URL}/jobs".format(
-            client=client
-        )
+        assert client.join_path("jobs") == "{client.BASE_URL}/jobs".format(client=client)
 
 
 class TestResourceManager:
@@ -254,13 +250,9 @@ class TestResourceManager:
 
         manager = ResourceManager(mock_resource, mock_client)
 
-        monkeypatch.setattr(
-            manager, "handle_success_response", mock_handle_success_response
-        )
+        monkeypatch.setattr(manager, "handle_success_response", mock_handle_success_response)
 
-        monkeypatch.setattr(
-            manager, "handle_error_response", mock_handle_error_response
-        )
+        monkeypatch.setattr(manager, "handle_error_response", mock_handle_error_response)
 
         manager.handle_response(mock_response)
         assert manager.http_response_data == mock_response.json()
@@ -300,11 +292,14 @@ class TestResourceManager:
         Tests the ResourceManager.refresh_data method.
         """
         # start by setting up mocks
-        mock_response = MagicMock()
-        mock_response.json.return_value = {"some": "result"}
+        mock_probability_response = MagicMock()
+        mock_probability_response.json.return_value = {"some": "result"}
+
+        mock_shots_response = MagicMock()
+        mock_shots_response.json.return_value = ["0", "1"]
 
         mock_client = MagicMock()
-        mock_client.get.return_value = mock_response
+        mock_client.get.side_effect = [mock_probability_response, mock_shots_response]
 
         fields = [MagicMock(name=f"field_{i}") for i in range(5)]
         for i, field in enumerate(fields):
@@ -313,8 +308,12 @@ class TestResourceManager:
         # mock data has matching keys to fields
         mock_data = {f"key_{i}": f"value_{i}" for i in range(5)}
 
-        mock_url = "probability_url"
-        mock_data["results"] = {"probabilities": {"url": mock_url}}
+        mock_probability_url = "probability_url"
+        mock_shots_url = "shots_url"
+        mock_data["results"] = {
+            "probabilities": {"url": mock_probability_url},
+            "shots": {"url": mock_shots_url},
+        }
 
         mock_resource = MagicMock()
         mock_resource.refresh_data = MagicMock()
@@ -322,7 +321,7 @@ class TestResourceManager:
 
         # instantiate resource manager
         manager = ResourceManager(mock_resource, mock_client)
-        manager.join_path = MagicMock(return_value="joined_url")
+        manager.join_path = MagicMock(side_effect=lambda path: f"joined_{path}")
 
         # call the method under test
         manager.refresh_data(mock_data, params={"foo": "bar"})
@@ -333,15 +332,165 @@ class TestResourceManager:
                 # last field, expect two calls
                 assert field.set.call_count == 2
                 field.set.assert_any_call("value_4")
-                field.set.assert_any_call({"some": "result"})
+                field.set.assert_any_call(
+                    {
+                        "probabilities": {"some": "result"},
+                        "shots": ["0", "1"],
+                    }
+                )
             else:
                 field.set.assert_called_once_with(mock_data.get(field.name))
 
         # assert client.get was called correctly
-        manager.join_path.assert_called_once_with(mock_url)
-        mock_client.get.assert_called_once_with("joined_url", params={"foo": "bar"})
+        assert manager.join_path.call_args_list == [
+            call(mock_probability_url),
+            call(mock_shots_url),
+        ]
+        assert mock_client.get.call_args_list == [
+            call("joined_probability_url", params={"foo": "bar"}),
+            call("joined_shots_url", params={"foo": "bar"}),
+        ]
 
         # assert resource.refresh_data was called
+        mock_resource.refresh_data.assert_called_once()
+
+    def test_handle_refresh_data_skips_shots_when_shotwise_disabled(self):
+        """
+        Tests that shot retrieval is skipped when ``shotwise=False`` is requested.
+        """
+        mock_probability_response = MagicMock()
+        mock_probability_response.json.return_value = {"some": "result"}
+
+        mock_client = MagicMock()
+        mock_client.get.return_value = mock_probability_response
+
+        fields = [MagicMock(name=f"field_{i}") for i in range(2)]
+        for i, field in enumerate(fields):
+            field.name = f"key_{i}"
+
+        mock_data = {f"key_{i}": f"value_{i}" for i in range(2)}
+        mock_data["results"] = {
+            "probabilities": {"url": "probability_url"},
+            "shots": {"url": "shots_url"},
+        }
+
+        mock_resource = MagicMock()
+        mock_resource.refresh_data = MagicMock()
+        mock_resource.fields = fields
+
+        manager = ResourceManager(mock_resource, mock_client)
+        manager.join_path = MagicMock(side_effect=lambda path: f"joined_{path}")
+
+        manager.refresh_data(mock_data, params={"foo": "bar", "shotwise": False})
+
+        assert manager.join_path.call_args_list == [call("probability_url")]
+        assert call("shots_url") not in manager.join_path.call_args_list
+        mock_client.get.assert_called_once_with("joined_probability_url", params={"foo": "bar"})
+        fields[-1].set.assert_any_call({"probabilities": {"some": "result"}})
+        mock_resource.refresh_data.assert_called_once()
+
+    def test_handle_refresh_data_does_not_forward_shotwise_to_api_calls(self):
+        """
+        Tests that ``shotwise=True`` is consumed locally and not forwarded to API requests.
+        """
+        mock_probability_response = MagicMock()
+        mock_probability_response.json.return_value = {"some": "result"}
+
+        mock_shots_response = MagicMock()
+        mock_shots_response.json.return_value = ["0", "1"]
+
+        mock_client = MagicMock()
+        mock_client.get.side_effect = [mock_probability_response, mock_shots_response]
+
+        fields = [MagicMock(name=f"field_{i}") for i in range(2)]
+        for i, field in enumerate(fields):
+            field.name = f"key_{i}"
+
+        mock_data = {f"key_{i}": f"value_{i}" for i in range(2)}
+        mock_data["results"] = {
+            "probabilities": {"url": "probability_url"},
+            "shots": {"url": "shots_url"},
+        }
+
+        mock_resource = MagicMock()
+        mock_resource.refresh_data = MagicMock()
+        mock_resource.fields = fields
+
+        manager = ResourceManager(mock_resource, mock_client)
+        manager.join_path = MagicMock(side_effect=lambda path: f"joined_{path}")
+
+        request_params = {"foo": "bar", "shotwise": True}
+        manager.refresh_data(mock_data, params=request_params)
+
+        assert manager.join_path.call_args_list == [call("probability_url"), call("shots_url")]
+        assert mock_client.get.call_args_list == [
+            call("joined_probability_url", params={"foo": "bar"}),
+            call("joined_shots_url", params={"foo": "bar"}),
+        ]
+        assert request_params == {"foo": "bar"}
+        mock_resource.refresh_data.assert_called_once()
+
+    def test_handle_refresh_data_retrieves_child_job_shots(self):
+        """
+        Tests that shot data is retrieved from child jobs when ``child_job_ids`` are present.
+        """
+        mock_probability_response = MagicMock()
+        mock_probability_response.json.return_value = {"some": "result"}
+
+        mock_child_job_response = MagicMock()
+        mock_child_job_response.json.return_value = {
+            "results": {"shots": {"url": "shots_url_child_1"}}
+        }
+
+        mock_child_shots_response = MagicMock()
+        mock_child_shots_response.json.return_value = ["0", "1"]
+
+        mock_child_job_without_shots_response = MagicMock()
+        mock_child_job_without_shots_response.json.return_value = {"results": {}}
+
+        mock_client = MagicMock()
+        mock_client.get.side_effect = [
+            mock_probability_response,
+            mock_child_job_response,
+            mock_child_shots_response,
+            mock_child_job_without_shots_response,
+        ]
+
+        fields = [MagicMock(name=f"field_{i}") for i in range(2)]
+        for i, field in enumerate(fields):
+            field.name = f"key_{i}"
+
+        mock_data = {f"key_{i}": f"value_{i}" for i in range(2)}
+        mock_data["child_job_ids"] = ["child_1", "child_2"]
+        mock_data["results"] = {"probabilities": {"url": "probability_url"}}
+
+        mock_resource = MagicMock()
+        mock_resource.refresh_data = MagicMock()
+        mock_resource.fields = fields
+
+        manager = ResourceManager(mock_resource, mock_client)
+        manager.join_path = MagicMock(side_effect=lambda path: f"joined_{path}")
+
+        manager.refresh_data(mock_data, params={"foo": "bar"})
+
+        assert manager.join_path.call_args_list == [
+            call("probability_url"),
+            call("child_1"),
+            call("shots_url_child_1"),
+            call("child_2"),
+        ]
+        assert mock_client.get.call_args_list == [
+            call("joined_probability_url", params={"foo": "bar"}),
+            call("joined_child_1", params={"foo": "bar"}),
+            call("joined_shots_url_child_1", params={"foo": "bar"}),
+            call("joined_child_2", params={"foo": "bar"}),
+        ]
+        fields[-1].set.assert_any_call(
+            {
+                "probabilities": {"some": "result"},
+                "shots": {"child_1": ["0", "1"]},
+            }
+        )
         mock_resource.refresh_data.assert_called_once()
 
     def test_debug_mode(self, monkeypatch):
@@ -369,9 +518,7 @@ class TestResourceManager:
         monkeypatch.setattr(
             requests,
             "post",
-            lambda url, data=None, timeout=None, headers=None: mock_raise(
-                MockException
-            ),
+            lambda url, data=None, timeout=None, headers=None: mock_raise(MockException),
         )
 
         client = api_client.APIClient(debug=True, api_key="test")

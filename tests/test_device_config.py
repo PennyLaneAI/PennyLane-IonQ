@@ -30,10 +30,7 @@ class TestDeviceConfigInit:
 
     def test_accepts_retry_config(self):
         """Test that IonQDevice accepts retry configuration."""
-        dev = IonQDevice(
-            wires=2, shots=100, api_key=FAKE_API_KEY,
-            max_retries=5, retry_delay=2.0
-        )
+        dev = IonQDevice(wires=2, shots=100, api_key=FAKE_API_KEY, max_retries=5, retry_delay=2.0)
         assert dev.max_retries == 5
         assert dev.retry_delay == 2.0
 
@@ -55,12 +52,11 @@ class TestDeviceConfigPropagation:
         mock_job.is_complete = True
         mock_job.is_failed = False
         mock_job.id.value = "test-id"
-        mock_job.data.value = {"0": 1.0}
+        mock_job.data.value = {"probabilities": {"0": 1.0}}
         mock_job_class.return_value = mock_job
 
         dev = IonQDevice(
-            wires=2, shots=100, api_key=FAKE_API_KEY,
-            timeout=1800, max_retries=5, retry_delay=2.0
+            wires=2, shots=100, api_key=FAKE_API_KEY, timeout=1800, max_retries=5, retry_delay=2.0
         )
         dev._submit_job()
 
@@ -76,7 +72,7 @@ class TestDeviceConfigPropagation:
         mock_job.is_complete = True
         mock_job.is_failed = False
         mock_job.id.value = "test-id"
-        mock_job.data.value = {"0": 1.0}
+        mock_job.data.value = {"probabilities": {"0": 1.0}}
         mock_job_class.return_value = mock_job
 
         dev = IonQDevice(wires=2, shots=100, api_key=FAKE_API_KEY)

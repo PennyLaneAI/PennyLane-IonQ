@@ -22,6 +22,7 @@ import logging
 import warnings
 from time import sleep
 
+from more_itertools import sample
 import numpy as np
 
 from pennylane import pauli_decompose, SparseHamiltonian
@@ -124,8 +125,8 @@ class IonQDevice(QubitDevice):
             <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
         dry_run (bool): If True, the job will be submitted by the API client but not processed remotely.
             Useful for obtaining cost estimates. Defaults to False.
-        memory (bool): whether to return individual shot results or just the probability distribution.
-            Defaults to True (return individual shot results).
+        shotwise (bool): whether to grab individual shot results or just the probability distribution.
+            Defaults to True (retrieve individual shot results).
         noise (dict | None): {"model": str, "seed": int or None}. Defaults to None.
         metadata (dict | None): optional metadata to attach to the job. Defaults to None.
         timeout (float): Request timeout in seconds. Defaults to None, which uses the
@@ -167,7 +168,7 @@ class IonQDevice(QubitDevice):
         error_mitigation=None,
         sharpen=None,
         dry_run=False,
-        memory=True,
+        shotwise=True,
         noise=None,
         metadata=None,
         timeout=None,
@@ -185,7 +186,7 @@ class IonQDevice(QubitDevice):
         self.error_mitigation = error_mitigation
         self.sharpen = sharpen
         self.dry_run = dry_run
-        self.memory = memory
+        self.shotwise = shotwise
         self.noise = noise
         self.metadata = metadata
         self._operation_map = _GATESET_OPS[gateset]
@@ -590,15 +591,11 @@ class IonQDevice(QubitDevice):
             if job.is_failed:
                 raise JobExecutionError("Job failed")
 
-        params = {}
-        if self.sharpen is not None:
-            params["sharpen"] = self.sharpen
-        if self.memory is not None and (
-            self.target.startswith("qpu") or (self.target == "simulator" and self.noise is not None)
-        ):
-            params["retrieve_shots"] = self.memory
-        else:
-            params["retrieve_shots"] = False
+        params = {"shotwise": True}
+        if self.shotwise is not None and self.shotwise == False:
+            params["shotwise"] = False
+        if self.target == "simulator" and self.noise is None:
+            params["shotwise"] = False
 
         job.manager.get(resource_id=job.id.value, params=params)
 
@@ -618,62 +615,38 @@ class IonQDevice(QubitDevice):
         if isinstance(some_inner_value, dict):
             self.histograms = list(job.data.value["probabilities"].values())
             if "shots" in job.data.value:
-                raw_shots = list(job.data.value["shots"].values())
-                # TODO
-                self.shotwise_results = self._build_memory(
-                    raw_shots, self.n_qubits, self.clbits, self.width
-                )
+                raw_shots_list = list(job.data.value["shots"].values())
+                self.shotwise_results = []
+                for raw_shots in raw_shots_list:
+                    self.shotwise_results.append(
+                        np.array(
+                            [self.reverse_bits_decimal(int(s), self.num_wires) for s in raw_shots],
+                            dtype=np.int64,
+                        )
+                    )
         else:
             self.histograms = [job.data.value["probabilities"]]
             if "shots" in job.data.value:
-                raw_shots = [job.data.value["shots"]]
-                # TODO
-                self.shotwise_results = self._build_memory(
-                    raw_shots, self.n_qubits, self.clbits, self.width
-                )
+                raw_shots = job.data.value["shots"]
+                self.shotwise_results = [
+                    np.array(
+                        [self.reverse_bits_decimal(int(s), self.num_wires) for s in raw_shots],
+                        dtype=np.int64,
+                    )
+                ]
 
-        print(f"Job {job.id.value} completed with histograms: {self.histograms}")
-        print(f"Job {job.id.value} completed with shotwise results: {self.shotwise_results}")
-
-    # TODO: fix endianess note: IonQ uses little-endian ordering for qubits, but PennyLane uses big-endian ordering.
-    def _build_memory(
-        raw_shots: list[int | str],
-        n_qubits: int,
-        clbits: list[int] | None,
-        width: int | None = None,
-    ) -> list[str]:
-        """TODO: fix comments
-        Convert IonQ shot integers into Qiskit memory bitstrings, applying the same
-        classical-bit mapping (clbits) used for counts. Returns strings with MSB on
-        the left, matching Qiskit's display convention.
-
-        Args:
-            raw_shots: Iterable of per-shot outcomes from the API (ints or numeric strings).
-            n_qubits: Number of qubits used by the circuit (header n_qubits).
-            clbits: List mapping classical-bit index -> measured qubit index.
-                    If None, defaults to identity [0..n_qubits-1].
-            width: Number of memory bits to display (header memory_slots). If None,
-                uses len(clbits) if available, else n_qubits.
-
-        Returns:
-            list[str]: Remapped bitstrings (e.g., "110"), one per shot, MSB-left.
+    def reverse_bits_decimal(self, value: int, num_bits: int) -> int:
+        """Reverse the bit representation of `value` over exactly `num_bits` bits.
+        The IonQ API returns basis states using little-endian ordering, so we
+        reverse the bits to match the big-endian ordering expected by PennyLane.
         """
-        # Default mappings / widths
-        if not clbits:
-            clbits = list(range(n_qubits))
-        out_width = int(width) if width is not None else len(clbits) if clbits else n_qubits
+        if value < 0:
+            raise ValueError(f"value={value} must be non-negative")
 
-        def remap_one(val: int | str) -> str:
-            x = int(val)
-            # IonQ integer -> per-qubit bitstring with index == qubit id (LSB at index 0)
-            raw = bin(x)[2:].rjust(n_qubits, "0")[::-1]
-            # Select in classical-bit order, then reverse to MSB-left for display
-            mapped = "".join(
-                raw[b] if b is not None and 0 <= b < n_qubits else "0" for b in clbits
-            )[::-1]
-            return mapped.rjust(out_width, "0")
+        if value >= (1 << num_bits):
+            raise ValueError(f"value={value} cannot be represented on {num_bits} bits")
 
-        return [remap_one(s) for s in raw_shots]
+        return int(f"{value:0{num_bits}b}"[::-1], 2)
 
     @property
     def prob(self):
@@ -737,7 +710,7 @@ class SimulatorDevice(IonQDevice):
             Defaults to None.
         api_key (str): The IonQ API key. If not provided, the environment
             variable ``IONQ_API_KEY`` is used.
-        memory (bool): whether to return individual shot results or just the probability distribution.
+        shotwise (bool): whether to grab individual shot results or just the probability distribution.
             Defaults to True however shotwise results will not be returned for ideal simulations.
         noise (dict | None): {"model": str, "seed": int or None}. Defaults to None.
         metadata (dict | None): optional metadata to attach to the job. Defaults to None.
@@ -762,7 +735,7 @@ class SimulatorDevice(IonQDevice):
         compilation=None,
         api_key=None,
         dry_run=False,
-        memory=True,
+        shotwise=True,
         noise=None,
         metadata=None,
         timeout=None,
@@ -778,7 +751,7 @@ class SimulatorDevice(IonQDevice):
             api_key=api_key,
             compilation=compilation,
             dry_run=dry_run,
-            memory=memory,
+            shotwise=shotwise,
             noise=noise,
             metadata=metadata,
             timeout=timeout,
@@ -787,10 +760,16 @@ class SimulatorDevice(IonQDevice):
         )
 
     def generate_samples(self):
-        """Generates samples by random sampling with the probabilities returned by the simulator."""
-        number_of_states = 2**self.num_wires
-        samples = self.sample_basis_states(number_of_states, self.prob)
-        return QubitDevice.states_to_binary(samples, self.num_wires)
+        """If shotwise results have not been retrieved by the API, samples are generated by random
+        sampling with the probabilities returned by the API."""
+        if self.shotwise_results is not None:
+            return QubitDevice.states_to_binary(
+                self.shotwise_results[self._current_circuit_index], self.num_wires
+            )
+        else:
+            number_of_states = 2**self.num_wires
+            samples = self.sample_basis_states(number_of_states, self.prob)
+            return QubitDevice.states_to_binary(samples, self.num_wires)
 
 
 class QPUDevice(IonQDevice):
@@ -824,7 +803,7 @@ class QPUDevice(IonQDevice):
             your expected output distribution has peaks. See `IonQ Debiasing and Sharpening
             <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
         dry_run (bool): whether to run the job in dry run mode. Defaults to False.
-        memory (bool): whether to return individual shot results or just the probability distribution.
+        shotwise (bool): whether to grab individual shot results or just the probability distribution.
             Defaults to True (return individual shot results).
         metadata (dict | None): optional metadata to attach to the job. Defaults to None.
         timeout (float): Request timeout in seconds. Defaults to None, which uses the
@@ -852,7 +831,7 @@ class QPUDevice(IonQDevice):
         sharpen=None,
         api_key=None,
         dry_run=False,
-        memory=True,
+        shotwise=True,
         metadata=None,
         timeout=None,
         max_retries=None,
@@ -873,7 +852,7 @@ class QPUDevice(IonQDevice):
             error_mitigation=error_mitigation,
             sharpen=sharpen,
             dry_run=dry_run,
-            memory=memory,
+            shotwise=shotwise,
             metadata=metadata,
             timeout=timeout,
             max_retries=max_retries,
@@ -883,16 +862,22 @@ class QPUDevice(IonQDevice):
     def generate_samples(self):
         """Generates samples from the qpu.
 
-        Note that the order of the samples returned here is not indicative of the order in which
-        the experiments were done, but is instead controlled by a random shuffle (and hence
-        set by numpy random seed).
+        If shotwise results have not been retrieved by the API, samples are generated by random
+        sampling with the probabilities returned by the API. Note that the in the latter case,
+        the order of the samples returned here is not indicative of the order in which the experiments
+        were done, but is instead controlled by a random shuffle (and hence set by numpy random seed).
         """
-        number_of_states = 2**self.num_wires
-        counts = np.rint(
-            self.prob * self.shots,
-            out=np.zeros(number_of_states, dtype=int),
-            casting="unsafe",
-        )
-        samples = np.repeat(np.arange(number_of_states), counts)
-        np.random.shuffle(samples)
-        return QubitDevice.states_to_binary(samples, self.num_wires)
+        if self.shotwise_results is not None:
+            return QubitDevice.states_to_binary(
+                self.shotwise_results[self._current_circuit_index], self.num_wires
+            )
+        else:
+            number_of_states = 2**self.num_wires
+            counts = np.rint(
+                self.prob * self.shots,
+                out=np.zeros(number_of_states, dtype=int),
+                casting="unsafe",
+            )
+            samples = np.repeat(np.arange(number_of_states), counts)
+            np.random.shuffle(samples)
+            return QubitDevice.states_to_binary(samples, self.num_wires)
