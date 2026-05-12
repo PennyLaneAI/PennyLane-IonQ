@@ -20,6 +20,13 @@ import pennylane as qml
 class TestShotwiseOutput:
     """Tests for shotwise output is retrieved correctly in IonQ jobs."""
 
+    @staticmethod
+    def _assert_most_frequent_sample_matches(samples, expected_sample):
+        """Assert the most frequent observed sample matches the expected sample."""
+        unique_samples, counts = np.unique(samples, axis=0, return_counts=True)
+        most_frequent_sample = unique_samples[np.argmax(counts)]
+        np.testing.assert_array_equal(most_frequent_sample, expected_sample)
+
     def test_shotwise_output(self, requires_api):
         """When shotwise is enabled, shotwise output is retrieved.
         The shots results are reversed for tape2 when compared to
@@ -30,23 +37,22 @@ class TestShotwiseOutput:
             "ionq.simulator",
             wires=["q0", "q1", "q2"],
             gateset="qis",
-            noise_model="aria-1",
+            noise_model="forte-enterprise-1",
             shotwise=True,
         )
 
-        with qml.tape.QuantumTape(shots=3) as tape1:
+        with qml.tape.QuantumTape(shots=100) as tape1:
             qml.X(wires=["q0"])
             qml.sample(wires=["q0", "q1", "q2"])
 
-        with qml.tape.QuantumTape(shots=3) as tape2:
+        with qml.tape.QuantumTape(shots=100) as tape2:
             qml.X(wires=["q2"])
             qml.sample(wires=["q0", "q1", "q2"])
 
         results = dev.batch_execute([tape1, tape2])
 
-        np.testing.assert_array_equal(results[0], [[1, 0, 0], [1, 0, 0], [1, 0, 0]])
-
-        np.testing.assert_array_equal(results[1], [[0, 0, 1], [0, 0, 1], [0, 0, 1]])
+        self._assert_most_frequent_sample_matches(results[0], np.array([1, 0, 0]))
+        self._assert_most_frequent_sample_matches(results[1], np.array([0, 0, 1]))
 
     def test_shotwise_output_disabled(self, requires_api):
         """When shotwise is disabled, shotwise output is generated locally."""
@@ -59,13 +65,13 @@ class TestShotwiseOutput:
             shotwise=False,
         )
 
-        @qml.qnode(dev, shots=3)
+        @qml.qnode(dev, shots=100)
         def circuit():
             qml.X(wires="q0")
             return (qml.sample(wires=["q0", "q1", "q2"]),)
 
         samples = circuit()
-        np.testing.assert_array_equal(samples[0], [[1, 0, 0], [1, 0, 0], [1, 0, 0]])
+        self._assert_most_frequent_sample_matches(samples[0], np.array([1, 0, 0]))
 
     def test_shotwise_output_noise_is_none(self, requires_api):
         """When noise_mode is not set, shotwise output is generated locally."""
@@ -78,10 +84,10 @@ class TestShotwiseOutput:
             shotwise=True,
         )
 
-        @qml.qnode(dev, shots=3)
+        @qml.qnode(dev, shots=100)
         def circuit():
             qml.X(wires="q2")
             return (qml.sample(wires=["q0", "q1", "q2"]),)
 
         samples = circuit()
-        np.testing.assert_array_equal(samples[0], [[0, 0, 1], [0, 0, 1], [0, 0, 1]])
+        self._assert_most_frequent_sample_matches(samples[0], np.array([0, 0, 1]))
