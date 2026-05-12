@@ -488,7 +488,7 @@ class TestResourceManager:
         fields[-1].set.assert_any_call(
             {
                 "probabilities": {"some": "result"},
-                "shots": {"child_1": ["0", "1"]},
+                "shots": {"child_1": ["0", "1"], "child_2": []},
             }
         )
         mock_resource.refresh_data.assert_called_once()

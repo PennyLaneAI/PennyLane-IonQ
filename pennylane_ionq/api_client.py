@@ -457,6 +457,7 @@ class ResourceManager:
             if child_job_ids:
                 response_data["shots"] = {}
                 for job_id in child_job_ids:
+                    response_data["shots"][job_id] = []
                     response = self.client.get(self.join_path(str(job_id)), params=params)
                     child_response_data = response.json()
                     results = child_response_data.get("results") or {}

@@ -653,11 +653,13 @@ class IonQDevice(QubitDevice):
         # e.g., ["0", "17", "2", "9", "17",]
         some_inner_value = next(iter(job.data.value["probabilities"].values()))
         if isinstance(some_inner_value, dict):
-            self.histograms = list(job.data.value["probabilities"].values())
+            probabilities = job.data.value["probabilities"]
+            self.histograms = list(probabilities.values())
             if "shots" in job.data.value:
-                raw_shots_list = list(job.data.value["shots"].values())
+                shots_by_children = job.data.value["shots"]
                 self.shotwise_results = []
-                for raw_shots in raw_shots_list:
+                for child_job_id in probabilities:
+                    raw_shots = shots_by_children[child_job_id]
                     self.shotwise_results.append(
                         np.array(
                             [self.reverse_bits_decimal(int(s), self.num_wires) for s in raw_shots],

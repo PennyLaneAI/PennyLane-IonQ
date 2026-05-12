@@ -327,6 +327,42 @@ class TestDeviceIntegration:
         assert len(seen_params) == 1
         assert seen_params[0] == {"shotwise": expected_shotwise}
 
+    def test_missing_child_shots_yield_empty_shotwise_result(self, mocker):
+        """Test missing multi-circuit shot payloads produce empty shotwise results."""
+
+        mock_job = mock.MagicMock()
+        mock_job.is_complete = True
+        mock_job.is_failed = False
+        mock_job.id.value = "test-id"
+        mock_job.data.value = {
+            "probabilities": {
+                "child_1": {"1": 1.0},
+                "child_2": {"4": 1.0},
+            },
+            "shots": {
+                "child_1": ["1", "1", "1"],
+                "child_2": [],
+            },
+        }
+
+        mocker.patch("pennylane_ionq.device.Job", return_value=mock_job)
+
+        dev = SimulatorDevice(
+            wires=["q0", "q1", "q2"],
+            shots=3,
+            api_key="test",
+            noise_model="aria-1",
+        )
+
+        dev._submit_job()
+
+        assert len(dev.histograms) == 2
+        assert len(dev.shotwise_results) == 2
+        assert dev.shotwise_results[1].size == 0
+
+        dev.set_current_circuit_index(1)
+        assert dev.generate_samples().size == 0
+
     def test_job_name_submit_job(self, monkeypatch, mocker):
         """Test that name is correctly specified when submitting a job to the API."""
 
