@@ -427,6 +427,23 @@ class ResourceManager:
         except Exception as e:
             raise Exception(response.text) from e
 
+    def _retrieve_child_job_shots(self, child_job_ids, params=None):
+        """Retrieve shot data for each child job in a multi-circuit response."""
+        shots_by_child = {}
+
+        for job_id in child_job_ids:
+            shots_by_child[job_id] = []
+            response = self.client.get(self.join_path(str(job_id)), params=params)
+            child_response_data = response.json()
+            child_results = child_response_data.get("results") or {}
+            shots = child_results.get("shots") or {}
+            url = shots.get("url")
+            if isinstance(url, str) and url:
+                resp = self.client.get(self.join_path(url), params=params)
+                shots_by_child[job_id] = resp.json()
+
+        return shots_by_child
+
     def refresh_data(self, data, params=None):
         """
         Refreshes the instance's attributes with the provided data and
@@ -455,19 +472,9 @@ class ResourceManager:
         if retrieve_shots:
             child_job_ids = data.get("child_job_ids")
             if child_job_ids:
-                response_data["shots"] = {}
-                for job_id in child_job_ids:
-                    response_data["shots"][job_id] = []
-                    response = self.client.get(self.join_path(str(job_id)), params=params)
-                    child_response_data = response.json()
-                    results = child_response_data.get("results") or {}
-                    if "shots" in results:
-                        shots = results.get("shots") or {}
-                        if "url" in shots:
-                            url = shots.get("url")
-                            if isinstance(url, str) and url:
-                                resp = self.client.get(self.join_path(url), params=params)
-                                response_data["shots"][job_id] = resp.json()
+                response_data["shots"] = self._retrieve_child_job_shots(
+                    child_job_ids, params=params
+                )
             else:
                 shots = results.get("shots") or {}
                 url = shots.get("url")

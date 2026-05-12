@@ -22,7 +22,6 @@ import logging
 import warnings
 from time import sleep
 
-from more_itertools import sample
 import numpy as np
 
 from pennylane import pauli_decompose, SparseHamiltonian
