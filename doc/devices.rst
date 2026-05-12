@@ -10,10 +10,10 @@ trapped-ion simulator and another to access to IonQ's trapped-ion QPUs.
 .. raw::html
     <section id="simulator">
 
-Ideal trapped-ion simulator
+Trapped-ion simulator
 ------------------------
 
-The :class:`~.pennylane_ionq.SimulatorDevice` provides an ideal noiseless trapped-ion simulation.
+The :class:`~.pennylane_ionq.SimulatorDevice` provides a trapped-ion simulation.
 Once the plugin has been installed, you can use this device directly in PennyLane by specifying ``"ionq.simulator"``:
 
 .. code-block:: python
@@ -29,6 +29,27 @@ Once the plugin has been installed, you can use this device directly in PennyLan
         ops.YY(y, wires=[0,1])
         ops.ZZ(z, wires=[0,1])
         return qml.expval(qml.PauliZ(0))
+
+Hardware noise model simulation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The simulator supports hardware-aware noise models that approximate the noise characteristics
+of IonQ's trapped-ion QPUs. To enable a noise model, pass the ``noise_model`` parameter:
+
+.. code-block:: python
+
+    dev = qml.device("ionq.simulator", wires=2, noise_model="aria-1")
+
+Available noise models are ``"ideal"`` (default, noiseless), ``"harmony"``, ``"aria-1"``,
+``"aria-2"``, ``"forte-1"``, and ``"forte-enterprise-1"``. For reproducible results, you can
+also set a ``noise_seed``:
+
+.. code-block:: python
+
+    dev = qml.device("ionq.simulator", wires=2, noise_model="aria-1", noise_seed=42)
+
+See the `IonQ noise model documentation <https://docs.ionq.com/guides/simulation-with-noise-models>`_
+for details on each noise model.
 
 .. raw::html
     </section>
