@@ -629,11 +629,11 @@ class IonQDevice(QubitDevice):
                 raise JobExecutionError("Job failed")
 
         params = {"shotwise": True}
-        if self.shotwise is not None and self.shotwise == False:
-            params["shotwise"] = False
+        if isinstance(self.shotwise, bool):
+            params["shotwise"] = self.shotwise
         if self.target == "simulator" and self.noise_model is None:
             params["shotwise"] = False
-        if self.sharpen is not None:
+        if isinstance(self.sharpen, bool):
             params["sharpen"] = self.sharpen
 
         job.manager.get(resource_id=job.id.value, params=params)

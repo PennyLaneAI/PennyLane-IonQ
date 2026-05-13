@@ -27,10 +27,32 @@ class TestShotwiseOutput:
         most_frequent_sample = unique_samples[np.argmax(counts)]
         np.testing.assert_array_equal(most_frequent_sample, expected_sample)
 
-    def test_shotwise_output(self, requires_api):
-        """When shotwise is enabled, shotwise output is retrieved.
-        The shots results are reversed for tape2 when compared to
-        tape1, ensuring endianess is handled correctly.
+    def test_shotwise_output_single_circuit(self, requires_api):
+        """When shotwise is enabled, shotwise output is retrieved
+        on a single circuit job.
+        """
+
+        dev = qml.device(
+            "ionq.simulator",
+            wires=["q0", "q1", "q2"],
+            gateset="qis",
+            noise_model="forte-enterprise-1",
+            shotwise=True,
+        )
+
+        with qml.tape.QuantumTape(shots=100) as tape:
+            qml.X(wires=["q1"])
+            qml.sample(wires=["q0", "q1", "q2"])
+
+        results = dev.batch_execute([tape])
+
+        self._assert_most_frequent_sample_matches(results[0], np.array([0, 1, 0]))
+
+    def test_shotwise_output_two_circuits(self, requires_api):
+        """When shotwise is enabled, shotwise output is retrieved
+        on a two circuit job. The shots results are reversed for
+        tape2 when compared to tape1, verifying that endianess is 
+        handled correctly.
         """
 
         dev = qml.device(
@@ -74,7 +96,7 @@ class TestShotwiseOutput:
         self._assert_most_frequent_sample_matches(samples[0], np.array([1, 0, 0]))
 
     def test_shotwise_output_noise_is_none(self, requires_api):
-        """When noise_mode is not set, shotwise output is generated locally."""
+        """When noise_model is not set, shotwise output is generated locally."""
 
         dev = qml.device(
             "ionq.simulator",

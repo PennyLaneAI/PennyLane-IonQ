@@ -19,6 +19,7 @@ import numpy as np
 import pennylane as qml
 import pytest
 import requests
+from pennylane.devices import QubitDevice
 
 from conftest import shortnames
 from pennylane_ionq.api_client import JobExecutionError, ResourceManager, Job
@@ -78,6 +79,35 @@ class TestDevice:
         sorted_outcomes1 = np.sort(sample1, axis=0)
         sorted_outcomes2 = np.sort(sample2, axis=0)
         assert np.all(sorted_outcomes1 == sorted_outcomes2)  # set of outcomes is the same
+
+    @pytest.mark.parametrize("device_cls", [SimulatorDevice, QPUDevice], ids=["simulator", "qpu"])
+    def test_generate_samples_uses_shotwise_results_when_available(
+        self, monkeypatch, device_cls
+    ):
+        """Test generate_samples uses shotwise results directly when available."""
+
+        dev = device_cls(wires=2, api_key=FAKE_API_KEY)
+        expected = np.array([[1, 0], [1, 1]])
+        captured = {}
+
+        def fake_states_to_binary(states, num_wires):
+            captured["states"] = states
+            captured["num_wires"] = num_wires
+            return expected
+
+        monkeypatch.setattr(QubitDevice, "states_to_binary", fake_states_to_binary)
+
+        dev.shotwise_results = [
+            np.array([0, 1], dtype=np.int64),
+            np.array([2, 3], dtype=np.int64),
+        ]
+        dev.set_current_circuit_index(1)
+
+        result = dev.generate_samples()
+
+        np.testing.assert_array_equal(result, expected)
+        np.testing.assert_array_equal(captured["states"], np.array([2, 3], dtype=np.int64))
+        assert captured["num_wires"] == 2
 
 
 class TestDeviceIntegration:
@@ -327,6 +357,38 @@ class TestDeviceIntegration:
         assert len(seen_params) == 1
         assert seen_params[0] == {"shotwise": expected_shotwise}
 
+    def test_sharpen_and_shotwise_are_forwarded(self, monkeypatch):
+        """Test sharpen and shotwise are forwarded in result retrieval params when enabled."""
+
+        monkeypatch.setattr(
+            requests, "post", lambda url, timeout, data, headers: (url, data, headers)
+        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
+        monkeypatch.setattr(Job, "is_complete", True)
+
+        seen_params = []
+
+        def fake_response(self, resource_id=None, params=None):
+            """Return fake response data and capture request params."""
+            seen_params.append(params)
+            fake_json = {"probabilities": {"0": 1}}
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
+
+        monkeypatch.setattr(ResourceManager, "get", fake_response)
+
+        dev = qml.device("ionq.qpu", wires=1, api_key="test", sharpen=True, shotwise=False)
+
+        @qml.qnode(dev, shots=1024)
+        def circuit():
+            """Reference QNode"""
+            qml.Identity(wires=0)
+            return qml.probs(wires=[0])
+
+        circuit()
+
+        assert len(seen_params) == 1
+        assert seen_params[0] == {"shotwise": False, "sharpen": True}
+
     def test_missing_child_shots_yield_empty_shotwise_result(self, mocker):
         """Test missing multi-circuit shot payloads produce empty shotwise results."""
 
@@ -362,6 +424,21 @@ class TestDeviceIntegration:
 
         dev.set_current_circuit_index(1)
         assert dev.generate_samples().size == 0
+
+    @pytest.mark.parametrize(
+        "value,num_bits,error_message",
+        [
+            (-1, 3, "value=-1 must be non-negative"),
+            (8, 3, "value=8 cannot be represented on 3 bits"),
+        ],
+    )
+    def test_reverse_bits_decimal_rejects_invalid_values(self, value, num_bits, error_message):
+        """Test reverse_bits_decimal raises on negative and out-of-range values."""
+
+        dev = SimulatorDevice(wires=3)
+
+        with pytest.raises(ValueError, match=error_message):
+            dev.reverse_bits_decimal(value, num_bits)
 
     def test_job_name_submit_job(self, monkeypatch, mocker):
         """Test that name is correctly specified when submitting a job to the API."""
