@@ -1,4 +1,23 @@
-# Release 0.45.0-dev
+# Release 0.46.0-dev
+
+### New features since last release
+
+### Improvements 🛠
+
+### Breaking changes 💔
+
+### Deprecations 👋
+
+### Documentation 📝
+
+### Bug fixes 🐛
+
+### Contributors ✍️
+
+This release contains contributions from (in alphabetical order):
+
+---
+# Release 0.45.0
 
 ### New features since last release
 
@@ -18,12 +37,6 @@
   now uses `backend` instead of `target`, `type` instead of `format`, and
   `error_mitigation`/`compilation` are nested under `settings`.
   [(#140)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/140)
-
-### Deprecations 👋
-
-### Documentation 📝
-
-### Bug fixes 🐛
 
 ### Contributors ✍️
 
