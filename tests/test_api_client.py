@@ -170,7 +170,7 @@ class TestResourceManager:
             manager.get(1)
 
     @pytest.mark.parametrize("resource_id", [1, None])
-    @pytest.mark.parametrize("params", [{}, {"sharpen": True}, {"sharpen": False}])
+    @pytest.mark.parametrize("params", [None, {}, {"sharpen": True}, {"sharpen": False}])
     def test_get(self, monkeypatch, resource_id, params):
         """
         Test a successful GET request. Tests that manager.handle_response is being called with
@@ -191,6 +191,29 @@ class TestResourceManager:
         # TODO test that this is called with correct path
         mock_client.get.assert_called_once()
         manager.handle_response.assert_called_once_with(mock_response, params)
+
+    def test_get_does_not_forward_shotwise_to_api_calls(self, monkeypatch):
+        """
+        Tests that ``shotwise=True`` is consumed locally and not forwarded to the top-level API request.
+        """
+        mock_resource = MagicMock()
+        mock_resource.SUPPORTED_METHODS = ("GET",)
+
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_client.get = MagicMock(return_value=mock_response)
+
+        manager = ResourceManager(mock_resource, mock_client)
+        manager.join_path = MagicMock(return_value="joined_resource")
+        monkeypatch.setattr(manager, "handle_response", MagicMock())
+
+        request_params = {"shotwise": True, "sharpen": True}
+        manager.get(resource_id=1, params=request_params)
+
+        manager.join_path.assert_called_once_with("1")
+        mock_client.get.assert_called_once_with("joined_resource", params={"sharpen": True})
+        manager.handle_response.assert_called_once_with(mock_response, request_params)
+        assert request_params == {"shotwise": True, "sharpen": True}
 
     def test_create_unsupported(self):
         """
@@ -427,7 +450,7 @@ class TestResourceManager:
             call("joined_probability_url", params={"foo": "bar"}),
             call("joined_shots_url", params={"foo": "bar"}),
         ]
-        assert request_params == {"foo": "bar"}
+        assert request_params == {"foo": "bar", "shotwise": True}
         mock_resource.refresh_data.assert_called_once()
 
     def test_handle_refresh_data_retrieves_child_job_shots(self):

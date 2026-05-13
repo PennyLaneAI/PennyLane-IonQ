@@ -344,12 +344,15 @@ class ResourceManager:
         if "GET" not in self.resource.SUPPORTED_METHODS:
             raise MethodNotSupportedException("GET method on this resource is not supported")
 
+        # make sure shotwise argument is not sent to the API, since it's not an API parameter
+        request_params = dict(params) if params is not None else {}
+        api_params = {key: value for key, value in request_params.items() if key != "shotwise"}
         if resource_id is not None:
-            response = self.client.get(self.join_path(str(resource_id)), params=params)
+            response = self.client.get(self.join_path(str(resource_id)), params=api_params)
         else:
-            response = self.client.get(self.resource.PATH, params=params)
+            response = self.client.get(self.resource.PATH, params=api_params)
 
-        # we need params later, unfortuantely
+        # we need params later
         self.handle_response(response, params)
 
     def create(self, **params):
@@ -458,30 +461,27 @@ class ResourceManager:
 
         response_data = {}
 
-        retrieve_shots = True
-        if params:
-            # make sure shotwise argument is not sent to
-            # the API, since it's not an API parameter
-            if params.pop("shotwise", True) is False:
-                retrieve_shots = False
+        # make sure shotwise argument is not sent to the API, since it's not an API parameter
+        api_params = dict(params) if params is not None else {}
+        retrieve_shots = api_params.pop("shotwise", True)
 
         probabilities = results.get("probabilities") or {}
         url = probabilities.get("url")
         if isinstance(url, str) and url:
-            resp = self.client.get(self.join_path(url), params=params)
+            resp = self.client.get(self.join_path(url), params=api_params)
             response_data["probabilities"] = resp.json()
 
         if retrieve_shots:
             child_job_ids = data.get("child_job_ids")
             if child_job_ids:
                 response_data["shots"] = self._retrieve_child_job_shots(
-                    child_job_ids, params=params
+                    child_job_ids, params=api_params
                 )
             else:
                 shots = results.get("shots") or {}
                 url = shots.get("url")
                 if isinstance(url, str) and url:
-                    resp = self.client.get(self.join_path(url), params=params)
+                    resp = self.client.get(self.join_path(url), params=api_params)
                     response_data["shots"] = resp.json()
 
         if response_data:

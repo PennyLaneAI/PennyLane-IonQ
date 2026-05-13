@@ -653,18 +653,20 @@ class IonQDevice(QubitDevice):
         some_inner_value = next(iter(job.data.value["probabilities"].values()))
         if isinstance(some_inner_value, dict):
             probabilities = job.data.value["probabilities"]
-            self.histograms = list(probabilities.values())
+            child_job_ids = list(probabilities.keys())
+            self.histograms = [probabilities[child_job_id] for child_job_id in child_job_ids]
             if "shots" in job.data.value:
                 shots_by_children = job.data.value["shots"]
-                self.shotwise_results = []
-                for child_job_id in shots_by_children:
-                    raw_shots = shots_by_children[child_job_id]
-                    self.shotwise_results.append(
-                        np.array(
-                            [self.reverse_bits_decimal(int(s), self.num_wires) for s in raw_shots],
-                            dtype=np.int64,
-                        )
+                self.shotwise_results = [
+                    np.array(
+                        [
+                            self.reverse_bits_decimal(int(s), self.num_wires)
+                            for s in shots_by_children.get(child_job_id, [])
+                        ],
+                        dtype=np.int64,
                     )
+                    for child_job_id in child_job_ids
+                ]
         else:
             self.histograms = [job.data.value["probabilities"]]
             if "shots" in job.data.value:
@@ -815,7 +817,7 @@ class SimulatorDevice(IonQDevice):
 
         if self.shotwise_results is not None:
 
-            if self._current_circuit_index is None and len(self.histograms) > 1:
+            if self._current_circuit_index is None:
                 raise CircuitIndexNotSetException()
 
             return QubitDevice.states_to_binary(
@@ -925,7 +927,7 @@ class QPUDevice(IonQDevice):
 
         if self.shotwise_results is not None:
 
-            if self._current_circuit_index is None and len(self.histograms) > 1:
+            if self._current_circuit_index is None:
                 raise CircuitIndexNotSetException()
 
             return QubitDevice.states_to_binary(
