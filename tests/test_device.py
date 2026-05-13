@@ -653,6 +653,20 @@ class TestDeviceIntegration:
         with pytest.raises(ValueError, match="noise_seed requires noise_model"):
             qml.device("ionq.simulator", wires=1, api_key="test", noise_seed=42)
 
+    @pytest.mark.parametrize(
+        "shotwise,should_raise",
+        [(None, False), (1, True), ("true", True)],
+        ids=["none", "int", "str"],
+    )
+    def test_shotwise_validation(self, shotwise, should_raise):
+        """Test that shotwise accepts None and rejects non-boolean values."""
+        if should_raise:
+            with pytest.raises(ValueError, match="shotwise must be a boolean"):
+                qml.device("ionq.simulator", wires=1, api_key="test", shotwise=shotwise)
+        else:
+            dev = qml.device("ionq.simulator", wires=1, api_key="test", shotwise=shotwise)
+            assert dev.shotwise is None
+
     @pytest.mark.parametrize("shots", [8192])
     def test_one_qubit_circuit(self, shots, requires_api, tol):
         """Test that devices provide correct result for a simple circuit"""

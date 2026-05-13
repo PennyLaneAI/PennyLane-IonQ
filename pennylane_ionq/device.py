@@ -208,6 +208,8 @@ class IonQDevice(QubitDevice):
                 raise ValueError(
                     f"noise_seed must be an integer between 1 and 2^31 - 1, got {noise_seed}."
                 )
+        if shotwise is not None and not isinstance(shotwise, bool):
+            raise ValueError("shotwise must be a boolean.")
 
         super().__init__(wires=wires, shots=shots)
         self._current_circuit_index = None
