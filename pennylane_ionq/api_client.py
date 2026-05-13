@@ -460,6 +460,8 @@ class ResourceManager:
 
         retrieve_shots = True
         if params:
+            # make sure shotwise argument is not sent to
+            # the API, since it's not an API parameter
             if params.pop("shotwise", True) is False:
                 retrieve_shots = False
 

@@ -109,6 +109,26 @@ class TestDevice:
         np.testing.assert_array_equal(captured["states"], np.array([2, 3], dtype=np.int64))
         assert captured["num_wires"] == 2
 
+    @pytest.mark.parametrize("device_cls", [SimulatorDevice, QPUDevice], ids=["simulator", "qpu"])
+    def test_generate_samples_raises_without_circuit_index_for_multicircuit_shotwise_results(
+        self, device_cls
+    ):
+        """Test generate_samples raises when shotwise results exist for multiple circuits without an active index."""
+
+        dev = device_cls(wires=2, api_key=FAKE_API_KEY)
+        dev.histograms = [{"0": 1.0}, {"3": 1.0}]
+        dev.shotwise_results = [
+            np.array([0, 1], dtype=np.int64),
+            np.array([2, 3], dtype=np.int64),
+        ]
+
+        with pytest.raises(
+            CircuitIndexNotSetException,
+            match="Because multiple circuits have been submitted in this job, the index of the circuit \
+you want to access must be first set via the set_current_circuit_index device method.",
+        ):
+            dev.generate_samples()
+
 
 class TestDeviceIntegration:
     """Test the devices work correctly from the PennyLane frontend."""

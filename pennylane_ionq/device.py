@@ -657,7 +657,7 @@ class IonQDevice(QubitDevice):
             if "shots" in job.data.value:
                 shots_by_children = job.data.value["shots"]
                 self.shotwise_results = []
-                for child_job_id in probabilities:
+                for child_job_id in shots_by_children:
                     raw_shots = shots_by_children[child_job_id]
                     self.shotwise_results.append(
                         np.array(
@@ -814,6 +814,10 @@ class SimulatorDevice(IonQDevice):
         sampling with the probabilities returned by the API."""
 
         if self.shotwise_results is not None:
+
+            if self._current_circuit_index is None and len(self.histograms) > 1:
+                raise CircuitIndexNotSetException()
+
             return QubitDevice.states_to_binary(
                 self.shotwise_results[self._current_circuit_index], self.num_wires
             )
@@ -920,6 +924,10 @@ class QPUDevice(IonQDevice):
         """
 
         if self.shotwise_results is not None:
+
+            if self._current_circuit_index is None and len(self.histograms) > 1:
+                raise CircuitIndexNotSetException()
+
             return QubitDevice.states_to_binary(
                 self.shotwise_results[self._current_circuit_index], self.num_wires
             )
