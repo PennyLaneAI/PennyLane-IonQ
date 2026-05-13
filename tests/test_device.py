@@ -81,9 +81,7 @@ class TestDevice:
         assert np.all(sorted_outcomes1 == sorted_outcomes2)  # set of outcomes is the same
 
     @pytest.mark.parametrize("device_cls", [SimulatorDevice, QPUDevice], ids=["simulator", "qpu"])
-    def test_generate_samples_uses_shotwise_results_when_available(
-        self, monkeypatch, device_cls
-    ):
+    def test_generate_samples_uses_shotwise_results_when_available(self, monkeypatch, device_cls):
         """Test generate_samples uses shotwise results directly when available."""
 
         dev = device_cls(wires=2, api_key=FAKE_API_KEY)
@@ -335,6 +333,7 @@ class TestDeviceIntegration:
         "device_name,device_kwargs,expected_shotwise",
         [
             ("ionq.simulator", {}, False),
+            ("ionq.simulator", {"noise_model": "ideal"}, False),
             (
                 "ionq.simulator",
                 {"noise_model": "forte-enterprise-1"},

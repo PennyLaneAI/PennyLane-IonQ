@@ -631,7 +631,7 @@ class IonQDevice(QubitDevice):
         params = {"shotwise": True}
         if isinstance(self.shotwise, bool):
             params["shotwise"] = self.shotwise
-        if self.target == "simulator" and self.noise_model is None:
+        if self.target == "simulator" and self.noise_model in (None, "ideal"):
             params["shotwise"] = False
         if isinstance(self.sharpen, bool):
             params["sharpen"] = self.sharpen

@@ -15,6 +15,7 @@
 
 import numpy as np
 import pennylane as qml
+import pytest
 
 
 class TestShotwiseOutput:
@@ -51,7 +52,7 @@ class TestShotwiseOutput:
     def test_shotwise_output_two_circuits(self, requires_api):
         """When shotwise is enabled, shotwise output is retrieved
         on a two circuit job. The shots results are reversed for
-        tape2 when compared to tape1, verifying that endianess is 
+        tape2 when compared to tape1, verifying that endianess is
         handled correctly.
         """
 
@@ -95,14 +96,15 @@ class TestShotwiseOutput:
         samples = circuit()
         self._assert_most_frequent_sample_matches(samples[0], np.array([1, 0, 0]))
 
-    def test_shotwise_output_noise_is_none(self, requires_api):
-        """When noise_model is not set, shotwise output is generated locally."""
+    @pytest.mark.parametrize("noise_model", [None, "ideal"], ids=["unset", "ideal"])
+    def test_shotwise_output_noise_is_none(self, requires_api, noise_model):
+        """When noise_model is not set or is ideal, shotwise output is generated locally."""
 
         dev = qml.device(
             "ionq.simulator",
             wires=["q0", "q1", "q2"],
             gateset="qis",
-            noise_model=None,
+            noise_model=noise_model,
             shotwise=True,
         )
 
