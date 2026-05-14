@@ -344,15 +344,10 @@ class ResourceManager:
         if "GET" not in self.resource.SUPPORTED_METHODS:
             raise MethodNotSupportedException("GET method on this resource is not supported")
 
-        # make sure shotwise argument is not sent to the API, since it's not an API parameter
-        request_params = dict(params) if params is not None else {}
-        api_params = {key: value for key, value in request_params.items() if key != "shotwise"}
-        if resource_id is not None:
-            response = self.client.get(self.join_path(str(resource_id)), params=api_params)
-        else:
-            response = self.client.get(self.resource.PATH, params=api_params)
-
-        # we need params later
+        # shotwise is a client-side flag, not an API parameter
+        api_params = {k: v for k, v in (params or {}).items() if k != "shotwise"}
+        path = self.join_path(str(resource_id)) if resource_id is not None else self.resource.PATH
+        response = self.client.get(path, params=api_params)
         self.handle_response(response, params)
 
     def create(self, **params):
@@ -461,7 +456,7 @@ class ResourceManager:
 
         response_data = {}
 
-        # make sure shotwise argument is not sent to the API, since it's not an API parameter
+        # shotwise is a client-side flag, not an API parameter
         api_params = dict(params) if params is not None else {}
         retrieve_shots = api_params.pop("shotwise", True)
 

@@ -444,6 +444,43 @@ class TestDeviceIntegration:
         dev.set_current_circuit_index(1)
         assert dev.generate_samples().size == 0
 
+    def test_single_circuit_shotwise_reverses_bits(self, mocker):
+        """Test single-circuit shotwise path reverses LE-wire bits to PennyLane's BE.
+
+        The IonQ v0.4 API serializes basis-state integers as little-endian
+        (qubit 0 = LSB). PennyLane indexes qubit 0 as the MSB, so a wire-side
+        state of "1" on 3 wires (binary 001, i.e. |q0=1, q1=0, q2=0>) must be
+        reversed to integer 4 (binary 100) on read. This mirrors the live API
+        behavior covered by tests/test_shotwise_output.py.
+        """
+
+        mock_job = mock.MagicMock()
+        mock_job.is_complete = True
+        mock_job.is_failed = False
+        mock_job.id.value = "test-id"
+        mock_job.data.value = {
+            "probabilities": {"1": 1.0},
+            "shots": ["1", "1", "1", "1"],
+        }
+
+        mocker.patch("pennylane_ionq.device.Job", return_value=mock_job)
+
+        dev = SimulatorDevice(
+            wires=["q0", "q1", "q2"],
+            shots=4,
+            api_key="test",
+            noise_model="aria-1",
+        )
+
+        dev._submit_job()
+
+        assert len(dev.histograms) == 1
+        assert dev.shotwise_results is not None
+        assert len(dev.shotwise_results) == 1
+        np.testing.assert_array_equal(
+            dev.shotwise_results[0], np.array([4, 4, 4, 4], dtype=np.int64)
+        )
+
     @pytest.mark.parametrize(
         "value,num_bits,error_message",
         [
