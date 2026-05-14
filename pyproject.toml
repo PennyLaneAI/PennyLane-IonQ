@@ -73,6 +73,7 @@ docs = [
     "scipy==1.16.3",
     "scipy-openblas32==0.3.30.0.6",
     "six==1.17.0",
+    "sphinx-automodapi==0.19",
     "termcolor==3.2.0",
     "tomlkit==0.13.3",
     "typing-extensions==4.15.0",
