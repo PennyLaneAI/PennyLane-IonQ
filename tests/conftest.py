@@ -88,15 +88,12 @@ def init_state(scope="session"):
 
 
 @pytest.fixture(params=analytic_devices + hw_devices)
-def device(request, shots):
+def device(request):
     """Fixture to initialize and return a PennyLane device"""
     device = request.param
 
-    if device not in analytic_devices and shots == 0:
-        pytest.skip("Hardware simulators do not support analytic mode")
-
     def _device(n):
-        return device(wires=n, shots=shots)
+        return device(wires=n)
 
     return _device
 
