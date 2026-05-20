@@ -38,7 +38,7 @@ class TestShotwiseOutput:
             wires=["q0", "q1", "q2"],
             gateset="qis",
             noise_model="forte-enterprise-1",
-            shotwise=True,
+            memory=True,
         )
 
         with qml.tape.QuantumTape(shots=100) as tape:
@@ -61,7 +61,7 @@ class TestShotwiseOutput:
             wires=["q0", "q1", "q2"],
             gateset="qis",
             noise_model="forte-enterprise-1",
-            shotwise=True,
+            memory=True,
         )
 
         with qml.tape.QuantumTape(shots=100) as tape1:
@@ -85,7 +85,7 @@ class TestShotwiseOutput:
             wires=["q0", "q1", "q2"],
             gateset="qis",
             noise_model="aria-1",
-            shotwise=False,
+            memory=False,
         )
 
         @qml.qnode(dev, shots=100)
@@ -105,7 +105,7 @@ class TestShotwiseOutput:
             wires=["q0", "q1", "q2"],
             gateset="qis",
             noise_model=noise_model,
-            shotwise=True,
+            memory=True,
         )
 
         @qml.qnode(dev, shots=100)

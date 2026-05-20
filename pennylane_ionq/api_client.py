@@ -332,7 +332,7 @@ class ResourceManager:
         """
         return join_path(self.resource.PATH, path)
 
-    def get(self, resource_id=None, params=None):
+    def get(self, resource_id=None, params=None, fetch_shots=False):
         """
         Attempts to retrieve a particular record by sending a GET
         request to the appropriate endpoint. If successful, the resource
@@ -344,11 +344,9 @@ class ResourceManager:
         if "GET" not in self.resource.SUPPORTED_METHODS:
             raise MethodNotSupportedException("GET method on this resource is not supported")
 
-        # shotwise is a client-side flag, not an API parameter
-        api_params = {k: v for k, v in (params or {}).items() if k != "shotwise"}
         path = self.join_path(str(resource_id)) if resource_id is not None else self.resource.PATH
-        response = self.client.get(path, params=api_params)
-        self.handle_response(response, params)
+        response = self.client.get(path, params=params)
+        self.handle_response(response, params, fetch_shots=fetch_shots)
 
     def create(self, **params):
         """
@@ -368,7 +366,7 @@ class ResourceManager:
 
         self.handle_response(response)
 
-    def handle_response(self, response, params=None):
+    def handle_response(self, response, params=None, fetch_shots=False):
         """
         Store the status code on the manager object and handle the response
         based on the status code.
@@ -381,7 +379,7 @@ class ResourceManager:
 
             if response.status_code in (200, 201):
                 self.http_response_data = response.json()
-                self.handle_success_response(response, params=params)
+                self.handle_success_response(response, params=params, fetch_shots=fetch_shots)
             else:
                 try:
                     self.http_response_data = response.json()
@@ -397,14 +395,14 @@ class ResourceManager:
         """
         warnings.warn("Your request could not be completed")
 
-    def handle_success_response(self, response, params=None):
+    def handle_success_response(self, response, params=None, fetch_shots=False):
         """
         Handles a successful response by refreshing the instance fields.
 
         Args:
             response (requests.Response): a response object to be parsed
         """
-        self.refresh_data(response.json(), params=params)
+        self.refresh_data(response.json(), params=params, fetch_shots=fetch_shots)
 
     def handle_error_response(self, response):
         """
@@ -442,7 +440,7 @@ class ResourceManager:
 
         return shots_by_child
 
-    def refresh_data(self, data, params=None):
+    def refresh_data(self, data, params=None, fetch_shots=False):
         """
         Refreshes the instance's attributes with the provided data and
         converts it to the correct type.
@@ -456,27 +454,23 @@ class ResourceManager:
 
         response_data = {}
 
-        # shotwise is a client-side flag, not an API parameter
-        api_params = dict(params) if params is not None else {}
-        retrieve_shots = api_params.pop("shotwise", True)
-
         probabilities = results.get("probabilities") or {}
         url = probabilities.get("url")
         if isinstance(url, str) and url:
-            resp = self.client.get(self.join_path(url), params=api_params)
+            resp = self.client.get(self.join_path(url), params=params)
             response_data["probabilities"] = resp.json()
 
-        if retrieve_shots:
+        if fetch_shots:
             child_job_ids = data.get("child_job_ids")
             if child_job_ids:
                 response_data["shots"] = self._retrieve_child_job_shots(
-                    child_job_ids, params=api_params
+                    child_job_ids, params=params
                 )
             else:
                 shots = results.get("shots") or {}
                 url = shots.get("url")
                 if isinstance(url, str) and url:
-                    resp = self.client.get(self.join_path(url), params=api_params)
+                    resp = self.client.get(self.join_path(url), params=params)
                     response_data["shots"] = resp.json()
 
         if response_data:

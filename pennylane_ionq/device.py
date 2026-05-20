@@ -130,8 +130,9 @@ class IonQDevice(QubitDevice):
         noise_seed (int): seed for the noise model random number generator, for reproducible noisy
             simulation results. Must be an integer between 1 and 2\ :sup:`31` - 1. Only used when ``noise_model`` is set.
             Defaults to None (random seed).
-        shotwise (bool): whether to grab individual shot results or just the probability distribution.
-            Defaults to True (retrieve individual shot results).
+        memory (bool): whether to grab individual shotwise results or just the probability distribution.
+            Defaults to False (do not retrieve individual shots results). Note that shotwise results
+            are not available for ideal simulation (i.e., when ``noise_model="ideal"`` or ``noise_model=None``).
         dry_run (bool): If True, the job will be submitted by the API client but not processed remotely.
             Useful for obtaining cost estimates. Defaults to False.
         metadata (dict | None): optional metadata to attach to the job. Defaults to None.
@@ -184,7 +185,7 @@ class IonQDevice(QubitDevice):
         sharpen=None,
         noise_model=None,
         noise_seed=None,
-        shotwise=True,
+        memory=False,
         dry_run=False,
         metadata=None,
         timeout=None,
@@ -208,8 +209,8 @@ class IonQDevice(QubitDevice):
                 raise ValueError(
                     f"noise_seed must be an integer between 1 and 2^31 - 1, got {noise_seed}."
                 )
-        if shotwise is not None and not isinstance(shotwise, bool):
-            raise ValueError("shotwise must be a boolean.")
+        if memory is not None and not isinstance(memory, bool):
+            raise ValueError("memory argument must be a boolean.")
 
         super().__init__(wires=wires, shots=shots)
         self._current_circuit_index = None
@@ -222,7 +223,7 @@ class IonQDevice(QubitDevice):
         self.sharpen = sharpen
         self.noise_model = noise_model
         self.noise_seed = noise_seed
-        self.shotwise = shotwise
+        self.memory = memory
         self.dry_run = dry_run
         self.metadata = metadata
         self._operation_map = _GATESET_OPS[gateset]
@@ -630,13 +631,12 @@ class IonQDevice(QubitDevice):
             if job.is_failed:
                 raise JobExecutionError("Job failed")
 
-        params = {"shotwise": self.shotwise if self.shotwise is not None else True}
-        if self.target == "simulator" and self.noise_model in (None, "ideal"):
-            params["shotwise"] = False
-        if isinstance(self.sharpen, bool):
-            params["sharpen"] = self.sharpen
+        params = {} if self.sharpen is None else {"sharpen": self.sharpen}
 
-        job.manager.get(resource_id=job.id.value, params=params)
+        fetch_shots = self.memory
+        if self.target == "simulator" and self.noise_model in (None, "ideal"):
+            fetch_shots = False
+        job.manager.get(resource_id=job.id.value, params=params, fetch_shots=fetch_shots)
 
         # The returned job histogram is of the form
         # dict[str, float], and maps the computational basis
@@ -761,8 +761,9 @@ class SimulatorDevice(IonQDevice):
         noise_seed (int): seed for the noise model random number generator, for reproducible noisy
             simulation results. Must be an integer between 1 and 2\ :sup:`31` - 1. Only used when ``noise_model`` is set.
             Defaults to None (random seed).
-        shotwise (bool): whether to grab individual shot results or just the probability distribution.
-            Defaults to True however shotwise results will not be returned for ideal simulations.
+        memory (bool): whether to grab individual shotwise results or just the probability distribution.
+            Defaults to False (do not retrieve individual shots results). Note that shotwise results
+            are not available for ideal simulation (i.e., when ``noise_model="ideal"`` or ``noise_model=None``).
         metadata (dict | None): optional metadata to attach to the job. Defaults to None.
         timeout (float): Request timeout in seconds. Defaults to None, which uses the
             ``APIClient`` default.
@@ -786,7 +787,7 @@ class SimulatorDevice(IonQDevice):
         api_key=None,
         noise_model=None,
         noise_seed=None,
-        shotwise=True,
+        memory=False,
         dry_run=False,
         metadata=None,
         timeout=None,
@@ -803,7 +804,7 @@ class SimulatorDevice(IonQDevice):
             compilation=compilation,
             noise_model=noise_model,
             noise_seed=noise_seed,
-            shotwise=shotwise,
+            memory=memory,
             dry_run=dry_run,
             metadata=metadata,
             timeout=timeout,
@@ -856,8 +857,9 @@ class QPUDevice(IonQDevice):
             Defaults to None (no value passed at job retrieval). Will generally return more accurate results if
             your expected output distribution has peaks. See `IonQ Debiasing and Sharpening
             <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
-        shotwise (bool): whether to grab individual shot results or just the probability distribution.
-            Defaults to True (return individual shot results).
+        memory (bool): whether to grab individual shotwise results or just the probability distribution.
+            Defaults to False (do not retrieve individual shots results). Note that shotwise results
+            are not available for ideal simulation (i.e., when ``noise_model="ideal"`` or ``noise_model=None``).
         dry_run (bool): whether to run the job in dry run mode. Defaults to False.
         metadata (dict | None): optional metadata to attach to the job. Defaults to None.
         timeout (float): Request timeout in seconds. Defaults to None, which uses the
@@ -884,7 +886,7 @@ class QPUDevice(IonQDevice):
         error_mitigation=None,
         sharpen=None,
         api_key=None,
-        shotwise=True,
+        memory=False,
         dry_run=False,
         metadata=None,
         timeout=None,
@@ -905,7 +907,7 @@ class QPUDevice(IonQDevice):
             compilation=compilation,
             error_mitigation=error_mitigation,
             sharpen=sharpen,
-            shotwise=shotwise,
+            memory=memory,
             dry_run=dry_run,
             metadata=metadata,
             timeout=timeout,

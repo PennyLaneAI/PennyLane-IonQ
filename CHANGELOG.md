@@ -2,12 +2,13 @@
 
 ### New features since last release
 
-* Added a new `shotwise` device option that retrieves per-shot measurement
-  results from IonQ jobs instead of resampling locally from the returned
-  probability distribution. Enabled by default for QPU jobs and noisy-simulator
-  jobs; automatically disabled for ideal-simulator jobs where per-shot data is
-  not available server-side. Set `shotwise=False` to opt out of the additional
-  result-fetch round-trip.
+* Added a new (opt-in) `memory` device option that activates the
+  retrieval of per-shot measurement results from IonQ jobs instead
+  of resampling locally from the returned probability distribution.
+  This is an option that applies to QPU jobs and noisy-simulator jobs,
+  by default it is disabled. Automatically disabled for ideal-simulator
+  jobs where per-shot data is not available server-side.
+  Set `memory=True` to retrieve shots results (opt-in).
   [(#178)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/178)
 
 ### Improvements 🛠

@@ -196,7 +196,7 @@ class TestDeviceIntegration:
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, fetch_shots=False):
             """Return fake response data"""
             fake_json = {"probabilities": {"0": 1}}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
@@ -224,7 +224,7 @@ class TestDeviceIntegration:
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, fetch_shots=False):
             """Return fake response data"""
             fake_json = {"probabilities": {"0": 1}}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
@@ -266,7 +266,7 @@ class TestDeviceIntegration:
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, fetch_shots=False):
             """Return fake response data"""
             fake_json = {"probabilities": {"0": 1}}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
@@ -304,7 +304,7 @@ class TestDeviceIntegration:
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, fetch_shots=False):
             """Return fake response data"""
             fake_json = {"probabilities": {"0": 1}}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
@@ -353,11 +353,53 @@ class TestDeviceIntegration:
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        seen_params = []
+        seen_fetch_shots = []
 
-        def fake_response(self, resource_id=None, params=None):
-            """Return fake response data and capture request params."""
-            seen_params.append(params)
+        def fake_response(self, resource_id=None, params=None, fetch_shots=False):
+            """Return fake response data and capture whether shots were requested."""
+            seen_fetch_shots.append(fetch_shots)
+            fake_json = {"probabilities": {"0": 1}}
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
+
+        monkeypatch.setattr(ResourceManager, "get", fake_response)
+
+        dev = qml.device(device_name, wires=1, api_key="test", memory=True, **device_kwargs)
+
+        @qml.qnode(dev, shots=1024)
+        def circuit():
+            """Reference QNode"""
+            qml.Identity(wires=0)
+            return qml.probs(wires=[0])
+
+        circuit()
+
+        assert len(seen_fetch_shots) == 1
+        assert seen_fetch_shots[0] is expected_shotwise
+
+    @pytest.mark.parametrize(
+        "device_name,device_kwargs",
+        [
+            ("ionq.simulator", {"noise_model": "forte-enterprise-1"}),
+            ("ionq.qpu", {}),
+        ],
+        ids=["noisy-simulator", "qpu"],
+    )
+    def test_memory_defaults_to_false_and_disables_shot_retrieval(
+        self, monkeypatch, device_name, device_kwargs
+    ):
+        """Test memory defaults to False and keeps fetch_shots disabled."""
+
+        monkeypatch.setattr(
+            requests, "post", lambda url, timeout, data, headers: (url, data, headers)
+        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
+        monkeypatch.setattr(Job, "is_complete", True)
+
+        seen_fetch_shots = []
+
+        def fake_response(self, resource_id=None, params=None, fetch_shots=False):
+            """Return fake response data and capture whether shots were requested."""
+            seen_fetch_shots.append(fetch_shots)
             fake_json = {"probabilities": {"0": 1}}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
 
@@ -373,11 +415,12 @@ class TestDeviceIntegration:
 
         circuit()
 
-        assert len(seen_params) == 1
-        assert seen_params[0] == {"shotwise": expected_shotwise}
+        assert dev.memory is False
+        assert len(seen_fetch_shots) == 1
+        assert seen_fetch_shots[0] is False
 
-    def test_sharpen_and_shotwise_are_forwarded(self, monkeypatch):
-        """Test sharpen and shotwise are forwarded in result retrieval params when enabled."""
+    def test_sharpen_is_forwarded_in_result_retrieval_params(self, monkeypatch):
+        """Test sharpen is forwarded in result retrieval params when enabled."""
 
         monkeypatch.setattr(
             requests, "post", lambda url, timeout, data, headers: (url, data, headers)
@@ -387,7 +430,7 @@ class TestDeviceIntegration:
 
         seen_params = []
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, fetch_shots=False):
             """Return fake response data and capture request params."""
             seen_params.append(params)
             fake_json = {"probabilities": {"0": 1}}
@@ -395,7 +438,7 @@ class TestDeviceIntegration:
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
-        dev = qml.device("ionq.qpu", wires=1, api_key="test", sharpen=True, shotwise=False)
+        dev = qml.device("ionq.qpu", wires=1, api_key="test", sharpen=True)
 
         @qml.qnode(dev, shots=1024)
         def circuit():
@@ -406,7 +449,7 @@ class TestDeviceIntegration:
         circuit()
 
         assert len(seen_params) == 1
-        assert seen_params[0] == {"shotwise": False, "sharpen": True}
+        assert seen_params[0] == {"sharpen": True}
 
     def test_missing_child_shots_yield_empty_shotwise_result(self, mocker):
         """Test missing multi-circuit shot payloads produce empty shotwise results."""
@@ -433,6 +476,7 @@ class TestDeviceIntegration:
             shots=3,
             api_key="test",
             noise_model="aria-1",
+            memory=True,
         )
 
         dev._submit_job()
@@ -470,6 +514,7 @@ class TestDeviceIntegration:
             shots=4,
             api_key="test",
             noise_model="aria-1",
+            memory=True,
         )
 
         dev._submit_job()
@@ -505,7 +550,7 @@ class TestDeviceIntegration:
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, fetch_shots=False):
             """Return fake response data"""
             fake_json = {"probabilities": {"0": 1}}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
@@ -535,7 +580,7 @@ class TestDeviceIntegration:
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, fetch_shots=False):
             """Return fake response data"""
             fake_json = {"probabilities": {"0": 1}}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
@@ -575,7 +620,7 @@ class TestDeviceIntegration:
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, fetch_shots=False):
             """Return fake response data"""
             fake_json = {"probabilities": {"0": 1}}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
@@ -626,7 +671,7 @@ class TestDeviceIntegration:
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, fetch_shots=False):
             """Return fake response data"""
             fake_json = {"probabilities": {"0": 1}}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
@@ -691,18 +736,18 @@ class TestDeviceIntegration:
             qml.device("ionq.simulator", wires=1, api_key="test", noise_seed=42)
 
     @pytest.mark.parametrize(
-        "shotwise,should_raise",
+        "memory,should_raise",
         [(None, False), (1, True), ("true", True)],
         ids=["none", "int", "str"],
     )
-    def test_shotwise_validation(self, shotwise, should_raise):
-        """Test that shotwise accepts None and rejects non-boolean values."""
+    def test_memory_validation(self, memory, should_raise):
+        """Test that memory accepts None and rejects non-boolean values."""
         if should_raise:
-            with pytest.raises(ValueError, match="shotwise must be a boolean"):
-                qml.device("ionq.simulator", wires=1, api_key="test", shotwise=shotwise)
+            with pytest.raises(ValueError, match="memory argument must be a boolean"):
+                qml.device("ionq.simulator", wires=1, api_key="test", memory=memory)
         else:
-            dev = qml.device("ionq.simulator", wires=1, api_key="test", shotwise=shotwise)
-            assert dev.shotwise is None
+            dev = qml.device("ionq.simulator", wires=1, api_key="test", memory=memory)
+            assert dev.memory is None
 
     @pytest.mark.parametrize("shots", [8192])
     def test_one_qubit_circuit(self, shots, requires_api, tol):
