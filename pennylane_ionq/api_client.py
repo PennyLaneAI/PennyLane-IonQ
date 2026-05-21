@@ -63,6 +63,8 @@ import time
 
 import dateutil.parser
 
+from requests.exceptions import HTTPError, RequestException
+
 import requests
 
 # HTTP status codes that are retriable, based on qiskit-ionq implementation.
@@ -432,7 +434,7 @@ class ResourceManager:
             try:
                 response = self.client.get(self.join_path(str(job_id)), params=params)
                 response.raise_for_status()
-            except Exception as ex:
+            except (HTTPError, RequestException) as ex:
                 warnings.warn(
                     f"You set the memory argument `True` on the device. However, the request to retrieve shots for child {job_id} failed on getting child job data with exception: {ex}. The array of shotwise results for this child job will be returned empty."
                 )
@@ -445,7 +447,7 @@ class ResourceManager:
                 try:
                     response = self.client.get(self.join_path(url), params=params)
                     response.raise_for_status()
-                except Exception as ex:
+                except (HTTPError, RequestException) as ex:
                     warnings.warn(
                         f"You set the memory argument `True` on the device. However, the request to retrieve shots for child {job_id} failed on getting shots data with exception: {ex}. The array of shotwise results for this child job will be returned empty."
                     )
@@ -491,7 +493,7 @@ class ResourceManager:
                     try:
                         resp = self.client.get(self.join_path(url), params=params)
                         resp.raise_for_status()
-                    except Exception as ex:
+                    except (HTTPError, RequestException) as ex:
                         warnings.warn(
                             f"You set the memory argument `True` on the device. However, the request to retrieve shots for this job failed on getting shots data with exception: {ex}. The array of shotwise results for this job will be returned empty."
                         )
