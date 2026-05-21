@@ -430,13 +430,27 @@ class ResourceManager:
         for job_id in child_job_ids:
             shots_by_child[job_id] = []
             response = self.client.get(self.join_path(str(job_id)), params=params)
+            if response.status_code in RETRIABLE_STATUS_CODES + RETRIABLE_FOR_GET:
+                warnings.warn(
+                    f"You set the memory argument `True` on the device. However, the request to retrieve shots for child {job_id} failed with http status code {response.status_code} on getting child job data. The array of shots for this child job will be returned empty."
+                )
+                continue
             child_response_data = response.json()
             child_results = child_response_data.get("results") or {}
             shots = child_results.get("shots") or {}
             url = shots.get("url")
             if isinstance(url, str) and url:
                 resp = self.client.get(self.join_path(url), params=params)
+                if resp.status_code in RETRIABLE_STATUS_CODES + RETRIABLE_FOR_GET:
+                    warnings.warn(
+                        f"You set the memory argument `True` on the device. However, the request to retrieve shots for child {job_id} failed with http status code {resp.status_code} on getting shots data. The array of shots for this child job will be returned empty."
+                    )
+                    continue
                 shots_by_child[job_id] = resp.json()
+            else:
+                warnings.warn(
+                    f"You set the memory argument `True` on the device. However, no shots results URL was found in IonQ response for child job {job_id}. The array of shots for this child job will be returned empty."
+                )
 
         return shots_by_child
 
@@ -472,6 +486,10 @@ class ResourceManager:
                 if isinstance(url, str) and url:
                     resp = self.client.get(self.join_path(url), params=params)
                     response_data["shots"] = resp.json()
+                else:
+                    warnings.warn(
+                        f"You set the memory argument `True` on the device. However, no shots results URL was found in IonQ response for this job. The array of shots for this job will be returned empty."
+                    )
 
         if response_data:
             self.resource.fields[-1].set(response_data)
