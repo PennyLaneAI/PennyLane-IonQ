@@ -489,12 +489,15 @@ class ResourceManager:
                         warnings.warn(
                             f"You set the memory argument `True` on the device. However, the request to retrieve shots for this job failed with http status code {resp.status_code} on getting shots data. The array of shots for this job will be returned empty."
                         )
+                        response_data["shots"] = []
                     else:
                         response_data["shots"] = resp.json()
                 else:
                     warnings.warn(
                         "You set the memory argument `True` on the device. However, no shots results URL was found in IonQ response for this job. The array of shots for this job will be returned empty."
                     )
+                    response_data["shots"] = []
+
 
         if response_data:
             self.resource.fields[-1].set(response_data)
