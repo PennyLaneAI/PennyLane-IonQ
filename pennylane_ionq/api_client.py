@@ -485,10 +485,15 @@ class ResourceManager:
                 url = shots.get("url")
                 if isinstance(url, str) and url:
                     resp = self.client.get(self.join_path(url), params=params)
-                    response_data["shots"] = resp.json()
+                    if resp.status_code in RETRIABLE_STATUS_CODES + RETRIABLE_FOR_GET:
+                        warnings.warn(
+                            f"You set the memory argument `True` on the device. However, the request to retrieve shots for this job failed with http status code {resp.status_code} on getting shots data. The array of shots for this job will be returned empty."
+                        )
+                    else:
+                        response_data["shots"] = resp.json()
                 else:
                     warnings.warn(
-                        f"You set the memory argument `True` on the device. However, no shots results URL was found in IonQ response for this job. The array of shots for this job will be returned empty."
+                        "You set the memory argument `True` on the device. However, no shots results URL was found in IonQ response for this job. The array of shots for this job will be returned empty."
                     )
 
         if response_data:
