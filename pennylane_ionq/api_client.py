@@ -432,7 +432,7 @@ class ResourceManager:
             response = self.client.get(self.join_path(str(job_id)), params=params)
             if response.status_code in RETRIABLE_STATUS_CODES + RETRIABLE_FOR_GET:
                 warnings.warn(
-                    f"You set the memory argument `True` on the device. However, the request to retrieve shots for child {job_id} failed with http status code {response.status_code} on getting child job data. The array of shots for this child job will be returned empty."
+                    f"You set the memory argument `True` on the device. However, the request to retrieve shots for child {job_id} failed with http status code {response.status_code} on getting child job data. The array of shotwise results for this child job will be returned empty."
                 )
                 continue
             child_response_data = response.json()
@@ -443,13 +443,13 @@ class ResourceManager:
                 resp = self.client.get(self.join_path(url), params=params)
                 if resp.status_code in RETRIABLE_STATUS_CODES + RETRIABLE_FOR_GET:
                     warnings.warn(
-                        f"You set the memory argument `True` on the device. However, the request to retrieve shots for child {job_id} failed with http status code {resp.status_code} on getting shots data. The array of shots for this child job will be returned empty."
+                        f"You set the memory argument `True` on the device. However, the request to retrieve shots for child {job_id} failed with http status code {resp.status_code} on getting shots data. The array of shotwise results for this child job will be returned empty."
                     )
                     continue
                 shots_by_child[job_id] = resp.json()
             else:
                 warnings.warn(
-                    f"You set the memory argument `True` on the device. However, no shots results URL was found in IonQ response for child job {job_id}. The array of shots for this child job will be returned empty."
+                    f"You set the memory argument `True` on the device. However, no shots results URL was found in IonQ response for child job {job_id}. The array of shotwise results for this child job will be returned empty."
                 )
 
         return shots_by_child
@@ -487,14 +487,15 @@ class ResourceManager:
                     resp = self.client.get(self.join_path(url), params=params)
                     if resp.status_code in RETRIABLE_STATUS_CODES + RETRIABLE_FOR_GET:
                         warnings.warn(
-                            f"You set the memory argument `True` on the device. However, the request to retrieve shots for this job failed with http status code {resp.status_code} on getting shots data. The array of shots for this job will be returned empty."
+                            f"You set the memory argument `True` on the device. However, the request to retrieve shots for this job failed with http status code {resp.status_code} on getting shots data. The array of shotwise results for this job will be returned empty."
                         )
                         response_data["shots"] = []
                     else:
                         response_data["shots"] = resp.json()
+                        print(response_data["shots"])
                 else:
                     warnings.warn(
-                        "You set the memory argument `True` on the device. However, no shots results URL was found in IonQ response for this job. The array of shots for this job will be returned empty."
+                        "You set the memory argument `True` on the device. However, no shots results URL was found in IonQ response for this job. The array of shotwise results for this job will be returned empty."
                     )
                     response_data["shots"] = []
 
