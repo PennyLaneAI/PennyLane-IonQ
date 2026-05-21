@@ -498,7 +498,6 @@ class ResourceManager:
                     )
                     response_data["shots"] = []
 
-
         if response_data:
             self.resource.fields[-1].set(response_data)
 
