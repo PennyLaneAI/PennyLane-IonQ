@@ -52,7 +52,8 @@ class TestDeviceConfigPropagation:
         mock_job.is_complete = True
         mock_job.is_failed = False
         mock_job.id.value = "test-id"
-        mock_job.data.value = {"probabilities": {"0": 1.0}}
+        mock_job.data.value = {"0": 1.0}
+        mock_job.has_shots = False
         mock_job_class.return_value = mock_job
 
         dev = IonQDevice(
@@ -72,7 +73,8 @@ class TestDeviceConfigPropagation:
         mock_job.is_complete = True
         mock_job.is_failed = False
         mock_job.id.value = "test-id"
-        mock_job.data.value = {"probabilities": {"0": 1.0}}
+        mock_job.data.value = {"0": 1.0}
+        mock_job.has_shots = False
         mock_job_class.return_value = mock_job
 
         dev = IonQDevice(wires=2, shots=100, api_key=FAKE_API_KEY)

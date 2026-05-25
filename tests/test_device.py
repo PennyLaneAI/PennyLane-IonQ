@@ -81,6 +81,22 @@ class TestDevice:
         assert np.all(sorted_outcomes1 == sorted_outcomes2)  # set of outcomes is the same
 
     @pytest.mark.parametrize("device_cls", [SimulatorDevice, QPUDevice], ids=["simulator", "qpu"])
+    def test_generate_samples_falls_back_when_memory_results_is_none(self, device_cls):
+        """Test generate_samples still produces samples when memory_results is None."""
+
+        if device_cls is QPUDevice:
+            dev = device_cls(wires=2, shots=2, api_key=FAKE_API_KEY)
+        else:
+            dev = device_cls(wires=2, shots=2, api_key=FAKE_API_KEY)
+
+        dev.histograms = [{"3": 1.0}]
+        dev.memory_results = None
+
+        result = dev.generate_samples()
+
+        np.testing.assert_array_equal(result, np.array([[1, 1], [1, 1]]))
+
+    @pytest.mark.parametrize("device_cls", [SimulatorDevice, QPUDevice], ids=["simulator", "qpu"])
     def test_generate_samples_uses_shotwise_results_when_available(self, monkeypatch, device_cls):
         """Test generate_samples uses shotwise results directly when available."""
 
@@ -95,7 +111,7 @@ class TestDevice:
 
         monkeypatch.setattr(QubitDevice, "states_to_binary", fake_states_to_binary)
 
-        dev.shotwise_results = [
+        dev.memory_results = [
             np.array([0, 1], dtype=np.int64),
             np.array([2, 3], dtype=np.int64),
         ]
@@ -115,7 +131,7 @@ class TestDevice:
 
         dev = device_cls(wires=2, api_key=FAKE_API_KEY)
         dev.histograms = [{"0": 1.0}, {"3": 1.0}]
-        dev.shotwise_results = [
+        dev.memory_results = [
             np.array([0, 1], dtype=np.int64),
             np.array([2, 3], dtype=np.int64),
         ]
@@ -126,6 +142,69 @@ class TestDevice:
 you want to access must be first set via the set_current_circuit_index device method.",
         ):
             dev.generate_samples()
+
+    def test_generate_samples_simulator_falls_back_when_current_memory_result_is_none(
+        self, monkeypatch
+    ):
+        """Test SimulatorDevice falls back to generated samples when the active memory result is None."""
+
+        dev = SimulatorDevice(wires=2, api_key=FAKE_API_KEY)
+        expected = np.array([[1, 1], [1, 1]])
+        captured = {}
+
+        def fake_sample_basis_states(number_of_states, probability):
+            captured["number_of_states"] = number_of_states
+            captured["probability"] = probability
+            return np.array([3, 3], dtype=np.int64)
+
+        def fake_states_to_binary(states, num_wires):
+            captured["states"] = states
+            captured["num_wires"] = num_wires
+            return expected
+
+        monkeypatch.setattr(dev, "sample_basis_states", fake_sample_basis_states)
+        monkeypatch.setattr(QubitDevice, "states_to_binary", fake_states_to_binary)
+
+        dev.histograms = [{"3": 1.0}]
+        dev.memory_results = [None]
+        dev.set_current_circuit_index(0)
+
+        result = dev.generate_samples()
+
+        np.testing.assert_array_equal(result, expected)
+        assert captured["number_of_states"] == 4
+        np.testing.assert_array_equal(captured["probability"], np.array([0.0, 0.0, 0.0, 1.0]))
+        np.testing.assert_array_equal(captured["states"], np.array([3, 3], dtype=np.int64))
+        assert captured["num_wires"] == 2
+
+    def test_generate_samples_qpu_falls_back_when_current_memory_result_is_none(self, monkeypatch):
+        """Test QPUDevice falls back to generated samples when the active memory result is None."""
+
+        dev = QPUDevice(wires=2, shots=2, api_key=FAKE_API_KEY)
+        expected = np.array([[1, 1], [1, 1]])
+        captured = {}
+
+        def fake_shuffle(samples):
+            captured["shuffled_samples"] = samples.copy()
+
+        def fake_states_to_binary(states, num_wires):
+            captured["states"] = states
+            captured["num_wires"] = num_wires
+            return expected
+
+        monkeypatch.setattr(np.random, "shuffle", fake_shuffle)
+        monkeypatch.setattr(QubitDevice, "states_to_binary", fake_states_to_binary)
+
+        dev.histograms = [{"3": 1.0}]
+        dev.memory_results = [None]
+        dev.set_current_circuit_index(0)
+
+        result = dev.generate_samples()
+
+        np.testing.assert_array_equal(result, expected)
+        np.testing.assert_array_equal(captured["shuffled_samples"], np.array([3, 3]))
+        np.testing.assert_array_equal(captured["states"], np.array([3, 3]))
+        assert captured["num_wires"] == 2
 
 
 class TestDeviceIntegration:
@@ -482,8 +561,8 @@ class TestDeviceIntegration:
         dev._submit_job()
 
         assert len(dev.histograms) == 2
-        assert len(dev.shotwise_results) == 2
-        assert dev.shotwise_results[1].size == 0
+        assert len(dev.memory_results) == 2
+        assert dev.memory_results[1].size == 0
 
         dev.set_current_circuit_index(1)
         assert dev.generate_samples().size == 0
@@ -502,10 +581,9 @@ class TestDeviceIntegration:
         mock_job.is_complete = True
         mock_job.is_failed = False
         mock_job.id.value = "test-id"
-        mock_job.data.value = {
-            "probabilities": {"1": 1.0},
-            "shots": ["1", "1", "1", "1"],
-        }
+        mock_job.data.value = {"1": 1.0}
+        mock_job.has_shots = True
+        mock_job.shots = ["1", "1", "1", "1"]
 
         mocker.patch("pennylane_ionq.device.Job", return_value=mock_job)
 
@@ -520,11 +598,9 @@ class TestDeviceIntegration:
         dev._submit_job()
 
         assert len(dev.histograms) == 1
-        assert dev.shotwise_results is not None
-        assert len(dev.shotwise_results) == 1
-        np.testing.assert_array_equal(
-            dev.shotwise_results[0], np.array([4, 4, 4, 4], dtype=np.int64)
-        )
+        assert dev.memory_results is not None
+        assert len(dev.memory_results) == 1
+        np.testing.assert_array_equal(dev.memory_results[0], np.array([4, 4, 4, 4], dtype=np.int64))
 
     @pytest.mark.parametrize(
         "value,num_bits,error_message",
@@ -737,17 +813,17 @@ class TestDeviceIntegration:
 
     @pytest.mark.parametrize(
         "memory,should_raise",
-        [(None, False), (1, True), ("true", True)],
-        ids=["none", "int", "str"],
+        [(None, True), (1, True), ("true", True), (True, False)],
+        ids=["none", "int", "str", "bool"],
     )
     def test_memory_validation(self, memory, should_raise):
-        """Test that memory accepts None and rejects non-boolean values."""
+        """Test that memory rejects non-boolean values."""
         if should_raise:
             with pytest.raises(ValueError, match="memory argument must be a boolean"):
                 qml.device("ionq.simulator", wires=1, api_key="test", memory=memory)
         else:
             dev = qml.device("ionq.simulator", wires=1, api_key="test", memory=memory)
-            assert dev.memory is None
+            assert isinstance(dev.memory, bool)
 
     @pytest.mark.parametrize("shots", [8192])
     def test_one_qubit_circuit(self, shots, requires_api, tol):
