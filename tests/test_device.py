@@ -602,6 +602,30 @@ class TestDeviceIntegration:
         assert len(dev.memory_results) == 1
         np.testing.assert_array_equal(dev.memory_results[0], np.array([4, 4, 4, 4], dtype=np.int64))
 
+    @pytest.mark.parametrize("device_cls", [SimulatorDevice, QPUDevice], ids=["simulator", "qpu"])
+    def test_single_circuit_missing_raw_shots_still_generates_samples(self, mocker, device_cls):
+        """Test single-circuit jobs fall back to generated samples when raw_shots is None."""
+
+        mock_job = mock.MagicMock()
+        mock_job.is_complete = True
+        mock_job.is_failed = False
+        mock_job.id.value = "test-id"
+        mock_job.data.value = {"3": 1.0}
+        mock_job.has_shots = True
+        mock_job.shots = None
+
+        mocker.patch("pennylane_ionq.device.Job", return_value=mock_job)
+
+        dev = device_cls(wires=2, shots=2, api_key="test", memory=True)
+
+        dev._submit_job()
+
+        assert dev.histograms == [{"3": 1.0}]
+        assert dev.memory_results == [None]
+
+        dev.set_current_circuit_index(0)
+        np.testing.assert_array_equal(dev.generate_samples(), np.array([[1, 1], [1, 1]]))
+
     @pytest.mark.parametrize(
         "value,num_bits,error_message",
         [
