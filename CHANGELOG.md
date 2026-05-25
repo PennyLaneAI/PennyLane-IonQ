@@ -13,6 +13,9 @@
 
 ### Improvements 🛠
 
+* Updated tests to stop using deprecated shots kwarg on the device.
+  [(#184)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/184)
+
 ### Breaking changes 💔
 
 ### Deprecations 👋
@@ -24,6 +27,8 @@
 ### Contributors ✍️
 
 This release contains contributions from (in alphabetical order):
+
+Marcus Edwards
 
 ---
 # Release 0.45.0
