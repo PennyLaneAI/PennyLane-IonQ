@@ -675,16 +675,15 @@ class IonQDevice(QubitDevice):
             self.histograms = [probabilities]
             if job.has_shots:
                 raw_shots = job.shots
-                self.memory_results = [
-                    (
-                        None
-                        if raw_shots is None
-                        else np.array(
+                if raw_shots is None:
+                    self.memory_results = [None]
+                else:
+                    self.memory_results = [
+                        np.array(
                             [self.reverse_bits_decimal(int(s), self.num_wires) for s in raw_shots],
                             dtype=np.int64,
                         )
-                    )
-                ]
+                    ]
 
     def reverse_bits_decimal(self, value: int, num_bits: int) -> int:
         """Reverse the bit representation of `value` over exactly `num_bits` bits.
