@@ -310,7 +310,6 @@ class IonQDevice(QubitDevice):
         Returns:
             list[array[float]]: list of measured value(s)
         """
-        print("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug(  # pragma: no cover
                 """Entry with args=(circuits=%s) called by=%s""",
