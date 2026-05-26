@@ -310,6 +310,7 @@ class IonQDevice(QubitDevice):
         Returns:
             list[array[float]]: list of measured value(s)
         """
+        print("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug(  # pragma: no cover
                 """Entry with args=(circuits=%s) called by=%s""",
@@ -826,8 +827,8 @@ class SimulatorDevice(IonQDevice):
             # should not happen with multiple circuit jobs
             if self._current_circuit_index is None and len(self.histograms) > 1:
                 raise CircuitIndexNotSetException()
-            # both Qiskit single and multi circuit jobs are wired via batch_execute
-            # current_circuit_index is None only with legacy Pennylane dev.execute(tape)
+            # both single and multi circuit jobs are wired via batch_execute
+            # under normal execution path, _current_circuit_index should not be None
             if self._current_circuit_index is not None:
                 # this can be None due to a 4xx/5xx error when fetching shots
                 if self.memory_results[self._current_circuit_index] is not None:
@@ -940,8 +941,8 @@ class QPUDevice(IonQDevice):
             # should not happen with multiple circuit jobs
             if self._current_circuit_index is None and len(self.histograms) > 1:
                 raise CircuitIndexNotSetException()
-            # both Qiskit single and multi circuit jobs are wired via batch_execute
-            # current_circuit_index is None only with legacy Pennylane dev.execute(tape)
+            # both single and multi circuit jobs are wired via batch_execute
+            # under normal execution path, _current_circuit_index should not be None
             if self._current_circuit_index is not None:
                 # this can be None due to a 4xx/5xx error when fetching shots
                 if self.memory_results[self._current_circuit_index] is not None:
