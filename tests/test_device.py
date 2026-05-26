@@ -530,22 +530,21 @@ class TestDeviceIntegration:
         assert len(seen_params) == 1
         assert seen_params[0] == {"sharpen": True}
 
-    def test_missing_child_shots_yield_empty_shotwise_result(self, mocker):
-        """Test missing multi-circuit shot payloads produce empty shotwise results."""
+    def test_missing_child_shots_fall_back_to_generated_samples(self, mocker):
+        """Test missing multi-circuit child shots fall back to generated samples."""
 
         mock_job = mock.MagicMock()
         mock_job.is_complete = True
         mock_job.is_failed = False
         mock_job.id.value = "test-id"
         mock_job.data.value = {
-            "probabilities": {
-                "child_1": {"1": 1.0},
-                "child_2": {"4": 1.0},
-            },
-            "shots": {
-                "child_1": ["1", "1", "1"],
-                "child_2": [],
-            },
+            "child_1": {"1": 1.0},
+            "child_2": {"4": 1.0},
+        }
+        mock_job.has_shots = True
+        mock_job.shots = {
+            "child_1": ["1", "1", "1"],
+            "child_2": None,
         }
 
         mocker.patch("pennylane_ionq.device.Job", return_value=mock_job)
@@ -562,10 +561,14 @@ class TestDeviceIntegration:
 
         assert len(dev.histograms) == 2
         assert len(dev.memory_results) == 2
-        assert dev.memory_results[1].size == 0
+        np.testing.assert_array_equal(dev.memory_results[0], np.array([4, 4, 4], dtype=np.int64))
+        assert dev.memory_results[1] is None
 
         dev.set_current_circuit_index(1)
-        assert dev.generate_samples().size == 0
+        np.testing.assert_array_equal(
+            dev.generate_samples(),
+            np.array([[0, 0, 1], [0, 0, 1], [0, 0, 1]], dtype=np.int64),
+        )
 
     def test_single_circuit_shotwise_reverses_bits(self, mocker):
         """Test single-circuit shotwise path reverses LE-wire bits to PennyLane's BE.
