@@ -54,7 +54,7 @@ ci = [
     "appdirs==1.4.4",
     "astunparse==1.6.3",
     "autograd==1.8.0",
-    "autoray==0.8.0",
+    "autoray==0.8.4",
     "cachetools==6.2.1",
     "certifi==2025.10.5",
     "charset-normalizer==3.4.4",
