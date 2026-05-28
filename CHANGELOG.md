@@ -47,10 +47,11 @@ Marcus Edwards
 
 This release contains contributions from (in alphabetical order):
 
-Andrija Paurevic,
-David Yonge-Mallo,
+Spencer Churchill,
 Radu Marginean,
-Spencer Churchill.
+Andrija Paurevic,
+Alex Preciado,
+David Yonge-Mallo.
 
 ---
 # Release 0.44.0

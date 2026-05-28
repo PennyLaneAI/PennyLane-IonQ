@@ -14,7 +14,7 @@ packaging==25.0
 pennylane>=0.44.0
 pennylane-lightning>=0.44.0
 python-dateutil==2.9.0.post0
-requests==2.32.5
+requests==2.33.1
 rustworkx==0.17.1
 scipy==1.16.3
 scipy-openblas32==0.3.30.0.6
@@ -22,5 +22,5 @@ six==1.17.0
 termcolor==3.2.0
 tomlkit==0.13.3
 typing-extensions==4.15.0
-urllib3==2.5.0
-wheel==0.45.1
+urllib3==2.6.3
+wheel==0.46.3
