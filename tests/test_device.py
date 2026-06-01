@@ -98,10 +98,10 @@ class TestDeviceIntegration:
             qml.device(d)
 
         # IonQ devices allow shots=None
-        dev = qml.device(d, wires=1, shots=None)
+        dev = qml.device(d, wires=1)
 
         # But the execution will raise error
-        @qml.qnode(dev)
+        @qml.qnode(dev, shots=None)
         def circuit():
             """Reference QNode"""
             qml.PauliX(wires=0)
