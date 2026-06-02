@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for shotwise output in IonQ jobs."""
+"""Tests for memory output in IonQ jobs."""
 
 import numpy as np
 import pennylane as qml
@@ -19,7 +19,7 @@ import pytest
 
 
 class TestShotwiseOutput:
-    """Tests for shotwise output is retrieved correctly in IonQ jobs."""
+    """Tests for memory output is retrieved correctly in IonQ jobs."""
 
     @staticmethod
     def _assert_most_frequent_sample_matches(samples, expected_sample):
@@ -28,8 +28,8 @@ class TestShotwiseOutput:
         most_frequent_sample = unique_samples[np.argmax(counts)]
         np.testing.assert_array_equal(most_frequent_sample, expected_sample)
 
-    def test_shotwise_output_single_circuit(self, requires_api):
-        """When shotwise is enabled, shotwise output is retrieved
+    def test_memory_output_single_circuit(self, requires_api):
+        """When memory is enabled, memory output is retrieved
         on a single circuit job.
         """
 
@@ -49,8 +49,8 @@ class TestShotwiseOutput:
 
         self._assert_most_frequent_sample_matches(results[0], np.array([0, 1, 0]))
 
-    def test_shotwise_output_two_circuits(self, requires_api):
-        """When shotwise is enabled, shotwise output is retrieved
+    def test_memory_output_two_circuits(self, requires_api):
+        """When memory is enabled, memory output is retrieved
         on a two circuit job. The shots results are reversed for
         tape2 when compared to tape1, verifying that endianess is
         handled correctly.
@@ -77,8 +77,8 @@ class TestShotwiseOutput:
         self._assert_most_frequent_sample_matches(results[0], np.array([1, 0, 0]))
         self._assert_most_frequent_sample_matches(results[1], np.array([0, 0, 1]))
 
-    def test_shotwise_output_disabled(self, requires_api):
-        """When shotwise is disabled, shotwise output is generated locally."""
+    def test_memory_output_disabled(self, requires_api):
+        """When memory is disabled, memory output is generated locally."""
 
         dev = qml.device(
             "ionq.simulator",
@@ -97,8 +97,8 @@ class TestShotwiseOutput:
         self._assert_most_frequent_sample_matches(samples[0], np.array([1, 0, 0]))
 
     @pytest.mark.parametrize("noise_model", [None, "ideal"], ids=["unset", "ideal"])
-    def test_shotwise_output_noise_is_none(self, requires_api, noise_model):
-        """When noise_model is not set or is ideal, shotwise output is generated locally."""
+    def test_memory_output_noise_is_none(self, requires_api, noise_model):
+        """When noise_model is not set or is ideal, memory output is generated locally."""
 
         dev = qml.device(
             "ionq.simulator",

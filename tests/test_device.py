@@ -97,8 +97,8 @@ class TestDevice:
         np.testing.assert_array_equal(result, np.array([[1, 1], [1, 1]]))
 
     @pytest.mark.parametrize("device_cls", [SimulatorDevice, QPUDevice], ids=["simulator", "qpu"])
-    def test_generate_samples_uses_shotwise_results_when_available(self, monkeypatch, device_cls):
-        """Test generate_samples uses shotwise results directly when available."""
+    def test_generate_samples_uses_memory_results_when_available(self, monkeypatch, device_cls):
+        """Test generate_samples uses memory results directly when available."""
 
         dev = device_cls(wires=2, api_key=FAKE_API_KEY)
         expected = np.array([[1, 0], [1, 1]])
@@ -124,10 +124,10 @@ class TestDevice:
         assert captured["num_wires"] == 2
 
     @pytest.mark.parametrize("device_cls", [SimulatorDevice, QPUDevice], ids=["simulator", "qpu"])
-    def test_generate_samples_raises_without_circuit_index_for_multicircuit_shotwise_results(
+    def test_generate_samples_raises_without_circuit_index_for_multicircuit_memory_results(
         self, device_cls
     ):
-        """Test generate_samples raises when shotwise results exist for multiple circuits without an active index."""
+        """Test generate_samples raises when memory results exist for multiple circuits without an active index."""
 
         dev = device_cls(wires=2, api_key=FAKE_API_KEY)
         dev.histograms = [{"0": 1.0}, {"3": 1.0}]
@@ -409,7 +409,7 @@ class TestDeviceIntegration:
         assert json.loads(spy.call_args[1]["data"])["metadata"] == {"key": "value"}
 
     @pytest.mark.parametrize(
-        "device_name,device_kwargs,expected_shotwise",
+        "device_name,device_kwargs,expected_memory",
         [
             ("ionq.simulator", {}, False),
             ("ionq.simulator", {"noise_model": "ideal"}, False),
@@ -422,7 +422,7 @@ class TestDeviceIntegration:
         ],
     )
     def test_retrieve_shots_only_for_qpu_or_noisy_simulator(
-        self, monkeypatch, device_name, device_kwargs, expected_shotwise
+        self, monkeypatch, device_name, device_kwargs, expected_memory
     ):
         """Test shot retrieval is requested only for qpu or noisy simulator jobs."""
 
@@ -453,7 +453,7 @@ class TestDeviceIntegration:
         circuit()
 
         assert len(seen_fetch_shots) == 1
-        assert seen_fetch_shots[0] is expected_shotwise
+        assert seen_fetch_shots[0] is expected_memory
 
     @pytest.mark.parametrize(
         "device_name,device_kwargs",
@@ -570,14 +570,14 @@ class TestDeviceIntegration:
             np.array([[0, 0, 1], [0, 0, 1], [0, 0, 1]], dtype=np.int64),
         )
 
-    def test_single_circuit_shotwise_reverses_bits(self, mocker):
-        """Test single-circuit shotwise path reverses LE-wire bits to PennyLane's BE.
+    def test_single_circuit_memory_reverses_bits(self, mocker):
+        """Test single-circuit memory path reverses LE-wire bits to PennyLane's BE.
 
         The IonQ v0.4 API serializes basis-state integers as little-endian
         (qubit 0 = LSB). PennyLane indexes qubit 0 as the MSB, so a wire-side
         state of "1" on 3 wires (binary 001, i.e. |q0=1, q1=0, q2=0>) must be
         reversed to integer 4 (binary 100) on read. This mirrors the live API
-        behavior covered by tests/test_shotwise_output.py.
+        behavior covered by tests/test_memory_output.py.
         """
 
         mock_job = mock.MagicMock()
