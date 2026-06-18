@@ -39,7 +39,7 @@ dependencies = [
 
 [dependency-groups]
 docs = [
-    "sphinx==8.1",
+    "sphinx==9.0",
     "sphinx-automodapi==0.19",
     "sphinxcontrib-applehelp==2.0.0",
     "sphinxcontrib-devhelp==2.0.0",
