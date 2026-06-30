@@ -32,6 +32,8 @@ from pennylane.ops.op_math.prod import Prod
 
 from pennylane.ops.op_math.linear_combination import LinearCombination
 
+from pennylane_ionq.error_mitigation import DebiasingConfig, AggregationMethod
+
 from .api_client import Job, JobExecutionError
 from .exceptions import (
     CircuitIndexNotSetException,
@@ -114,14 +116,18 @@ class IonQDevice(QubitDevice):
             Example: ``{"opt": 0, "precision": "1E-3"}``. See
             `IonQ API Job Creation <https://docs.ionq.com/api-reference/v0.4/jobs/create-job>`_ for details.
         error_mitigation (dict | None): settings for error mitigation when creating a job. Defaults to None.
-            Not available on all backends. Set by default on some hardware systems. See
-            `IonQ API Job Creation <https://docs.ionq.com/api-reference/v0.4/jobs/create-job>`_  and
-            `IonQ Debiasing and Sharpening <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
-            Valid keys include: ``debiasing`` (bool).
+            Not available on all backends. Set by default on some hardware systems.
+            Valid entries include either one or both of the following:
+                "debiasing": True | False | DebiasingConfig
+                "symmetry_verification": True | False
+        aggregation (str | AggregationMethod | None):
+            Aggregation method for results from a debiased job. Defaults to None (no value passed at job retrieval).
         sharpen (bool): whether to use sharpening when accessing the results of an executed job. Defaults to None
             (no value passed at job retrieval). Will generally return more accurate results if your expected output
-            distribution has peaks. See `IonQ Debiasing and Sharpening
-            <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
+            distribution has peaks.
+
+            .. deprecated:: 0.46.0
+                Use aggregation instead.
         noise_model (str): the noise model to use for simulation. Only applies when ``target="simulator"``.
             Valid values are ``"ideal"``, ``"harmony"``, ``"aria-1"``, ``"aria-2"``, ``"forte-1"``,
             and ``"forte-enterprise-1"``. Defaults to None (ideal simulation). See
@@ -179,6 +185,7 @@ class IonQDevice(QubitDevice):
         api_key=None,
         compilation=None,
         error_mitigation=None,
+        aggregation=None,
         sharpen=None,
         noise_model=None,
         noise_seed=None,
@@ -205,6 +212,24 @@ class IonQDevice(QubitDevice):
                 raise ValueError(
                     f"noise_seed must be an integer between 1 and 2^31 - 1, got {noise_seed}."
                 )
+        if error_mitigation is not None and not isinstance(error_mitigation, dict):
+            raise ValueError("error_mitigation must be a dictionary.")
+        if (
+            error_mitigation is not None
+            and "debiasing" in error_mitigation
+            and not isinstance(error_mitigation["debiasing"], (bool, DebiasingConfig))
+        ):
+            raise ValueError(
+                "error_mitigation `debiasing` key value must be either a boolean or an instance of DebiasingConfig."
+            )
+        if (
+            error_mitigation is not None
+            and "symmetry_verification" in error_mitigation
+            and not isinstance(error_mitigation["symmetry_verification"], bool)
+        ):
+            raise ValueError(
+                "error_mitigation `symmetry_verification` key value must be a boolean."
+            )
 
         super().__init__(wires=wires, shots=shots)
         self._current_circuit_index = None
@@ -214,6 +239,7 @@ class IonQDevice(QubitDevice):
         self.gateset = gateset
         self.compilation = compilation
         self.error_mitigation = error_mitigation
+        self.aggregation = aggregation
         self.sharpen = sharpen
         self.noise_model = noise_model
         self.noise_seed = noise_seed
@@ -236,6 +262,15 @@ class IonQDevice(QubitDevice):
         if not circuit.shots:
             raise ValueError(NO_ANALYTIC_MSG)
         return super().batch_transform(circuit)
+
+    def serialize_error_mitigation(self, error_mitigation) -> dict:
+        """Serialize error mitigation settings for API payload."""
+        serialized = dict(error_mitigation)
+
+        if "debiasing" in serialized and hasattr(serialized["debiasing"], "to_dict"):
+            serialized["debiasing"] = serialized["debiasing"].to_dict()
+
+        return serialized
 
     def reset(self, circuits_array_length=1):
         """Reset the device"""
@@ -273,7 +308,9 @@ class IonQDevice(QubitDevice):
         if self.error_mitigation is not None:
             if "settings" not in self.job:
                 self.job["settings"] = {}
-            self.job["settings"]["error_mitigation"] = self.error_mitigation
+            self.job["settings"]["error_mitigation"] = self.serialize_error_mitigation(
+                self.error_mitigation
+            )
         if self.job["backend"] == "qpu":
             self.job["backend"] = "qpu.aria-1"
             warnings.warn(
@@ -622,7 +659,22 @@ class IonQDevice(QubitDevice):
             if job.is_failed:
                 raise JobExecutionError("Job failed")
 
-        params = {} if self.sharpen is None else {"sharpen": self.sharpen}
+        params = {}
+
+        if self.sharpen is not None:
+            params["sharpen"] = self.sharpen
+            if self.sharpen is True:
+                warnings.warn(
+                    "sharpen=True is deprecated. Use aggregation='voting' instead.",
+                    DeprecationWarning,
+                )
+                if self.aggregation is None:
+                    params["aggregation"] = AggregationMethod.VOTING.value
+
+        if self.aggregation is not None:
+            params["aggregation"] = (
+                self.aggregation if isinstance(self.aggregation, str) else self.aggregation.value
+            )
 
         job.manager.get(resource_id=job.id.value, params=params)
 
@@ -782,14 +834,17 @@ class QPUDevice(IonQDevice):
         api_key (str): The IonQ API key. If not provided, the environment
             variable ``IONQ_API_KEY`` is used.
         error_mitigation (dict | None): settings for error mitigation when creating a job. Defaults to None.
-            Not available on all backends. Set by default on some hardware systems. See
-            `IonQ API Job Creation <https://docs.ionq.com/api-reference/v0.4/jobs/create-job>`_  and
-            `IonQ Debiasing and Sharpening <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
-            Valid keys include: ``debiasing`` (bool).
-        sharpen (bool): whether to use sharpening when accessing the results of an executed job.
-            Defaults to None (no value passed at job retrieval). Will generally return more accurate results if
-            your expected output distribution has peaks. See `IonQ Debiasing and Sharpening
-            <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
+            Not available on all backends. Set by default on some hardware systems.
+            Valid entries include either one or both of the following:
+                "debiasing": True | False | DebiasingConfig
+                "symmetry_verification": True | False
+        aggregation (str | AggregationMethod | None):
+            Aggregation method for results from a debiased job. Defaults to None (no value passed at job retrieval).
+        sharpen (bool): whether to use sharpening when accessing the results of an executed job. Defaults to None
+            (no value passed at job retrieval). Will generally return more accurate results if your expected output distribution has peaks.
+
+            .. deprecated:: 0.46.0
+                Use aggregation instead.
         dry_run (bool): whether to run the job in dry run mode. Defaults to False.
         metadata (dict | None): optional metadata to attach to the job. Defaults to None.
         timeout (float): Request timeout in seconds. Defaults to None, which uses the
@@ -814,6 +869,7 @@ class QPUDevice(IonQDevice):
         backend="aria-1",
         compilation=None,
         error_mitigation=None,
+        aggregation=None,
         sharpen=None,
         api_key=None,
         dry_run=False,
@@ -835,6 +891,7 @@ class QPUDevice(IonQDevice):
             api_key=api_key,
             compilation=compilation,
             error_mitigation=error_mitigation,
+            aggregation=aggregation,
             sharpen=sharpen,
             dry_run=dry_run,
             metadata=metadata,

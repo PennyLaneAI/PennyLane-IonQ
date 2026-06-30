@@ -28,6 +28,7 @@ from pennylane_ionq.device import (
     SimulatorDevice,
     CircuitIndexNotSetException,
 )
+from pennylane_ionq.error_mitigation import DebiasingConfig, TwirlingConfig, PhiChiPattern
 from pennylane_ionq.ops import GPI, GPI2, MS, XX, YY, ZZ
 from pennylane.measurements import SampleMeasurement, ShotCopies
 from unittest import mock
@@ -124,8 +125,9 @@ class TestDeviceIntegration:
 
     def test_failedcircuit(self, monkeypatch):
         monkeypatch.setattr(
-            requests, "post",
-            lambda url, timeout, data, headers: MockPOSTResponse(201, url, data, headers)
+            requests,
+            "post",
+            lambda url, timeout, data, headers: MockPOSTResponse(201, url, data, headers),
         )
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", False)
@@ -140,8 +142,9 @@ class TestDeviceIntegration:
         """Test that shots are correctly specified when submitting a job to the API."""
 
         monkeypatch.setattr(
-            requests, "post",
-            lambda url, timeout, data, headers: MockPOSTResponse(201, url, data, headers)
+            requests,
+            "post",
+            lambda url, timeout, data, headers: MockPOSTResponse(201, url, data, headers),
         )
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
@@ -346,13 +349,47 @@ class TestDeviceIntegration:
             with pytest.raises(KeyError, match="settings"):
                 json.loads(spy.call_args[1]["data"])["settings"]
 
-    @pytest.mark.parametrize("error_mitigation", [None, {"debiasing": True}, {"debiasing": False}])
-    def test_error_mitigation(self, error_mitigation, monkeypatch, mocker):
+    @pytest.mark.parametrize(
+        "error_mitigation,expected_error_mitigation",
+        [
+            (None, None),
+            ({"debiasing": True}, {"debiasing": True}),
+            ({"debiasing": False}, {"debiasing": False}),
+            (
+                {
+                    "debiasing": DebiasingConfig(num_variants=4),
+                    "symmetry_verification": True,
+                },
+                {
+                    "debiasing": {"debiasing": True, "num_variants": 4},
+                    "symmetry_verification": True,
+                },
+            ),
+            (
+                {
+                    "debiasing": DebiasingConfig(
+                        num_variants=16, twirling=TwirlingConfig(pattern=PhiChiPattern.EXTENDED)
+                    ),
+                },
+                {
+                    "debiasing": {
+                        "debiasing": True,
+                        "num_variants": 16,
+                        "phi_chi_twirling": {"pattern": "extended", "one_qubit_twirling": "none"},
+                    },
+                },
+            ),
+        ],
+    )
+    def test_error_mitigation(
+        self, error_mitigation, expected_error_mitigation, monkeypatch, mocker
+    ):
         """Test that error mitigation settings are properly handled when submitting a job to the API."""
 
         monkeypatch.setattr(
-            requests, "post",
-            lambda url, timeout, data, headers: MockPOSTResponse(201, url, data, headers)
+            requests,
+            "post",
+            lambda url, timeout, data, headers: MockPOSTResponse(201, url, data, headers),
         )
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
@@ -382,7 +419,7 @@ class TestDeviceIntegration:
         if error_mitigation is not None:
             assert (
                 json.loads(spy.call_args[1]["data"])["settings"]["error_mitigation"]
-                == error_mitigation
+                == expected_error_mitigation
             )
         else:
             with pytest.raises(KeyError, match="settings"):
