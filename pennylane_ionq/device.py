@@ -230,6 +230,10 @@ class IonQDevice(QubitDevice):
             raise ValueError(
                 "error_mitigation `symmetry_verification` key value must be a boolean."
             )
+        if aggregation is not None and not isinstance(aggregation, (str, AggregationMethod)):
+            raise ValueError(
+                "aggregation must be either a string or an instance of AggregationMethod."
+            )
 
         super().__init__(wires=wires, shots=shots)
         self._current_circuit_index = None
