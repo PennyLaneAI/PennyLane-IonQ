@@ -9,7 +9,7 @@
 
 ### Internal changes ⚙️
 
-* Upgraded Sphinx to version 8.1.
+* Upgraded Sphinx to version 9.0.
   [(#188)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/188)
 
 ### Breaking changes 💔
