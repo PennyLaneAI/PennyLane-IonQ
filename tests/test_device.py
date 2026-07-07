@@ -535,6 +535,39 @@ class TestDeviceIntegration:
         ):
             qml.device("ionq.qpu", wires=1, api_key="test", aggregation="invalid")
 
+    @pytest.mark.parametrize("aggregation", ["average", "voting", "dnl"])
+    def test_aggregation_sets_get_params(self, aggregation, monkeypatch):
+        """Test that aggregation is correctly specified when retrieving job results."""
+
+        monkeypatch.setattr(
+            requests,
+            "post",
+            lambda url, timeout, data, headers: MockPOSTResponse(201, url, data, headers),
+        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
+        monkeypatch.setattr(Job, "is_complete", True)
+
+        captured = {}
+
+        def fake_response(self, resource_id=None, params=None):
+            """Capture params and return fake response data."""
+            captured["params"] = params
+            fake_json = {"0": 1}
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
+
+        monkeypatch.setattr(ResourceManager, "get", fake_response)
+
+        dev = qml.device("ionq.qpu", wires=1, api_key="test", aggregation=aggregation)
+
+        @qml.qnode(dev, shots=100)
+        def circuit():
+            qml.PauliX(wires=0)
+            return qml.expval(qml.PauliZ(0))
+
+        circuit()
+
+        assert captured["params"] == {"aggregation": aggregation}
+
     def test_sharpen_true_sets_voting_param_and_warns(self, monkeypatch):
         """Test that sharpen=True adds sharpen/voting params and emits deprecation warning."""
 
