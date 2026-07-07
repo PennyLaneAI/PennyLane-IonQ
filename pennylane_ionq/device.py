@@ -217,17 +217,13 @@ class IonQDevice(QubitDevice):
             and "debiasing" in error_mitigation
             and not isinstance(error_mitigation["debiasing"], bool)
         ):
-            raise ValueError(
-                "error_mitigation `debiasing` value must be a boolean"
-            )
+            raise ValueError("error_mitigation `debiasing` value must be a boolean")
         if (
             error_mitigation is not None
             and "symmetry_verification" in error_mitigation
             and not isinstance(error_mitigation["symmetry_verification"], bool)
         ):
-            raise ValueError(
-                "error_mitigation `symmetry_verification` value must be a boolean."
-            )
+            raise ValueError("error_mitigation `symmetry_verification` value must be a boolean.")
         if aggregation is not None and not aggregation in ["average", "voting", "dnl"]:
             raise ValueError(
                 "aggregation must be either None or one of: `average`, `voting` or `dnl`."
@@ -653,7 +649,6 @@ class IonQDevice(QubitDevice):
         params = {}
 
         if self.sharpen is not None:
-            params["sharpen"] = self.sharpen
             if self.sharpen is True:
                 warnings.warn(
                     "sharpen=True is deprecated. Use aggregation=`voting` instead.",

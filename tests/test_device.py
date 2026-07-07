@@ -506,6 +506,70 @@ class TestDeviceIntegration:
         with pytest.raises(ValueError, match="noise_seed requires noise_model"):
             qml.device("ionq.simulator", wires=1, api_key="test", noise_seed=42)
 
+    def test_error_mitigation_must_be_dictionary(self):
+        """Test that error_mitigation must be a dictionary when provided."""
+        with pytest.raises(ValueError, match="error_mitigation must be a dictionary"):
+            qml.device("ionq.qpu", wires=1, api_key="test", error_mitigation=True)
+
+    @pytest.mark.parametrize(
+        "key,value,match",
+        [
+            ("debiasing", "yes", "error_mitigation `debiasing` value must be a boolean"),
+            (
+                "symmetry_verification",
+                1,
+                "error_mitigation `symmetry_verification` value must be a boolean",
+            ),
+        ],
+    )
+    def test_error_mitigation_values_must_be_booleans(self, key, value, match):
+        """Test that supported error_mitigation keys only accept boolean values."""
+        with pytest.raises(ValueError, match=match):
+            qml.device("ionq.qpu", wires=1, api_key="test", error_mitigation={key: value})
+
+    def test_aggregation_invalid_raises(self):
+        """Test that invalid aggregation values raise ValueError."""
+        with pytest.raises(
+            ValueError,
+            match="aggregation must be either None or one of: `average`, `voting` or `dnl`",
+        ):
+            qml.device("ionq.qpu", wires=1, api_key="test", aggregation="invalid")
+
+    def test_sharpen_true_sets_voting_param_and_warns(self, monkeypatch):
+        """Test that sharpen=True adds sharpen/voting params and emits deprecation warning."""
+
+        monkeypatch.setattr(
+            requests,
+            "post",
+            lambda url, timeout, data, headers: MockPOSTResponse(201, url, data, headers),
+        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
+        monkeypatch.setattr(Job, "is_complete", True)
+
+        captured = {}
+
+        def fake_response(self, resource_id=None, params=None):
+            """Capture params and return fake response data."""
+            captured["params"] = params
+            fake_json = {"0": 1}
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
+
+        monkeypatch.setattr(ResourceManager, "get", fake_response)
+
+        dev = qml.device("ionq.qpu", wires=1, api_key="test", sharpen=True)
+
+        @qml.qnode(dev, shots=100)
+        def circuit():
+            qml.PauliX(wires=0)
+            return qml.expval(qml.PauliZ(0))
+
+        with pytest.warns(
+            DeprecationWarning, match="sharpen=True is deprecated. Use aggregation=`voting`"
+        ):
+            circuit()
+
+        assert captured["params"] == {"aggregation": "voting"}
+
     @pytest.mark.parametrize("shots", [8192])
     def test_one_qubit_circuit(self, shots, requires_api, tol):
         """Test that devices provide correct result for a simple circuit"""
