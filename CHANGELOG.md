@@ -7,7 +7,7 @@
 * Updated tests to stop using deprecated shots kwarg on the device.
   [(#184)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/184)
 
-* Error mitigation for QPU devices [(#190)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/190) now is configured as a dictionary typed `error_mitigation` argument on device() that accepts any/or both of the following:
+* Error mitigation for QPU devices now is configured as a dictionary typed `error_mitigation` argument on device() that accepts any/or both of the following  [(#190)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/190):
 
   - `debiasing` - True/False: run the circuit as multiple symmetrized variants to
     suppress systematic hardware biases. Requires at least 500 shots.
@@ -16,15 +16,15 @@
 
   Leaving a kwarg unset defers to the IonQ platform default for the target backend. When `debiasing` is applied, the per-variant results can be combined with a string valued `aggregation` argument on device() that accepts the following values:
 
-  1. `average` (default),
-  2. `voting` (plurality voting, sharpens the distribution; replaces the deprecated `sharpen=True`),
-  3. `dnl` (debiasing with non-linear filtering, see [arXiv:2506.05757](https://arxiv.org/abs/2506.05757)).
+  1. `average` (default)
+  2. `voting` (plurality voting, sharpens the distribution; replaces the deprecated `sharpen=True`)
+  3. `dnl` (debiasing with non-linear filtering, see [arXiv:2506.05757](https://arxiv.org/abs/2506.05757))
 
 ### Breaking changes 💔
 
 ### Deprecations 👋
 
-The device() `sharpen` argument is deprecated and should be replaced by the new setting `aggregation`. When user sets the option sharpen=True, the codes automatically replaces it with `aggregation="voting"`.
+The device() `sharpen` argument is deprecated and should be replaced by the new setting `aggregation`. When user sets the option sharpen=True, the codes automatically replaces it with `aggregation="voting"` [(#190)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/190).
 
 ### Documentation 📝
 
