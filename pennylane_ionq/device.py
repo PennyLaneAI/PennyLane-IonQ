@@ -119,10 +119,10 @@ class IonQDevice(QubitDevice):
                 "debiasing": True | False
                 "symmetry_verification": True | False
         aggregation (str | None): Aggregation method for debiased jobs. How the per-variant results of a debiased job are combined into one distribution. Defaults to None.
-                One of "average", "voting", or "dnl":
-                - "average" (default): mean of the variant histograms.
-                - "voting": plurality voting across variants; sharpens the distribution toward the most frequent outcomes.
-                - "dnl": debiasing with non-linear filtering — a power-law filter that suppresses outcomes observed in only a few variants.
+                One of ``"average"``, ``"voting"``, or ``"dnl"``:
+                - ``"average"`` (default): mean of the variant histograms.
+                - ``"voting"``: plurality voting across variants; sharpens the distribution toward the most frequent outcomes.
+                - ``"dnl"``: debiasing with non-linear filtering — a power-law filter that suppresses outcomes observed in only a few variants.
         sharpen (bool | None): Deprecated alias for ``aggregation="voting"``.
                 Use ``aggregation`` instead. Defaults to None.
 
@@ -825,10 +825,10 @@ class QPUDevice(IonQDevice):
                 "debiasing": True | False
                 "symmetry_verification": True | False
         aggregation (str | None): Aggregation method for debiased jobs. How the per-variant results of a debiased job are combined into one distribution. Defaults to None.
-                One of "average", "voting", or "dnl":
-                - "average" (default): mean of the variant histograms.
-                - "voting": plurality voting across variants; sharpens the distribution toward the most frequent outcomes.
-                - "dnl": debiasing with non-linear filtering — a power-law filter thatsuppresses outcomes observed in only a few variants.
+                One of ``"average"``, ``"voting"``, or ``"dnl"``:
+                - ``"average"`` (default): mean of the variant histograms.
+                - ``"voting"``: plurality voting across variants; sharpens the distribution toward the most frequent outcomes.
+                - ``"dnl"``: debiasing with non-linear filtering — a power-law filter thatsuppresses outcomes observed in only a few variants.
         sharpen (bool | None): Deprecated alias for ``aggregation="voting"``.
                 Use ``aggregation`` instead. Defaults to None.
 
