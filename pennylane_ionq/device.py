@@ -217,6 +217,13 @@ class IonQDevice(QubitDevice):
                 )
         if error_mitigation is not None and not isinstance(error_mitigation, dict):
             raise ValueError("error_mitigation must be a dictionary.")
+        if error_mitigation is not None and error_mitigation.keys() - {
+            "debiasing",
+            "symmetry_verification",
+        }:
+            raise ValueError(
+                "error_mitigation must only contain the keys 'debiasing' and/or 'symmetry_verification'."
+            )
         if (
             error_mitigation is not None
             and "debiasing" in error_mitigation

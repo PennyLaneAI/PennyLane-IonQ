@@ -511,6 +511,19 @@ class TestDeviceIntegration:
         with pytest.raises(ValueError, match="error_mitigation must be a dictionary"):
             qml.device("ionq.qpu", wires=1, api_key="test", error_mitigation=True)
 
+    def test_error_mitigation_must_only_contain_supported_keys(self):
+        """Test that error_mitigation rejects unsupported keys."""
+        with pytest.raises(
+            ValueError,
+            match="error_mitigation must only contain the keys 'debiasing' and/or 'symmetry_verification'",
+        ):
+            qml.device(
+                "ionq.qpu",
+                wires=1,
+                api_key="test",
+                error_mitigation={"debiasing": True, "unsupported": True},
+            )
+
     @pytest.mark.parametrize(
         "key,value,match",
         [
