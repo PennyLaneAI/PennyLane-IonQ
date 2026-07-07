@@ -28,7 +28,6 @@ from pennylane_ionq.device import (
     SimulatorDevice,
     CircuitIndexNotSetException,
 )
-from pennylane_ionq.error_mitigation import DebiasingConfig, TwirlingConfig, PhiChiPattern
 from pennylane_ionq.ops import GPI, GPI2, MS, XX, YY, ZZ
 from pennylane.measurements import SampleMeasurement, ShotCopies
 from unittest import mock
@@ -355,28 +354,26 @@ class TestDeviceIntegration:
             (None, None),
             ({"debiasing": True}, {"debiasing": True}),
             ({"debiasing": False}, {"debiasing": False}),
+            ({"symmetry_verification": True}, {"symmetry_verification": True}),
+            ({"symmetry_verification": False}, {"symmetry_verification": False}),
             (
                 {
-                    "debiasing": DebiasingConfig(num_variants=4),
+                    "debiasing": True,
                     "symmetry_verification": True,
                 },
                 {
-                    "debiasing": {"debiasing": True, "num_variants": 4},
+                    "debiasing": True,
                     "symmetry_verification": True,
                 },
             ),
             (
                 {
-                    "debiasing": DebiasingConfig(
-                        num_variants=16, twirling=TwirlingConfig(pattern=PhiChiPattern.EXTENDED)
-                    ),
+                    "debiasing": False,
+                    "symmetry_verification": False,
                 },
                 {
-                    "debiasing": {
-                        "debiasing": True,
-                        "num_variants": 16,
-                        "phi_chi_twirling": {"pattern": "extended", "one_qubit_twirling": "none"},
-                    },
+                    "debiasing": False,
+                    "symmetry_verification": False,
                 },
             ),
         ],

@@ -32,8 +32,6 @@ from pennylane.ops.op_math.prod import Prod
 
 from pennylane.ops.op_math.linear_combination import LinearCombination
 
-from pennylane_ionq.error_mitigation import DebiasingConfig, AggregationMethod
-
 from .api_client import Job, JobExecutionError
 from .exceptions import (
     CircuitIndexNotSetException,
@@ -118,16 +116,16 @@ class IonQDevice(QubitDevice):
         error_mitigation (dict | None): settings for error mitigation when creating a job. Defaults to None.
             Not available on all backends. Set by default on some hardware systems.
             Valid entries include either one or both of the following:
-                "debiasing": True | False | DebiasingConfig
+                "debiasing": True | False
                 "symmetry_verification": True | False
-        aggregation (str | AggregationMethod | None):
-            Aggregation method for results from a debiased job. Defaults to None (no value passed at job retrieval).
-        sharpen (bool): whether to use sharpening when accessing the results of an executed job. Defaults to None
-            (no value passed at job retrieval). Will generally return more accurate results if your expected output
-            distribution has peaks.
+        aggregation (str | None): Aggregation method for debiased jobs.
+                One of ``"average"`` (default), ``"voting"``, or ``"dnl"``.
+                Defaults to None.
+        sharpen (bool | None): Deprecated alias for ``aggregation="voting"``.
+                Use ``aggregation`` instead. Defaults to None.
 
             .. deprecated:: 0.46.0
-                Use aggregation instead.
+                Use ``aggregation="voting"`` instead.
         noise_model (str): the noise model to use for simulation. Only applies when ``target="simulator"``.
             Valid values are ``"ideal"``, ``"harmony"``, ``"aria-1"``, ``"aria-2"``, ``"forte-1"``,
             and ``"forte-enterprise-1"``. Defaults to None (ideal simulation). See
@@ -217,10 +215,10 @@ class IonQDevice(QubitDevice):
         if (
             error_mitigation is not None
             and "debiasing" in error_mitigation
-            and not isinstance(error_mitigation["debiasing"], (bool, DebiasingConfig))
+            and not isinstance(error_mitigation["debiasing"], bool)
         ):
             raise ValueError(
-                "error_mitigation `debiasing` key value must be either a boolean or an instance of DebiasingConfig."
+                "error_mitigation `debiasing` value must be a boolean"
             )
         if (
             error_mitigation is not None
@@ -228,11 +226,11 @@ class IonQDevice(QubitDevice):
             and not isinstance(error_mitigation["symmetry_verification"], bool)
         ):
             raise ValueError(
-                "error_mitigation `symmetry_verification` key value must be a boolean."
+                "error_mitigation `symmetry_verification` value must be a boolean."
             )
-        if aggregation is not None and not isinstance(aggregation, (str, AggregationMethod)):
+        if aggregation is not None and not aggregation in ["average", "voting", "dnl"]:
             raise ValueError(
-                "aggregation must be either a string or an instance of AggregationMethod."
+                "aggregation must be either None or one of: `average`, `voting` or `dnl`."
             )
 
         super().__init__(wires=wires, shots=shots)
@@ -267,15 +265,6 @@ class IonQDevice(QubitDevice):
             raise ValueError(NO_ANALYTIC_MSG)
         return super().batch_transform(circuit)
 
-    def serialize_error_mitigation(self, error_mitigation) -> dict:
-        """Serialize error mitigation settings for API payload."""
-        serialized = dict(error_mitigation)
-
-        if "debiasing" in serialized and hasattr(serialized["debiasing"], "to_dict"):
-            serialized["debiasing"] = serialized["debiasing"].to_dict()
-
-        return serialized
-
     def reset(self, circuits_array_length=1):
         """Reset the device"""
         self._current_circuit_index = None
@@ -309,12 +298,10 @@ class IonQDevice(QubitDevice):
             self.job["metadata"] = self.metadata
         if self.compilation is not None:
             self.job["settings"] = {"compilation": self.compilation}
-        if self.error_mitigation is not None:
+        if self.error_mitigation:
             if "settings" not in self.job:
                 self.job["settings"] = {}
-            self.job["settings"]["error_mitigation"] = self.serialize_error_mitigation(
-                self.error_mitigation
-            )
+            self.job["settings"]["error_mitigation"] = self.error_mitigation
         if self.job["backend"] == "qpu":
             self.job["backend"] = "qpu.aria-1"
             warnings.warn(
@@ -669,16 +656,14 @@ class IonQDevice(QubitDevice):
             params["sharpen"] = self.sharpen
             if self.sharpen is True:
                 warnings.warn(
-                    "sharpen=True is deprecated. Use aggregation='voting' instead.",
+                    "sharpen=True is deprecated. Use aggregation=`voting` instead.",
                     DeprecationWarning,
                 )
                 if self.aggregation is None:
-                    params["aggregation"] = AggregationMethod.VOTING.value
+                    params["aggregation"] = "voting"
 
         if self.aggregation is not None:
-            params["aggregation"] = (
-                self.aggregation if isinstance(self.aggregation, str) else self.aggregation.value
-            )
+            params["aggregation"] = self.aggregation
 
         job.manager.get(resource_id=job.id.value, params=params)
 
@@ -840,15 +825,16 @@ class QPUDevice(IonQDevice):
         error_mitigation (dict | None): settings for error mitigation when creating a job. Defaults to None.
             Not available on all backends. Set by default on some hardware systems.
             Valid entries include either one or both of the following:
-                "debiasing": True | False | DebiasingConfig
+                "debiasing": True | False
                 "symmetry_verification": True | False
-        aggregation (str | AggregationMethod | None):
-            Aggregation method for results from a debiased job. Defaults to None (no value passed at job retrieval).
-        sharpen (bool): whether to use sharpening when accessing the results of an executed job. Defaults to None
-            (no value passed at job retrieval). Will generally return more accurate results if your expected output distribution has peaks.
+        aggregation (str | None): Aggregation method for debiased jobs.
+                One of ``"average"`` (default), ``"voting"``, or ``"dnl"``.
+                Defaults to None.
+        sharpen (bool | None): Deprecated alias for ``aggregation="voting"``.
+                Use ``aggregation`` instead. Defaults to None.
 
             .. deprecated:: 0.46.0
-                Use aggregation instead.
+                Use ``aggregation="voting"`` instead.
         dry_run (bool): whether to run the job in dry run mode. Defaults to False.
         metadata (dict | None): optional metadata to attach to the job. Defaults to None.
         timeout (float): Request timeout in seconds. Defaults to None, which uses the
