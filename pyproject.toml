@@ -39,8 +39,8 @@ dependencies = [
 
 [dependency-groups]
 docs = [
-    "sphinx==8.1",
-    "sphinx-automodapi==0.19",
+    "sphinx==9.0",
+    "sphinx-automodapi==0.21",
     "sphinxcontrib-applehelp==2.0.0",
     "sphinxcontrib-devhelp==2.0.0",
     "sphinxcontrib-htmlhelp==2.0.6",
@@ -99,7 +99,7 @@ base = [
     "scipy==1.16.3",
     "scipy-openblas32==0.3.30.0.6",
     "six==1.17.0",
-    "sphinx-automodapi==0.19",
+    "sphinx-automodapi==0.21",
     "termcolor==3.2.0",
     "tomlkit==0.13.3",
     "typing-extensions==4.15.0",
