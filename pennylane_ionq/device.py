@@ -127,7 +127,8 @@ class IonQDevice(QubitDevice):
                 - ``"dnl"``: debiasing with non-linear filtering — a power-law filter that suppresses outcomes
                     observed in only a few variants.
         sharpen (bool | None): Deprecated alias for ``aggregation="voting"``.
-                Use ``aggregation`` instead. Defaults to None.
+                Use ``aggregation`` instead, ``sharpen=True`` maps to ``aggregation="voting"``. 
+                Defaults to None.
 
             .. deprecated:: 0.46.0
                 Use ``aggregation="voting"`` instead.
@@ -661,11 +662,11 @@ class IonQDevice(QubitDevice):
         params = {}
 
         if self.sharpen is not None:
+            warnings.warn(
+                "sharpen is deprecated. Use `aggregation=..` instead.",
+                DeprecationWarning,
+            )
             if self.sharpen is True:
-                warnings.warn(
-                    "sharpen=True is deprecated. Use aggregation=`voting` instead.",
-                    DeprecationWarning,
-                )
                 if self.aggregation is None:
                     params["aggregation"] = "voting"
 
@@ -843,7 +844,8 @@ class QPUDevice(IonQDevice):
                 - ``"dnl"``: debiasing with non-linear filtering — a power-law filter thatsuppresses
                     outcomes observed in only a few variants.
         sharpen (bool | None): Deprecated alias for ``aggregation="voting"``.
-                Use ``aggregation`` instead. Defaults to None.
+                Use ``aggregation`` instead. ``sharpen=True`` maps to ``aggregation="voting"``. 
+                Defaults to None.
 
             .. deprecated:: 0.46.0
                 Use ``aggregation="voting"`` instead.

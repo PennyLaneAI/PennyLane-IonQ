@@ -610,7 +610,7 @@ class TestDeviceIntegration:
             return qml.expval(qml.PauliZ(0))
 
         with pytest.warns(
-            DeprecationWarning, match="sharpen=True is deprecated. Use aggregation=`voting`"
+            DeprecationWarning, match="sharpen is deprecated. Use `aggregation=..` instead."
         ):
             circuit()
 
