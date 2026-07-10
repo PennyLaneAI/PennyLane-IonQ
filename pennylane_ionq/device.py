@@ -127,7 +127,7 @@ class IonQDevice(QubitDevice):
                 - ``"dnl"``: debiasing with non-linear filtering — a power-law filter that suppresses outcomes
                     observed in only a few variants.
         sharpen (bool | None): Deprecated alias for ``aggregation="voting"``.
-                Use ``aggregation`` instead, ``sharpen=True`` maps to ``aggregation="voting"``. 
+                Use ``aggregation`` instead, ``sharpen=True`` maps to ``aggregation="voting"``.
                 Defaults to None.
 
             .. deprecated:: 0.46.0
@@ -178,28 +178,8 @@ class IonQDevice(QubitDevice):
         "forte-enterprise-1",
     }
 
-    def __init__(
-        self,
-        wires,
-        *,
-        target="simulator",
-        gateset="qis",
-        shots=None,
-        job_name=None,
-        api_key=None,
-        compilation=None,
-        error_mitigation=None,
-        aggregation=None,
-        sharpen=None,
-        noise_model=None,
-        noise_seed=None,
-        dry_run=False,
-        metadata=None,
-        timeout=None,
-        max_retries=None,
-        retry_delay=None,
-    ):
-
+    def _validate_init_options(self, noise_model, noise_seed, error_mitigation, aggregation):
+        """Validate constructor options related to noise and error mitigation settings."""
         if noise_model is not None and noise_model not in self.NOISE_MODELS:
             raise ValueError(
                 f"Invalid noise model '{noise_model}'. Valid options are: "
@@ -241,6 +221,30 @@ class IonQDevice(QubitDevice):
             raise ValueError(
                 "aggregation must be either None or one of: `average`, `voting` or `dnl`."
             )
+
+    def __init__(
+        self,
+        wires,
+        *,
+        target="simulator",
+        gateset="qis",
+        shots=None,
+        job_name=None,
+        api_key=None,
+        compilation=None,
+        error_mitigation=None,
+        aggregation=None,
+        sharpen=None,
+        noise_model=None,
+        noise_seed=None,
+        dry_run=False,
+        metadata=None,
+        timeout=None,
+        max_retries=None,
+        retry_delay=None,
+    ):
+
+        self._validate_init_options(noise_model, noise_seed, error_mitigation, aggregation)
 
         super().__init__(wires=wires, shots=shots)
         self._current_circuit_index = None
@@ -844,7 +848,7 @@ class QPUDevice(IonQDevice):
                 - ``"dnl"``: debiasing with non-linear filtering — a power-law filter thatsuppresses
                     outcomes observed in only a few variants.
         sharpen (bool | None): Deprecated alias for ``aggregation="voting"``.
-                Use ``aggregation`` instead. ``sharpen=True`` maps to ``aggregation="voting"``. 
+                Use ``aggregation`` instead. ``sharpen=True`` maps to ``aggregation="voting"``.
                 Defaults to None.
 
             .. deprecated:: 0.46.0
