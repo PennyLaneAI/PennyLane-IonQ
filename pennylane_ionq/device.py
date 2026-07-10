@@ -178,49 +178,60 @@ class IonQDevice(QubitDevice):
         "forte-enterprise-1",
     }
 
-    def _validate_init_options(self, noise_model, noise_seed, error_mitigation, aggregation):
-        """Validate constructor options related to noise and error mitigation settings."""
-        if noise_model is not None and noise_model not in self.NOISE_MODELS:
+    @staticmethod
+    def _validate_noise_options(noise_model, noise_seed, noise_models):
+        """Validate noise model and seed options."""
+        if noise_model is not None and noise_model not in noise_models:
             raise ValueError(
                 f"Invalid noise model '{noise_model}'. Valid options are: "
-                f"{', '.join(sorted(self.NOISE_MODELS))}."
+                f"{', '.join(sorted(noise_models))}."
             )
         if noise_seed is not None and noise_model is None:
             raise ValueError("noise_seed requires noise_model to be set.")
-        if noise_seed is not None:
-            if (
-                isinstance(noise_seed, bool)
-                or not isinstance(noise_seed, int)
-                or not 1 <= noise_seed <= 2**31 - 1
-            ):
-                raise ValueError(
-                    f"noise_seed must be an integer between 1 and 2^31 - 1, got {noise_seed}."
-                )
-        if error_mitigation is not None and not isinstance(error_mitigation, dict):
+        if noise_seed is None:
+            return
+        if (
+            isinstance(noise_seed, bool)
+            or not isinstance(noise_seed, int)
+            or not 1 <= noise_seed <= 2**31 - 1
+        ):
+            raise ValueError(
+                f"noise_seed must be an integer between 1 and 2^31 - 1, got {noise_seed}."
+            )
+
+    @staticmethod
+    def _validate_error_mitigation_options(error_mitigation):
+        """Validate error mitigation options."""
+        if error_mitigation is None:
+            return
+        if not isinstance(error_mitigation, dict):
             raise ValueError("error_mitigation must be a dictionary.")
-        if error_mitigation is not None and error_mitigation.keys() - {
-            "debiasing",
-            "symmetry_verification",
-        }:
+        if error_mitigation.keys() - {"debiasing", "symmetry_verification"}:
             raise ValueError(
                 "error_mitigation must only contain the keys 'debiasing' and/or 'symmetry_verification'."
             )
-        if (
-            error_mitigation is not None
-            and "debiasing" in error_mitigation
-            and not isinstance(error_mitigation["debiasing"], bool)
-        ):
+        if "debiasing" in error_mitigation and not isinstance(error_mitigation["debiasing"], bool):
             raise ValueError("error_mitigation `debiasing` value must be a boolean")
-        if (
-            error_mitigation is not None
-            and "symmetry_verification" in error_mitigation
-            and not isinstance(error_mitigation["symmetry_verification"], bool)
+        if "symmetry_verification" in error_mitigation and not isinstance(
+            error_mitigation["symmetry_verification"], bool
         ):
             raise ValueError("error_mitigation `symmetry_verification` value must be a boolean.")
-        if aggregation is not None and not aggregation in ["average", "voting", "dnl"]:
+
+    @staticmethod
+    def _validate_aggregation_option(aggregation):
+        """Validate aggregation option."""
+        if aggregation is None:
+            return
+        if aggregation not in ["average", "voting", "dnl"]:
             raise ValueError(
                 "aggregation must be either None or one of: `average`, `voting` or `dnl`."
             )
+
+    def _validate_init_options(self, noise_model, noise_seed, error_mitigation, aggregation):
+        """Validate constructor options related to noise and error mitigation settings."""
+        self._validate_noise_options(noise_model, noise_seed, self.NOISE_MODELS)
+        self._validate_error_mitigation_options(error_mitigation)
+        self._validate_aggregation_option(aggregation)
 
     def __init__(
         self,
