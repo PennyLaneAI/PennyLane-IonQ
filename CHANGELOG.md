@@ -19,6 +19,10 @@
   1. `average` (default)
   2. `voting` (plurality voting, sharpens the distribution; replaces the deprecated `sharpen=True`)
   3. `dnl` (debiasing with non-linear filtering, see [arXiv:2506.05757](https://arxiv.org/abs/2506.05757))
+### Internal changes ⚙️
+
+* Upgraded Sphinx to version 9.0.
+  [(#188)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/188)
 
 ### Breaking changes 💔
 
