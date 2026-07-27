@@ -14,6 +14,9 @@
 
 ### Breaking changes 💔
 
+* Support for Python 3.11 has been removed.
+  [(#189)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/189)
+
 ### Deprecations 👋
 
 ### Documentation 📝
