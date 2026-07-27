@@ -1190,3 +1190,156 @@ class TestJobAttribute:
         assert "control" not in gate
         assert "target" not in gate
         assert gate["rotation"] == rotation
+
+
+def _requires_qasm3(tape):
+    """Deferred import so that collecting this module does not fail while the
+    TDD target ``circuit_requires_qasm3`` is not implemented yet."""
+    from pennylane_ionq.device import circuit_requires_qasm3
+
+    return circuit_requires_qasm3(tape)
+
+
+def _mcm_tape():
+    """1-qubit mid-circuit-measurement tape (the API schema example)."""
+    with qml.tape.QuantumTape(shots=1024) as tape:
+        qml.Hadamard(0)
+        qml.measure(0)
+        qml.PauliX(0)
+        qml.measure(0)
+        qml.PauliX(0)
+        qml.measure(0)
+        qml.probs(wires=0)
+    return tape
+
+
+class TestMidCircuitMeasurement:
+    """Tests for routing mid-circuit measurement, reset, and classical control
+    flow through the ionq.qasm3.v1 submission path.
+
+    These tests mirror the ones added to qiskit-ionq in "feat: mid-circuit
+    measurement via ionq.qasm3.v1" (qiskit-ionq #258) and are written
+    test-driven: the feature is not implemented yet.
+    """
+
+    def test_requires_qasm3_mcm(self):
+        """Reusing a qubit after a mid-circuit measurement requires the qasm3 path."""
+        assert _requires_qasm3(_mcm_tape()) is True
+
+    def test_requires_qasm3_reset(self):
+        """A mid-circuit measurement with reset requires the qasm3 path."""
+        with qml.tape.QuantumTape() as tape:
+            qml.Hadamard(0)
+            qml.measure(0, reset=True)
+            qml.PauliX(0)
+        assert _requires_qasm3(tape) is True
+
+    def test_requires_qasm3_cond(self):
+        """Classically controlled operations (qml.cond) require the qasm3 path."""
+        with qml.tape.QuantumTape() as tape:
+            qml.Hadamard(0)
+            m = qml.measure(0)
+            qml.cond(m, qml.PauliX)(0)
+        assert _requires_qasm3(tape) is True
+
+    @pytest.mark.parametrize(
+        "measurement",
+        [
+            pytest.param(lambda: qml.expval(qml.PauliZ(0)), id="expval"),
+            pytest.param(lambda: qml.var(qml.PauliZ(0)), id="var"),
+            pytest.param(lambda: qml.probs(wires=[0, 1]), id="probs"),
+            pytest.param(lambda: qml.sample(qml.PauliZ(0)), id="sample"),
+            pytest.param(lambda: qml.counts(), id="counts"),
+        ],
+    )
+    def test_requires_qasm3_plain(self, measurement):
+        """A plain terminal-measurement tape stays on the v1 path."""
+        with qml.tape.QuantumTape() as tape:
+            qml.Hadamard(0)
+            qml.CNOT(wires=[0, 1])
+            measurement()
+        assert _requires_qasm3(tape) is False
+
+    def test_requires_qasm3_cond_else(self):
+        """A conditional with both true and false branches requires the qasm3 path."""
+        with qml.tape.QuantumTape() as tape:
+            qml.Hadamard(0)
+            m = qml.measure(0)
+            qml.cond(m, qml.PauliX, qml.PauliZ)(0)
+        assert _requires_qasm3(tape) is True
+
+    def test_requires_qasm3_reuse(self):
+        """A gate after a mid-circuit measurement (qubit reuse) requires the qasm3 path."""
+        with qml.tape.QuantumTape() as tape:
+            qml.Hadamard(0)
+            qml.measure(0)
+            qml.PauliX(0)
+        assert _requires_qasm3(tape) is True
+
+    def test_qasm3_payload_shape(self, monkeypatch):
+        """MCM tapes serialize to an ionq.qasm3.v1 payload with QASM 3 input."""
+        monkeypatch.setattr(IonQDevice, "_submit_job", lambda self: None)
+        dev = IonQDevice(wires=(0,), shots=1024)
+
+        dev.apply(_mcm_tape().operations)
+
+        assert dev.job["type"] == "ionq.qasm3.v1"
+        assert dev.job["input"]["qubits"] == 1
+        assert dev.job["shots"] == 1024
+        data = dev.job["input"]["data"]
+        assert data.startswith("OPENQASM 3.0;")
+        # Exactly the operations we built (1 H, 2 X, 3 measure) and nothing injected.
+        assert data.count("measure") == 3
+        assert data.count("h q") == 1
+        assert data.count("x q") == 2
+
+    def test_qasm3_settings_passthrough(self, monkeypatch):
+        """compilation and error_mitigation settings flow through on the qasm3 path."""
+        monkeypatch.setattr(IonQDevice, "_submit_job", lambda self: None)
+        dev = IonQDevice(
+            wires=(0,),
+            shots=1024,
+            compilation={"opt": 0},
+            error_mitigation={"debiasing": False},
+        )
+
+        dev.apply(_mcm_tape().operations)
+
+        assert dev.job["type"] == "ionq.qasm3.v1"
+        assert dev.job["settings"]["compilation"] == {"opt": 0}
+        assert dev.job["settings"]["error_mitigation"] == {"debiasing": False}
+
+    def test_multi_circuit_mcm_raises(self, monkeypatch):
+        """Multi-circuit MCM submissions are rejected with a clear error."""
+        monkeypatch.setattr(IonQDevice, "_submit_job", lambda self: None)
+        dev = IonQDevice(wires=(0,), shots=1024)
+
+        with pytest.raises(ValueError, match="single-circuit"):
+            dev.batch_execute([_mcm_tape(), _mcm_tape()])
+
+    def test_qasm3_simulator_noise(self, monkeypatch):
+        """MCM on the simulator carries the noise block, like the v1 path."""
+        monkeypatch.setattr(IonQDevice, "_submit_job", lambda self: None)
+        dev = SimulatorDevice(wires=(0,), shots=1024, noise_model="ideal")
+
+        dev.apply(_mcm_tape().operations)
+
+        assert dev.job["type"] == "ionq.qasm3.v1"
+        assert dev.job["backend"] == "simulator"
+        assert dev.job["noise"]["model"] == "ideal"
+
+    def test_qasm3_reset_payload(self, monkeypatch):
+        """A mid-circuit reset routes to qasm3 and the reset survives export."""
+        monkeypatch.setattr(IonQDevice, "_submit_job", lambda self: None)
+        dev = IonQDevice(wires=(0,), shots=1024)
+
+        with qml.tape.QuantumTape() as tape:
+            qml.Hadamard(0)
+            qml.measure(0, reset=True)
+            qml.PauliX(0)
+            qml.probs(wires=0)
+
+        dev.apply(tape.operations)
+
+        assert dev.job["type"] == "ionq.qasm3.v1"
+        assert "reset" in dev.job["input"]["data"]
