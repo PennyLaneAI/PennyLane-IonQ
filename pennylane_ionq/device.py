@@ -24,11 +24,13 @@ from time import sleep
 
 import numpy as np
 
-from pennylane import pauli_decompose, SparseHamiltonian
+from pennylane import BooleanFn, pauli_decompose, SparseHamiltonian
 from pennylane.devices import QubitDevice
-from pennylane.ops.op_math import Exp, Sum, SProd
+from pennylane.measurements import MeasurementProcess, MidMeasureMP
+from pennylane.ops.op_math import Conditional, Exp, Sum, SProd
 from pennylane.ops import Identity, PauliX, PauliY, PauliZ
 from pennylane.ops.op_math.prod import Prod
+from pennylane.tape import QuantumScript
 
 from pennylane.ops.op_math.linear_combination import LinearCombination
 
@@ -86,6 +88,75 @@ _GATESET_OPS = {
 PAULI_MAP = {"PauliX": "X", "PauliY": "Y", "PauliZ": "Z", "Identity": "I"}
 
 NO_ANALYTIC_MSG = "The ionq device does not support analytic expectation values."
+
+# OpenQASM 3 (stdgates.inc) spellings for the operations supported on the
+# ionq.qasm3.v1 submission path.
+_qasm3_gate_map = {
+    "PauliX": "x",
+    "PauliY": "y",
+    "PauliZ": "z",
+    "Hadamard": "h",
+    "CNOT": "cx",
+    "SWAP": "swap",
+    "RX": "rx",
+    "RY": "ry",
+    "RZ": "rz",
+    "S": "s",
+    "S.inv": "sdg",
+    "Adjoint(S)": "sdg",
+    "T": "t",
+    "T.inv": "tdg",
+    "Adjoint(T)": "tdg",
+    "SX": "sx",
+}
+
+
+def circuit_requires_qasm3(circuit):
+    """Whether a circuit must be submitted as an ``ionq.qasm3.v1`` job.
+
+    True for circuits with a mid-circuit reset, classically controlled
+    operations, or a gate acting on a previously measured wire (qubit reuse);
+    these are not expressible as a flat ``ionq.circuit.v1`` gate list and are
+    submitted as an OpenQASM 3 program instead.
+
+    Args:
+        circuit (QuantumTape or Iterable[Operation]): a tape, or its operations
+
+    Returns:
+        bool: whether the qasm3 submission path is required
+    """
+    operations = getattr(circuit, "operations", circuit)
+    measured = set()
+    for operation in operations:
+        if isinstance(operation, Conditional):
+            return True
+        if isinstance(operation, MidMeasureMP):
+            if operation.reset:
+                return True
+            measured.update(operation.wires)
+            continue
+        if operation.name in ("Barrier", "Snapshot"):
+            continue
+        if measured.intersection(operation.wires):
+            return True
+    return False
+
+
+def _qasm3_condition(meas_val, bit_indices):
+    """Render a ``MeasurementValue`` as an OpenQASM 3 boolean expression over
+    the ``mid`` bit register by enumerating the value's branches.
+
+    Returns an empty string if no branch is truthy (the conditional is dead).
+    """
+    bits = [bit_indices[id(measurement)] for measurement in meas_val.measurements]
+    terms = []
+    for assignment, outcome in meas_val.branches.items():
+        if outcome:
+            clauses = " && ".join(
+                f"mid[{bit}] == {int(value)}" for bit, value in zip(bits, assignment)
+            )
+            terms.append(f"({clauses})" if len(bits) > 1 else clauses)
+    return " || ".join(terms)
 
 
 class IonQDevice(QubitDevice):
@@ -152,6 +223,7 @@ class IonQDevice(QubitDevice):
         "model": "qubit",
         "tensor_observables": True,
         "inverse_operations": True,
+        "supports_mid_measure": True,
     }
 
     # Note: unlike QubitDevice, IonQ does not support QubitUnitary,
@@ -289,7 +361,7 @@ class IonQDevice(QubitDevice):
         """
         self._current_circuit_index = circuit_index
 
-    def batch_execute(self, circuits):
+    def batch_execute(self, circuits, postselect_mode=None):
         """Execute a batch of quantum circuits on the device.
 
         The circuits are represented by tapes, and they are executed one-by-one using the
@@ -297,6 +369,9 @@ class IonQDevice(QubitDevice):
 
         Args:
             circuits (list[~.tape.QuantumTape]): circuits to execute on the device
+            postselect_mode (str | None): passed by PennyLane for devices that
+                support mid-circuit measurements; postselection is not
+                supported on IonQ hardware, so the argument is ignored
 
         Returns:
             list[array[float]]: list of measured value(s)
@@ -310,6 +385,13 @@ class IonQDevice(QubitDevice):
                 ),
             )
 
+        if any(circuit_requires_qasm3(circuit) for circuit in circuits):
+            if len(circuits) > 1:
+                raise ValueError(
+                    "Mid-circuit measurement, reset, and classical control flow "
+                    "require a single-circuit job; submit these circuits one at a time."
+                )
+
         self.reset(circuits_array_length=len(circuits))
 
         # Use tape-level shots if device shots are not set
@@ -319,11 +401,16 @@ class IonQDevice(QubitDevice):
 
         for circuit_index, circuit in enumerate(circuits):
             self.check_validity(circuit.operations, circuit.observables)
-            self.batch_apply(
-                circuit.operations,
-                rotations=self._get_diagonalizing_gates(circuit),
-                circuit_index=circuit_index,
-            )
+            if circuit_requires_qasm3(circuit):
+                self._apply_qasm3(
+                    list(circuit.operations) + list(self._get_diagonalizing_gates(circuit))
+                )
+            else:
+                self.batch_apply(
+                    circuit.operations,
+                    rotations=self._get_diagonalizing_gates(circuit),
+                    circuit_index=circuit_index,
+                )
         self._submit_job()
 
         if self.dry_run:
@@ -399,6 +486,25 @@ class IonQDevice(QubitDevice):
         """
         return set(self._operation_map.keys())
 
+    @property
+    def stopping_condition(self):
+        """.BooleanFn: Returns the stopping condition for the device.
+
+        Extends the default to accept mid-circuit measurements and classically
+        controlled operations, which are submitted via the qasm3 path.
+        """
+
+        def accepts_obj(obj):
+            if isinstance(obj, MidMeasureMP):
+                return True
+            if isinstance(obj, Conditional):
+                return accepts_obj(obj.base)
+            return not isinstance(obj, QuantumScript) and (
+                isinstance(obj, MeasurementProcess) or self.supports_operation(obj.name)
+            )
+
+        return BooleanFn(accepts_obj)
+
     def apply(self, operations, **kwargs):
         """Implementation of QubitDevice abstract method apply."""
 
@@ -408,14 +514,84 @@ class IonQDevice(QubitDevice):
         if len(operations) == 0 and len(rotations) == 0:
             warnings.warn("Circuit is empty. Empty circuits return failures. Submitting anyway.")
 
-        for operation in operations:
-            self._apply_operation(operation)
+        if circuit_requires_qasm3(operations):
+            self._apply_qasm3(list(operations) + list(rotations))
+        else:
+            for operation in operations:
+                self._apply_operation(operation)
 
-        # diagonalize observables
-        for operation in rotations:
-            self._apply_operation(operation)
+            # diagonalize observables
+            for operation in rotations:
+                self._apply_operation(operation)
 
         self._submit_job()
+
+    def _apply_qasm3(self, operations):
+        """Turns the job prepared by ``reset`` into an ``ionq.qasm3.v1`` job.
+
+        Job-level fields (shots, name, noise, settings, metadata, ...) are kept
+        as assembled by ``reset``; only the type and input are replaced.
+        """
+        self.input = {
+            "qubits": self.num_wires,
+            "data": self._to_openqasm3(operations),
+        }
+        self.job["type"] = "ionq.qasm3.v1"
+        self.job["input"] = self.input
+
+    def _to_openqasm3(self, operations):
+        """Serializes operations (including mid-circuit measurements, resets
+        and classically controlled gates) to an OpenQASM 3 program.
+
+        Mid-circuit measurement outcomes are recorded in a single ``mid`` bit
+        register, one bit per measurement in circuit order.
+        """
+        mid_measurements = [
+            operation for operation in operations if isinstance(operation, MidMeasureMP)
+        ]
+        bit_indices = {id(operation): index for index, operation in enumerate(mid_measurements)}
+
+        lines = [
+            "OPENQASM 3.0;",
+            'include "stdgates.inc";',
+            f"qubit[{self.num_wires}] q;",
+        ]
+        if mid_measurements:
+            lines.append(f"bit[{len(mid_measurements)}] mid;")
+
+        for operation in operations:
+            if isinstance(operation, MidMeasureMP):
+                wire = self.map_wires(operation.wires).tolist()[0]
+                lines.append(f"mid[{bit_indices[id(operation)]}] = measure q[{wire}];")
+                if operation.reset:
+                    lines.append(f"reset q[{wire}];")
+            elif isinstance(operation, Conditional):
+                condition = _qasm3_condition(operation.meas_val, bit_indices)
+                if condition:
+                    lines.append(f"if ({condition}) {{")
+                    lines.append(f"    {self._qasm3_gate(operation.base)}")
+                    lines.append("}")
+            elif operation.name in ("Barrier", "Snapshot"):
+                continue
+            else:
+                lines.append(self._qasm3_gate(operation))
+        return "\n".join(lines) + "\n"
+
+    def _qasm3_gate(self, operation):
+        """Renders a single gate operation as an OpenQASM 3 statement."""
+        gate = _qasm3_gate_map.get(operation.name)
+        if gate is None:
+            raise ValueError(
+                f"Gate {operation.name} is not supported on the OpenQASM 3 submission "
+                "path used for circuits with mid-circuit measurements, resets, or "
+                "classical control flow."
+            )
+        wires = self.map_wires(operation.wires).tolist()
+        targets = ", ".join(f"q[{wire}]" for wire in wires)
+        if operation.parameters:
+            params = ", ".join(repr(float(param)) for param in operation.parameters)
+            return f"{gate}({params}) {targets};"
+        return f"{gate} {targets};"
 
     def _apply_operation(self, operation, circuit_index=0):
         """Applies operations to the internal device state.
