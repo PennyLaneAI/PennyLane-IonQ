@@ -35,6 +35,7 @@ from pennylane.tape import QuantumScript
 from pennylane.ops.op_math.linear_combination import LinearCombination
 
 from .api_client import Job, JobExecutionError
+from .qasm3 import operations_to_qasm3
 from .exceptions import (
     CircuitIndexNotSetException,
     ComplexEvolutionCoefficientsNotSupported,
@@ -89,74 +90,43 @@ PAULI_MAP = {"PauliX": "X", "PauliY": "Y", "PauliZ": "Z", "Identity": "I"}
 
 NO_ANALYTIC_MSG = "The ionq device does not support analytic expectation values."
 
-# OpenQASM 3 (stdgates.inc) spellings for the operations supported on the
-# ionq.qasm3.v1 submission path.
-_qasm3_gate_map = {
-    "PauliX": "x",
-    "PauliY": "y",
-    "PauliZ": "z",
-    "Hadamard": "h",
-    "CNOT": "cx",
-    "SWAP": "swap",
-    "RX": "rx",
-    "RY": "ry",
-    "RZ": "rz",
-    "S": "s",
-    "S.inv": "sdg",
-    "Adjoint(S)": "sdg",
-    "T": "t",
-    "T.inv": "tdg",
-    "Adjoint(T)": "tdg",
-    "SX": "sx",
-}
+NO_CONDITIONAL_MSG = (
+    "Classically controlled operations (qml.cond) are not supported by the "
+    "IonQ device. Apply qml.defer_measurements to the circuit (or use "
+    'mcm_method="deferred") to convert conditionals to controlled gates.'
+)
 
 
 def circuit_requires_qasm3(circuit):
     """Whether a circuit must be submitted as an ``ionq.qasm3.v1`` job.
 
-    True for circuits with a mid-circuit reset, classically controlled
-    operations, or a gate acting on a previously measured wire (qubit reuse);
-    these are not expressible as a flat ``ionq.circuit.v1`` gate list and are
-    submitted as an OpenQASM 3 program instead.
+    True for circuits with a mid-circuit reset or a gate acting on a
+    previously measured wire (qubit reuse); these are not expressible as a
+    flat ``ionq.circuit.v1`` gate list and are submitted as an OpenQASM 3
+    program instead.
 
     Args:
         circuit (QuantumTape or Iterable[Operation]): a tape, or its operations
 
     Returns:
         bool: whether the qasm3 submission path is required
+
+    Raises:
+        ValueError: if the circuit contains a classically controlled
+            operation (``qml.cond``), which is not supported
     """
-    operations = getattr(circuit, "operations", circuit)
+    operations = list(getattr(circuit, "operations", circuit))
+    if any(isinstance(operation, Conditional) for operation in operations):
+        raise ValueError(NO_CONDITIONAL_MSG)
     measured = set()
     for operation in operations:
-        if isinstance(operation, Conditional):
-            return True
         if isinstance(operation, MidMeasureMP):
-            if operation.reset:
-                return True
-            measured.update(operation.wires)
-            continue
+            return True
         if operation.name in ("Barrier", "Snapshot"):
             continue
         if measured.intersection(operation.wires):
             return True
     return False
-
-
-def _qasm3_condition(meas_val, bit_indices):
-    """Render a ``MeasurementValue`` as an OpenQASM 3 boolean expression over
-    the ``mid`` bit register by enumerating the value's branches.
-
-    Returns an empty string if no branch is truthy (the conditional is dead).
-    """
-    bits = [bit_indices[id(measurement)] for measurement in meas_val.measurements]
-    terms = []
-    for assignment, outcome in meas_val.branches.items():
-        if outcome:
-            clauses = " && ".join(
-                f"mid[{bit}] == {int(value)}" for bit, value in zip(bits, assignment)
-            )
-            terms.append(f"({clauses})" if len(bits) > 1 else clauses)
-    return " || ".join(terms)
 
 
 class IonQDevice(QubitDevice):
@@ -388,8 +358,8 @@ class IonQDevice(QubitDevice):
         if any(circuit_requires_qasm3(circuit) for circuit in circuits):
             if len(circuits) > 1:
                 raise ValueError(
-                    "Mid-circuit measurement, reset, and classical control flow "
-                    "require a single-circuit job; submit these circuits one at a time."
+                    "Mid-circuit measurement and reset require a single-circuit "
+                    "job; submit these circuits one at a time."
                 )
 
         self.reset(circuits_array_length=len(circuits))
@@ -490,8 +460,11 @@ class IonQDevice(QubitDevice):
     def stopping_condition(self):
         """.BooleanFn: Returns the stopping condition for the device.
 
-        Extends the default to accept mid-circuit measurements and classically
-        controlled operations, which are submitted via the qasm3 path.
+        Extends the default to accept mid-circuit measurements, which are
+        submitted via the qasm3 path. Classically controlled operations
+        (``qml.cond``) are also accepted here so that they reach the device
+        intact and are rejected with a clear error instead of a failed
+        decomposition.
         """
 
         def accepts_obj(obj):
@@ -534,64 +507,19 @@ class IonQDevice(QubitDevice):
         """
         self.input = {
             "qubits": self.num_wires,
-            "data": self._to_openqasm3(operations),
+            "data": operations_to_qasm3(operations, wires=self.wires, gateset=self.gateset),
         }
         self.job["type"] = "ionq.qasm3.v1"
         self.job["input"] = self.input
 
-    def _to_openqasm3(self, operations):
-        """Serializes operations (including mid-circuit measurements, resets
-        and classically controlled gates) to an OpenQASM 3 program.
-
-        Mid-circuit measurement outcomes are recorded in a single ``mid`` bit
-        register, one bit per measurement in circuit order.
-        """
-        mid_measurements = [
-            operation for operation in operations if isinstance(operation, MidMeasureMP)
-        ]
-        bit_indices = {id(operation): index for index, operation in enumerate(mid_measurements)}
-
-        lines = [
-            "OPENQASM 3.0;",
-            'include "stdgates.inc";',
-            f"qubit[{self.num_wires}] q;",
-        ]
-        if mid_measurements:
-            lines.append(f"bit[{len(mid_measurements)}] mid;")
-
-        for operation in operations:
-            if isinstance(operation, MidMeasureMP):
-                wire = self.map_wires(operation.wires).tolist()[0]
-                lines.append(f"mid[{bit_indices[id(operation)]}] = measure q[{wire}];")
-                if operation.reset:
-                    lines.append(f"reset q[{wire}];")
-            elif isinstance(operation, Conditional):
-                condition = _qasm3_condition(operation.meas_val, bit_indices)
-                if condition:
-                    lines.append(f"if ({condition}) {{")
-                    lines.append(f"    {self._qasm3_gate(operation.base)}")
-                    lines.append("}")
-            elif operation.name in ("Barrier", "Snapshot"):
-                continue
-            else:
-                lines.append(self._qasm3_gate(operation))
-        return "\n".join(lines) + "\n"
-
-    def _qasm3_gate(self, operation):
-        """Renders a single gate operation as an OpenQASM 3 statement."""
-        gate = _qasm3_gate_map.get(operation.name)
-        if gate is None:
-            raise ValueError(
-                f"Gate {operation.name} is not supported on the OpenQASM 3 submission "
-                "path used for circuits with mid-circuit measurements, resets, or "
-                "classical control flow."
-            )
-        wires = self.map_wires(operation.wires).tolist()
-        targets = ", ".join(f"q[{wire}]" for wire in wires)
-        if operation.parameters:
-            params = ", ".join(repr(float(param)) for param in operation.parameters)
-            return f"{gate}({params}) {targets};"
-        return f"{gate} {targets};"
+        # OpenQASM 3 jobs need the v0.4 compiler stack to return
+        # register-named results; pin it unless the caller set their own
+        # service_version via the compilation setting.
+        settings = dict(self.job.get("settings") or {})
+        compilation = dict(settings.get("compilation") or {})
+        compilation.setdefault("service_version", "v0.4")
+        settings["compilation"] = compilation
+        self.job["settings"] = settings
 
     def _apply_operation(self, operation, circuit_index=0):
         """Applies operations to the internal device state.

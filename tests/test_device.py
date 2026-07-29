@@ -1214,8 +1214,9 @@ def _mcm_tape():
 
 
 class TestMidCircuitMeasurement:
-    """Tests for routing mid-circuit measurement, reset, and classical control
-    flow through the ionq.qasm3.v1 submission path.
+    """Tests for routing mid-circuit measurement and reset through the
+    ionq.qasm3.v1 submission path. Classically controlled operations
+    (qml.cond) are rejected with a clear error.
 
     These tests mirror the ones added to qiskit-ionq in "feat: mid-circuit
     measurement via ionq.qasm3.v1" (qiskit-ionq #258) and are written
@@ -1234,13 +1235,14 @@ class TestMidCircuitMeasurement:
             qml.PauliX(0)
         assert _requires_qasm3(tape) is True
 
-    def test_requires_qasm3_cond(self):
-        """Classically controlled operations (qml.cond) require the qasm3 path."""
+    def test_cond_raises(self):
+        """Classically controlled operations (qml.cond) are not supported."""
         with qml.tape.QuantumTape() as tape:
             qml.Hadamard(0)
             m = qml.measure(0)
             qml.cond(m, qml.PauliX)(0)
-        assert _requires_qasm3(tape) is True
+        with pytest.raises(ValueError, match="qml.cond.*not supported"):
+            _requires_qasm3(tape)
 
     @pytest.mark.parametrize(
         "measurement",
@@ -1260,13 +1262,14 @@ class TestMidCircuitMeasurement:
             measurement()
         assert _requires_qasm3(tape) is False
 
-    def test_requires_qasm3_cond_else(self):
-        """A conditional with both true and false branches requires the qasm3 path."""
+    def test_cond_else_raises(self):
+        """A conditional with both true and false branches is not supported."""
         with qml.tape.QuantumTape() as tape:
             qml.Hadamard(0)
             m = qml.measure(0)
             qml.cond(m, qml.PauliX, qml.PauliZ)(0)
-        assert _requires_qasm3(tape) is True
+        with pytest.raises(ValueError, match="qml.cond.*not supported"):
+            _requires_qasm3(tape)
 
     def test_requires_qasm3_reuse(self):
         """A gate after a mid-circuit measurement (qubit reuse) requires the qasm3 path."""
@@ -1306,8 +1309,41 @@ class TestMidCircuitMeasurement:
         dev.apply(_mcm_tape().operations)
 
         assert dev.job["type"] == "ionq.qasm3.v1"
-        assert dev.job["settings"]["compilation"] == {"opt": 0}
+        assert dev.job["settings"]["compilation"] == {"opt": 0, "service_version": "v0.4"}
         assert dev.job["settings"]["error_mitigation"] == {"debiasing": False}
+
+    def test_qasm3_service_version(self, monkeypatch):
+        """qasm3 jobs pin compilation.service_version v0.4; a caller can override."""
+        monkeypatch.setattr(IonQDevice, "_submit_job", lambda self: None)
+
+        dev = IonQDevice(wires=(0,), shots=1024)
+        dev.apply(_mcm_tape().operations)
+        assert dev.job["settings"]["compilation"]["service_version"] == "v0.4"
+
+        dev = IonQDevice(wires=(0,), shots=1024, compilation={"service_version": "v0.5"})
+        dev.apply(_mcm_tape().operations)
+        assert dev.job["settings"]["compilation"]["service_version"] == "v0.5"
+
+    def test_qasm3_native_gateset(self, monkeypatch):
+        """MCM circuits in the native gateset serialize with native gate
+        spellings and without stdgates.inc."""
+        monkeypatch.setattr(IonQDevice, "_submit_job", lambda self: None)
+        dev = IonQDevice(wires=2, shots=1024, gateset="native")
+
+        with qml.tape.QuantumTape() as tape:
+            GPI(0.5, wires=[0])
+            qml.measure(0, reset=True)
+            MS(0, 0.5, wires=[0, 1])
+            qml.probs(wires=[0, 1])
+
+        dev.apply(tape.operations)
+
+        assert dev.job["type"] == "ionq.qasm3.v1"
+        data = dev.job["input"]["data"]
+        assert "stdgates.inc" not in data
+        assert "gpi(0.5) q[0];" in data
+        assert "reset q[0];" in data
+        assert "ms(0,0.5,0.25) q[0],q[1];" in data
 
     def test_multi_circuit_mcm_raises(self, monkeypatch):
         """Multi-circuit MCM submissions are rejected with a clear error."""
