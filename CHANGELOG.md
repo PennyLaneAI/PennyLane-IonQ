@@ -7,7 +7,15 @@
 * Updated tests to stop using deprecated shots kwarg on the device.
   [(#184)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/184)
 
+### Internal changes ⚙️
+
+* Upgraded Sphinx to version 9.0.
+  [(#188)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/188)
+
 ### Breaking changes 💔
+
+* Support for Python 3.11 has been removed.
+  [(#189)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/189)
 
 ### Deprecations 👋
 
