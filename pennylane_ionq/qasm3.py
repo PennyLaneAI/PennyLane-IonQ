@@ -25,7 +25,7 @@ Changes from the original:
   instead of raising ``NotImplementedError``.
 - Supports the IonQ native gateset (``gpi``/``gpi2``/``ms``), whose gates
   IonQ accepts directly in OpenQASM 3.0 programs with parameters in turns.
-- Classically controlled operations (``qml.cond``) are intentionally not
+- Classically controlled operations (``qp.cond``) are intentionally not
   supported; this exporter is scoped to mid-circuit measurement and qubit
   reuse only. Circuits containing a ``Conditional`` raise ``ValueError``.
 """
@@ -274,7 +274,7 @@ def to_qasm3(
     qubits in the computational basis by default; restrict them to the wires
     measured in the circuit with ``measure_all=False``.
 
-    Circuits with classically controlled operations (``qml.cond``) or
+    Circuits with classically controlled operations (``qp.cond``) or
     postselecting mid-circuit measurements are not supported and raise an
     error.
 
@@ -302,14 +302,14 @@ def to_qasm3(
 
     .. code-block:: python
 
-        dev = qml.device("ionq.simulator", wires=2, shots=1024)
+        dev = qp.device("ionq.simulator", wires=2, shots=1024)
 
-        @qml.qnode(dev)
+        @qp.qnode(dev)
         def circuit():
-            qml.Hadamard(0)
-            qml.measure(0, reset=True)
-            qml.CNOT(wires=[0, 1])
-            return qml.sample()
+            qp.Hadamard(0)
+            qp.measure(0, reset=True)
+            qp.CNOT(wires=[0, 1])
+            return qp.sample()
 
     >>> print(to_qasm3(circuit)())
     OPENQASM 3.0;

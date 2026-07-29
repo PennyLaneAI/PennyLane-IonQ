@@ -91,8 +91,8 @@ PAULI_MAP = {"PauliX": "X", "PauliY": "Y", "PauliZ": "Z", "Identity": "I"}
 NO_ANALYTIC_MSG = "The ionq device does not support analytic expectation values."
 
 NO_CONDITIONAL_MSG = (
-    "Classically controlled operations (qml.cond) are not supported by the "
-    "IonQ device. Apply qml.defer_measurements to the circuit (or use "
+    "Classically controlled operations (qp.cond) are not supported by the "
+    "IonQ device. Apply qp.defer_measurements to the circuit (or use "
     'mcm_method="deferred") to convert conditionals to controlled gates.'
 )
 
@@ -113,7 +113,7 @@ def circuit_requires_qasm3(circuit):
 
     Raises:
         ValueError: if the circuit contains a classically controlled
-            operation (``qml.cond``), which is not supported
+            operation (``qp.cond``), which is not supported
     """
     operations = list(getattr(circuit, "operations", circuit))
     if any(isinstance(operation, Conditional) for operation in operations):
@@ -462,7 +462,7 @@ class IonQDevice(QubitDevice):
 
         Extends the default to accept mid-circuit measurements, which are
         submitted via the qasm3 path. Classically controlled operations
-        (``qml.cond``) are also accepted here so that they reach the device
+        (``qp.cond``) are also accepted here so that they reach the device
         intact and are rejected with a clear error instead of a failed
         decomposition.
         """

@@ -17,6 +17,7 @@ import json
 import logging
 import numpy as np
 import pennylane as qml
+import pennylane as qp
 import pytest
 import requests
 
@@ -1202,21 +1203,21 @@ def _requires_qasm3(tape):
 
 def _mcm_tape():
     """1-qubit mid-circuit-measurement tape (the API schema example)."""
-    with qml.tape.QuantumTape(shots=1024) as tape:
-        qml.Hadamard(0)
-        qml.measure(0)
-        qml.PauliX(0)
-        qml.measure(0)
-        qml.PauliX(0)
-        qml.measure(0)
-        qml.probs(wires=0)
+    with qp.tape.QuantumTape(shots=1024) as tape:
+        qp.Hadamard(0)
+        qp.measure(0)
+        qp.PauliX(0)
+        qp.measure(0)
+        qp.PauliX(0)
+        qp.measure(0)
+        qp.probs(wires=0)
     return tape
 
 
 class TestMidCircuitMeasurement:
     """Tests for routing mid-circuit measurement and reset through the
     ionq.qasm3.v1 submission path. Classically controlled operations
-    (qml.cond) are rejected with a clear error.
+    (qp.cond) are rejected with a clear error.
 
     These tests mirror the ones added to qiskit-ionq in "feat: mid-circuit
     measurement via ionq.qasm3.v1" (qiskit-ionq #258) and are written
@@ -1229,54 +1230,54 @@ class TestMidCircuitMeasurement:
 
     def test_requires_qasm3_reset(self):
         """A mid-circuit measurement with reset requires the qasm3 path."""
-        with qml.tape.QuantumTape() as tape:
-            qml.Hadamard(0)
-            qml.measure(0, reset=True)
-            qml.PauliX(0)
+        with qp.tape.QuantumTape() as tape:
+            qp.Hadamard(0)
+            qp.measure(0, reset=True)
+            qp.PauliX(0)
         assert _requires_qasm3(tape) is True
 
     def test_cond_raises(self):
-        """Classically controlled operations (qml.cond) are not supported."""
-        with qml.tape.QuantumTape() as tape:
-            qml.Hadamard(0)
-            m = qml.measure(0)
-            qml.cond(m, qml.PauliX)(0)
-        with pytest.raises(ValueError, match="qml.cond.*not supported"):
+        """Classically controlled operations (qp.cond) are not supported."""
+        with qp.tape.QuantumTape() as tape:
+            qp.Hadamard(0)
+            m = qp.measure(0)
+            qp.cond(m, qp.PauliX)(0)
+        with pytest.raises(ValueError, match="qp.cond.*not supported"):
             _requires_qasm3(tape)
 
     @pytest.mark.parametrize(
         "measurement",
         [
-            pytest.param(lambda: qml.expval(qml.PauliZ(0)), id="expval"),
-            pytest.param(lambda: qml.var(qml.PauliZ(0)), id="var"),
-            pytest.param(lambda: qml.probs(wires=[0, 1]), id="probs"),
-            pytest.param(lambda: qml.sample(qml.PauliZ(0)), id="sample"),
-            pytest.param(lambda: qml.counts(), id="counts"),
+            pytest.param(lambda: qp.expval(qp.PauliZ(0)), id="expval"),
+            pytest.param(lambda: qp.var(qp.PauliZ(0)), id="var"),
+            pytest.param(lambda: qp.probs(wires=[0, 1]), id="probs"),
+            pytest.param(lambda: qp.sample(qp.PauliZ(0)), id="sample"),
+            pytest.param(lambda: qp.counts(), id="counts"),
         ],
     )
     def test_requires_qasm3_plain(self, measurement):
         """A plain terminal-measurement tape stays on the v1 path."""
-        with qml.tape.QuantumTape() as tape:
-            qml.Hadamard(0)
-            qml.CNOT(wires=[0, 1])
+        with qp.tape.QuantumTape() as tape:
+            qp.Hadamard(0)
+            qp.CNOT(wires=[0, 1])
             measurement()
         assert _requires_qasm3(tape) is False
 
     def test_cond_else_raises(self):
         """A conditional with both true and false branches is not supported."""
-        with qml.tape.QuantumTape() as tape:
-            qml.Hadamard(0)
-            m = qml.measure(0)
-            qml.cond(m, qml.PauliX, qml.PauliZ)(0)
-        with pytest.raises(ValueError, match="qml.cond.*not supported"):
+        with qp.tape.QuantumTape() as tape:
+            qp.Hadamard(0)
+            m = qp.measure(0)
+            qp.cond(m, qp.PauliX, qp.PauliZ)(0)
+        with pytest.raises(ValueError, match="qp.cond.*not supported"):
             _requires_qasm3(tape)
 
     def test_requires_qasm3_reuse(self):
         """A gate after a mid-circuit measurement (qubit reuse) requires the qasm3 path."""
-        with qml.tape.QuantumTape() as tape:
-            qml.Hadamard(0)
-            qml.measure(0)
-            qml.PauliX(0)
+        with qp.tape.QuantumTape() as tape:
+            qp.Hadamard(0)
+            qp.measure(0)
+            qp.PauliX(0)
         assert _requires_qasm3(tape) is True
 
     def test_qasm3_payload_shape(self, monkeypatch):
@@ -1330,11 +1331,11 @@ class TestMidCircuitMeasurement:
         monkeypatch.setattr(IonQDevice, "_submit_job", lambda self: None)
         dev = IonQDevice(wires=2, shots=1024, gateset="native")
 
-        with qml.tape.QuantumTape() as tape:
+        with qp.tape.QuantumTape() as tape:
             GPI(0.5, wires=[0])
-            qml.measure(0, reset=True)
+            qp.measure(0, reset=True)
             MS(0, 0.5, wires=[0, 1])
-            qml.probs(wires=[0, 1])
+            qp.probs(wires=[0, 1])
 
         dev.apply(tape.operations)
 
@@ -1369,11 +1370,11 @@ class TestMidCircuitMeasurement:
         monkeypatch.setattr(IonQDevice, "_submit_job", lambda self: None)
         dev = IonQDevice(wires=(0,), shots=1024)
 
-        with qml.tape.QuantumTape() as tape:
-            qml.Hadamard(0)
-            qml.measure(0, reset=True)
-            qml.PauliX(0)
-            qml.probs(wires=0)
+        with qp.tape.QuantumTape() as tape:
+            qp.Hadamard(0)
+            qp.measure(0, reset=True)
+            qp.PauliX(0)
+            qp.probs(wires=0)
 
         dev.apply(tape.operations)
 
