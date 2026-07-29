@@ -548,12 +548,8 @@ class TestDeviceIntegration:
         assert dev.tracker.history["batches"] == [1]
         assert dev.tracker.history["batch_len"] == [2]
         assert len(dev.tracker.history["resources"]) == 2
-        resources = dev.tracker.history["resources"][0]
-        assert resources.num_allocs == 1
-        assert resources.total_quantum_operations == 1
-        assert resources.depth == 1
-        assert resources.quantum_operations == {"GPI": 1}
-        assert resources.measurement_processes == {"probs(all wires)": 1}
+        assert dev.tracker.history["resources"][0] == tape1.specs["resources"]
+        assert dev.tracker.history["resources"][1] == tape1.specs["resources"]
         assert len(dev.tracker.history["results"]) == 2
 
     def test_not_recording_when_pennylane_tracker_not_active(self, requires_api):
