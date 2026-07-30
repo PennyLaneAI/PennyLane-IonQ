@@ -15,6 +15,7 @@
 
 import json
 import logging
+import warnings
 import numpy as np
 import pennylane as qp
 import pytest
@@ -573,6 +574,28 @@ class TestDeviceIntegration:
             UserWarning,
             match="Circuit is empty. Empty circuits return failures. Submitting anyway.",
         ):
+            dev.batch_execute([tape1])
+
+    @pytest.mark.parametrize("postselect_mode", ["hw-like", "fill-shots"])
+    def test_batch_execute_postselect_mode_warns(self, monkeypatch, postselect_mode):
+        """An explicitly set postselect_mode raises a UserWarning and is ignored."""
+        monkeypatch.setattr(IonQDevice, "_submit_job", lambda self: None)
+        dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024, dry_run=True)
+        with qp.tape.QuantumTape(shots=1024) as tape1:
+            GPI(0, wires=[0])
+            qp.probs(wires=[0])
+        with pytest.warns(UserWarning, match="'postselect_mode' is ignored"):
+            dev.batch_execute([tape1], postselect_mode=postselect_mode)
+
+    def test_batch_execute_postselect_mode_default_no_warning(self, monkeypatch):
+        """The default postselect_mode=None does not warn."""
+        monkeypatch.setattr(IonQDevice, "_submit_job", lambda self: None)
+        dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024, dry_run=True)
+        with qp.tape.QuantumTape(shots=1024) as tape1:
+            GPI(0, wires=[0])
+            qp.probs(wires=[0])
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
             dev.batch_execute([tape1])
 
     @mock.patch("logging.Logger.isEnabledFor", return_value=True)
@@ -1335,7 +1358,7 @@ class TestMidCircuitMeasurement:
         assert "stdgates.inc" not in data
         assert "gpi(0.5) q[0];" in data
         assert "reset q[0];" in data
-        assert "ms(0,0.5,0.25) q[0],q[1];" in data
+        assert "ms(0,0.5,0.25) q[0], q[1];" in data
 
     def test_multi_circuit_mcm_raises(self, monkeypatch):
         """Multi-circuit MCM submissions are rejected with a clear error."""

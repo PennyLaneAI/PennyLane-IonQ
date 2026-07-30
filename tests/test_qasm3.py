@@ -1,4 +1,4 @@
-# Copyright 2018-2021 Xanadu Quantum Technologies Inc.
+# Copyright 2018-2026 Xanadu Quantum Technologies Inc.
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -31,10 +31,6 @@ def _parse(qasm):
     openqasm3.parse(qasm)
 
 
-def _mid_measure(wire, reset=False, postselect=None):
-    return MidMeasureMP(Wires(wire), reset=reset, postselect=postselect)
-
-
 class TestOperationsToQasm3:
     """Tests serializing operation lists to OpenQASM 3.0 programs."""
 
@@ -48,7 +44,7 @@ class TestOperationsToQasm3:
                 'include "stdgates.inc";',
                 "qubit[2] q;",
                 "h q[0];",
-                "cx q[0],q[1];",
+                "cx q[0], q[1];",
             ]
         )
         assert qasm == expected + "\n"
@@ -56,7 +52,7 @@ class TestOperationsToQasm3:
 
     def test_mid_measure(self):
         """Mid-circuit measurements are recorded in the mcms register."""
-        ops = [qp.Hadamard(0), _mid_measure(0), qp.PauliX(1)]
+        ops = [qp.Hadamard(0), MidMeasureMP(Wires(0)), qp.PauliX(1)]
         qasm = operations_to_qasm3(ops, wires=[0, 1])
         assert "bit[1] mcms;" in qasm
         assert "mcms[0] = measure q[0];" in qasm
@@ -66,7 +62,7 @@ class TestOperationsToQasm3:
     def test_mid_measure_reset(self):
         """A mid-circuit measurement with reset emits an explicit reset,
         enabling qubit reuse."""
-        ops = [qp.Hadamard(0), _mid_measure(0, reset=True), qp.PauliX(0)]
+        ops = [qp.Hadamard(0), MidMeasureMP(Wires(0), reset=True), qp.PauliX(0)]
         qasm = operations_to_qasm3(ops, wires=[0, 1])
         expected = "\n".join(
             [
@@ -88,19 +84,30 @@ class TestOperationsToQasm3:
         circuit order."""
         ops = [
             qp.Hadamard(0),
-            _mid_measure(0, reset=True),
+            MidMeasureMP(Wires(0), reset=True),
             qp.CNOT(wires=[0, 1]),
-            _mid_measure(1),
+            MidMeasureMP(Wires(1)),
         ]
         qasm = operations_to_qasm3(ops, wires=[0, 1])
-        assert "bit[2] mcms;" in qasm
-        assert "mcms[0] = measure q[0];" in qasm
-        assert "mcms[1] = measure q[1];" in qasm
+        expected = "\n".join(
+            [
+                "OPENQASM 3.0;",
+                'include "stdgates.inc";',
+                "qubit[2] q;",
+                "bit[2] mcms;",
+                "h q[0];",
+                "mcms[0] = measure q[0];",
+                "reset q[0];",
+                "cx q[0], q[1];",
+                "mcms[1] = measure q[1];",
+            ]
+        )
+        assert qasm == expected + "\n"
         _parse(qasm)
 
     def test_postselect_raises(self):
         """Postselecting mid-circuit measurements are not supported."""
-        ops = [qp.Hadamard(0), _mid_measure(0, postselect=0)]
+        ops = [qp.Hadamard(0), MidMeasureMP(Wires(0), postselect=0)]
         with pytest.raises(NotImplementedError, match="postselection"):
             operations_to_qasm3(ops, wires=[0])
 
@@ -145,7 +152,7 @@ class TestOperationsToQasm3:
     @pytest.mark.parametrize("gate_class", [XX, YY, ZZ])
     def test_plugin_ising_gates_decompose(self, gate_class):
         """The plugin's Ising gates serialize via their core-gate decomposition."""
-        ops = [gate_class(0.5, wires=[0, 1]), _mid_measure(0)]
+        ops = [gate_class(0.5, wires=[0, 1]), MidMeasureMP(Wires(0))]
         qasm = operations_to_qasm3(ops, wires=[0, 1])
         assert gate_class.__name__ not in qasm
         assert "mcms[0] = measure q[0];" in qasm
@@ -156,7 +163,7 @@ class TestOperationsToQasm3:
         ops = [
             GPI(0.5, wires=0),
             GPI2(0, wires=1),
-            _mid_measure(0, reset=True),
+            MidMeasureMP(Wires(0), reset=True),
             MS(0, 0.5, wires=[0, 1]),
         ]
         qasm = operations_to_qasm3(ops, wires=[0, 1], gateset="native")
@@ -165,7 +172,7 @@ class TestOperationsToQasm3:
         assert "gpi2(0) q[1];" in qasm
         assert "mcms[0] = measure q[0];" in qasm
         assert "reset q[0];" in qasm
-        assert "ms(0,0.5,0.25) q[0],q[1];" in qasm
+        assert "ms(0,0.5,0.25) q[0], q[1];" in qasm
         _parse(qasm)
 
     def test_native_gateset_rejects_qis_gate(self):
@@ -175,7 +182,7 @@ class TestOperationsToQasm3:
 
     def test_custom_wire_labels(self):
         """Wire labels map to qubit indices by their position in wires."""
-        ops = [qp.Hadamard("b"), _mid_measure("a")]
+        ops = [qp.Hadamard("b"), MidMeasureMP(Wires("a"))]
         qasm = operations_to_qasm3(ops, wires=["a", "b"])
         assert "h q[1];" in qasm
         assert "mcms[0] = measure q[0];" in qasm

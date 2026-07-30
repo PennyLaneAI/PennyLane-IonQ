@@ -333,11 +333,18 @@ class IonQDevice(QubitDevice):
             circuits (list[~.tape.QuantumTape]): circuits to execute on the device
             postselect_mode (str | None): passed by PennyLane for devices that
                 support mid-circuit measurements; postselection is not
-                supported on IonQ hardware, so the argument is ignored
+                supported on IonQ hardware, so the argument has no effect and
+                a ``UserWarning`` is raised if it is explicitly set
 
         Returns:
             list[array[float]]: list of measured value(s)
         """
+        if postselect_mode is not None:
+            warnings.warn(
+                "'postselect_mode' is ignored: postselection is not supported "
+                "on IonQ hardware.",
+                UserWarning,
+            )
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug(  # pragma: no cover
                 """Entry with args=(circuits=%s) called by=%s""",

@@ -1,4 +1,4 @@
-# Copyright 2018-2021 Xanadu Quantum Technologies Inc.
+# Copyright 2018-2026 Xanadu Quantum Technologies Inc.
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -94,7 +94,7 @@ def _gate_string(op, wires: Wires, precision: None | int, gates: dict) -> str:
         # (exp(i*gamma)) is opposite in sign to GlobalPhase (exp(-i*phi)).
         return f"gphase({_param_string([-p for p in op.parameters], precision)});"
 
-    wire_labels = ",".join(f"q[{wires.index(w)}]" for w in op.wires.tolist())
+    wire_labels = ", ".join(f"q[{wires.index(w)}]" for w in op.wires.tolist())
     params = f"({_param_string(op.parameters, precision)})" if op.num_params > 0 else ""
 
     return f"{gate}{params} {wire_labels};"
@@ -164,7 +164,7 @@ def operations_to_qasm3(operations, wires: WiresLike, gateset: str = "qis", prec
     h q[0];
     mcms[0] = measure q[0];
     reset q[0];
-    cx q[0],q[1];
+    cx q[0], q[1];
     """
     wires = Wires(wires)
     gates = _GATESET_QASM3_GATES[gateset]
