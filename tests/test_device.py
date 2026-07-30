@@ -28,6 +28,7 @@ from pennylane_ionq.device import (
     IonQDevice,
     SimulatorDevice,
     CircuitIndexNotSetException,
+    circuit_requires_qasm3,
 )
 from pennylane_ionq.ops import GPI, GPI2, MS, XX, YY, ZZ
 from pennylane.measurements import SampleMeasurement, ShotCopies
@@ -1212,14 +1213,6 @@ class TestJobAttribute:
         assert gate["rotation"] == rotation
 
 
-def _requires_qasm3(tape):
-    """Deferred import so that collecting this module does not fail while the
-    TDD target ``circuit_requires_qasm3`` is not implemented yet."""
-    from pennylane_ionq.device import circuit_requires_qasm3
-
-    return circuit_requires_qasm3(tape)
-
-
 def _mcm_tape():
     """1-qubit mid-circuit-measurement tape (the API schema example)."""
     with qp.tape.QuantumTape(shots=1024) as tape:
@@ -1240,7 +1233,7 @@ class TestMidCircuitMeasurement:
 
     def test_requires_qasm3_mcm(self):
         """Reusing a qubit after a mid-circuit measurement requires the qasm3 path."""
-        assert _requires_qasm3(_mcm_tape()) is True
+        assert circuit_requires_qasm3(_mcm_tape()) is True
 
     def test_requires_qasm3_reset(self):
         """A mid-circuit measurement with reset requires the qasm3 path."""
@@ -1248,7 +1241,7 @@ class TestMidCircuitMeasurement:
             qp.Hadamard(0)
             qp.measure(0, reset=True)
             qp.PauliX(0)
-        assert _requires_qasm3(tape) is True
+        assert circuit_requires_qasm3(tape) is True
 
     def test_cond_raises(self):
         """Classically controlled operations (qp.cond) are not supported."""
@@ -1257,7 +1250,7 @@ class TestMidCircuitMeasurement:
             m = qp.measure(0)
             qp.cond(m, qp.PauliX)(0)
         with pytest.raises(ValueError, match="qp.cond.*not supported"):
-            _requires_qasm3(tape)
+            circuit_requires_qasm3(tape)
 
     @pytest.mark.parametrize(
         "measurement",
@@ -1275,7 +1268,7 @@ class TestMidCircuitMeasurement:
             qp.Hadamard(0)
             qp.CNOT(wires=[0, 1])
             measurement()
-        assert _requires_qasm3(tape) is False
+        assert circuit_requires_qasm3(tape) is False
 
     def test_cond_else_raises(self):
         """A conditional with both true and false branches is not supported."""
@@ -1284,7 +1277,7 @@ class TestMidCircuitMeasurement:
             m = qp.measure(0)
             qp.cond(m, qp.PauliX, qp.PauliZ)(0)
         with pytest.raises(ValueError, match="qp.cond.*not supported"):
-            _requires_qasm3(tape)
+            circuit_requires_qasm3(tape)
 
     def test_requires_qasm3_reuse(self):
         """A gate after a mid-circuit measurement (qubit reuse) requires the qasm3 path."""
@@ -1292,7 +1285,7 @@ class TestMidCircuitMeasurement:
             qp.Hadamard(0)
             qp.measure(0)
             qp.PauliX(0)
-        assert _requires_qasm3(tape) is True
+        assert circuit_requires_qasm3(tape) is True
 
     def test_qasm3_payload_shape(self, monkeypatch):
         """MCM tapes serialize to an ionq.qasm3.v1 payload with QASM 3 input."""
