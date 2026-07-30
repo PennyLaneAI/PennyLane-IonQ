@@ -347,12 +347,14 @@ class IonQDevice(QubitDevice):
                 ),
             )
 
+        requires_qasm3 = False
         if any(circuit_requires_qasm3(circuit) for circuit in circuits):
-            if len(circuits) > 1:
+            if len(circuits) != 1:
                 raise ValueError(
                     "Mid-circuit measurement and reset require a single-circuit "
                     "job; submit these circuits one at a time."
                 )
+            requires_qasm3 = True
 
         self.reset(circuits_array_length=len(circuits))
 
@@ -361,18 +363,22 @@ class IonQDevice(QubitDevice):
         if self.shots is None and tape_shots is not None:
             self.job["shots"] = tape_shots  # pylint: disable=access-member-before-definition
 
-        for circuit_index, circuit in enumerate(circuits):
-            self.check_validity(circuit.operations, circuit.observables)
-            if circuit_requires_qasm3(circuit):
-                self._apply_qasm3(
-                    list(circuit.operations) + list(self._get_diagonalizing_gates(circuit))
-                )
-            else:
+        if not requires_qasm3:
+            for circuit_index, circuit in enumerate(circuits):
+                self.check_validity(circuit.operations, circuit.observables)
                 self.batch_apply(
                     circuit.operations,
                     rotations=self._get_diagonalizing_gates(circuit),
                     circuit_index=circuit_index,
                 )
+        else:
+            # Only single-circuit submission is support for qasm3
+            circuit = circuits[0]
+            self.check_validity(circuit.operations, circuit.observables)
+            self._apply_qasm3(
+                list(circuit.operations) + list(self._get_diagonalizing_gates(circuit))
+            )
+
         self._submit_job()
 
         if self.dry_run:
