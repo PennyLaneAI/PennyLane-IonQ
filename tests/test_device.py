@@ -1214,12 +1214,13 @@ class TestJobAttribute:
 
 
 def _mcm_tape():
-    """1-qubit mid-circuit-measurement tape (the API schema example)."""
+    """1-qubit mid-circuit-measurement tape with a qubit reset (the API
+    schema example)."""
     with qp.tape.QuantumTape(shots=1024) as tape:
         qp.Hadamard(0)
         qp.measure(0)
         qp.PauliX(0)
-        qp.measure(0)
+        qp.measure(0, reset=True)
         qp.PauliX(0)
         qp.measure(0)
         qp.probs(wires=0)
@@ -1229,7 +1230,7 @@ def _mcm_tape():
 class TestMidCircuitMeasurement:
     """Tests for routing mid-circuit measurement and reset through the
     ionq.qasm3.v1 submission path. Classically controlled operations
-    (qp.cond) are rejected with a clear error."""
+    (qp.cond) and postselection are rejected with a clear error."""
 
     def test_requires_qasm3_mcm(self):
         """Reusing a qubit after a mid-circuit measurement requires the qasm3 path."""
@@ -1270,6 +1271,18 @@ class TestMidCircuitMeasurement:
             measurement()
         assert circuit_requires_qasm3(tape) is False
 
+    def test_postselect_raises(self, monkeypatch):
+        """A mid-circuit measurement with postselection is rejected."""
+        monkeypatch.setattr(IonQDevice, "_submit_job", lambda self: None)
+        dev = IonQDevice(wires=(0,), shots=1024)
+        with qp.tape.QuantumTape(shots=1024) as tape:
+            qp.Hadamard(0)
+            qp.measure(0, postselect=0)
+            qp.PauliX(0)
+            qp.probs(wires=0)
+        with pytest.raises(NotImplementedError, match="postselection"):
+            dev.apply(tape.operations)
+
     def test_cond_else_raises(self):
         """A conditional with both true and false branches is not supported."""
         with qp.tape.QuantumTape() as tape:
@@ -1299,10 +1312,11 @@ class TestMidCircuitMeasurement:
         assert dev.job["shots"] == 1024
         data = dev.job["input"]["data"]
         assert data.startswith("OPENQASM 3.0;")
-        # Exactly the operations we built (1 H, 2 X, 3 measure) and nothing injected.
+        # Exactly the operations we built (1 H, 2 X, 3 measure, 1 reset) and nothing injected.
         assert data.count("measure") == 3
         assert data.count("h q") == 1
         assert data.count("x q") == 2
+        assert data.count("reset q") == 1
 
     def test_qasm3_settings_passthrough(self, monkeypatch):
         """compilation and error_mitigation settings flow through on the qasm3 path."""
@@ -1313,6 +1327,12 @@ class TestMidCircuitMeasurement:
             compilation={"opt": 0},
             error_mitigation={"debiasing": False},
         )
+
+        # Before apply, the job is a plain v1 payload with the settings
+        # verbatim; service_version is only pinned on the qasm3 path.
+        assert dev.job["type"] == "ionq.circuit.v1"
+        assert dev.job["settings"]["compilation"] == {"opt": 0}
+        assert dev.job["settings"]["error_mitigation"] == {"debiasing": False}
 
         dev.apply(_mcm_tape().operations)
 

@@ -341,8 +341,7 @@ class IonQDevice(QubitDevice):
         """
         if postselect_mode is not None:
             warnings.warn(
-                "'postselect_mode' is ignored: postselection is not supported "
-                "on IonQ hardware.",
+                "'postselect_mode' is ignored: postselection is not supported " "on IonQ hardware.",
                 UserWarning,
             )
         if logger.isEnabledFor(logging.DEBUG):
