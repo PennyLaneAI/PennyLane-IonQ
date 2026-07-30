@@ -85,7 +85,9 @@ def _gate_string(op, wires: Wires, precision: None | int, gates: dict) -> str:
     try:
         gate = gates[op.name]
     except KeyError as e:
-        raise ValueError(f"Operation {op.name} not supported by the PennyLane-IonQ QASM 3 serializer") from e
+        raise ValueError(
+            f"Operation {op.name} not supported by the PennyLane-IonQ QASM 3 serializer"
+        ) from e
 
     if op.name == "GlobalPhase":
         # QASM 3's gphase takes no qubit operands, and its convention

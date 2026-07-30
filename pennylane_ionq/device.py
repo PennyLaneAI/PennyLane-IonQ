@@ -100,9 +100,9 @@ NO_CONDITIONAL_MSG = (
 def circuit_requires_qasm3(circuit):
     """Whether a circuit must be submitted as an ``ionq.qasm3.v1`` job.
 
-    True for circuits with a mid-circuit reset or a gate acting on a
-    previously measured wire (qubit reuse); these are not expressible as a
-    flat ``ionq.circuit.v1`` gate list and are submitted as an OpenQASM 3
+    True for circuits containing a mid-circuit measurement (including
+    measurements with reset); these are not expressible as a flat
+    ``ionq.circuit.v1`` gate list and are submitted as an OpenQASM 3
     program instead.
 
     Args:
@@ -118,15 +118,7 @@ def circuit_requires_qasm3(circuit):
     operations = list(getattr(circuit, "operations", circuit))
     if any(isinstance(operation, Conditional) for operation in operations):
         raise ValueError(NO_CONDITIONAL_MSG)
-    measured = set()
-    for operation in operations:
-        if isinstance(operation, MidMeasureMP):
-            return True
-        if operation.name in ("Barrier", "Snapshot"):
-            continue
-        if measured.intersection(operation.wires):
-            return True
-    return False
+    return any(isinstance(operation, MidMeasureMP) for operation in operations)
 
 
 class IonQDevice(QubitDevice):

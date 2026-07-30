@@ -1213,12 +1213,7 @@ def _mcm_tape():
 class TestMidCircuitMeasurement:
     """Tests for routing mid-circuit measurement and reset through the
     ionq.qasm3.v1 submission path. Classically controlled operations
-    (qp.cond) are rejected with a clear error.
-
-    These tests mirror the ones added to qiskit-ionq in "feat: mid-circuit
-    measurement via ionq.qasm3.v1" (qiskit-ionq #258) and are written
-    test-driven: the feature is not implemented yet.
-    """
+    (qp.cond) are rejected with a clear error."""
 
     def test_requires_qasm3_mcm(self):
         """Reusing a qubit after a mid-circuit measurement requires the qasm3 path."""
