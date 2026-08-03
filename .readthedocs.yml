@@ -32,3 +32,4 @@ build:
   jobs:
     post_install:
       - pip install --group docs
+
