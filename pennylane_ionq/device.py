@@ -23,6 +23,7 @@ import warnings
 from time import sleep
 
 import numpy as np
+import requests
 
 from pennylane import pauli_decompose, SparseHamiltonian
 from pennylane.devices import QubitDevice
@@ -130,6 +131,9 @@ class IonQDevice(QubitDevice):
         noise_seed (int): seed for the noise model random number generator, for reproducible noisy
             simulation results. Must be an integer between 1 and 2\ :sup:`31` - 1. Only used when ``noise_model`` is set.
             Defaults to None (random seed).
+        memory (bool): if True, use the per-shot measurement outcomes returned by the API as the
+            device samples, instead of generating samples locally from the returned probabilities.
+            Per-shot results are not available for ideal simulation. Defaults to False.
         dry_run (bool): If True, the job will be submitted by the API client but not processed remotely.
             Useful for obtaining cost estimates. Defaults to False.
         metadata (dict | None): optional metadata to attach to the job. Defaults to None.
@@ -182,6 +186,7 @@ class IonQDevice(QubitDevice):
         sharpen=None,
         noise_model=None,
         noise_seed=None,
+        memory=False,
         dry_run=False,
         metadata=None,
         timeout=None,
@@ -205,6 +210,14 @@ class IonQDevice(QubitDevice):
                 raise ValueError(
                     f"noise_seed must be an integer between 1 and 2^31 - 1, got {noise_seed}."
                 )
+        if not isinstance(memory, bool):
+            raise ValueError(f"memory must be a boolean, got {memory}.")
+        if memory and target == "simulator" and noise_model in (None, "ideal"):
+            warnings.warn(
+                "Per-shot results are not available for ideal simulation; samples "
+                "will be generated from the returned probabilities.",
+                UserWarning,
+            )
 
         super().__init__(wires=wires, shots=shots)
         self._current_circuit_index = None
@@ -217,10 +230,12 @@ class IonQDevice(QubitDevice):
         self.sharpen = sharpen
         self.noise_model = noise_model
         self.noise_seed = noise_seed
+        self.memory = memory
         self.dry_run = dry_run
         self.metadata = metadata
         self._operation_map = _GATESET_OPS[gateset]
         self.histograms = []
+        self.memory_results = None
         self._samples = None
 
         # API client configuration.
@@ -242,6 +257,7 @@ class IonQDevice(QubitDevice):
         self._current_circuit_index = None
         self._samples = None
         self.histograms = []
+        self.memory_results = None
         self.input = {
             "qubits": self.num_wires,
             "gateset": self.gateset,
@@ -631,11 +647,112 @@ class IonQDevice(QubitDevice):
         # state (as a base-10 integer string) to the probability
         # as a floating point value between 0 and 1.
         # e.g., {"0": 0.413, "9": 0.111, "17": 0.476}
+        # Multi-circuit job histograms are keyed by child job ID.
         some_inner_value = next(iter(job.data.value.values()))
         if isinstance(some_inner_value, dict):
+            child_ids = list(job.data.value.keys())
             self.histograms = list(job.data.value.values())
         else:
+            child_ids = None
             self.histograms = [job.data.value]
+
+        if self.memory and not (self.target == "simulator" and self.noise_model in (None, "ideal")):
+            self.memory_results = self._fetch_memory_results(job, child_ids)
+
+    def _fetch_memory_results(self, job, child_ids=None):
+        """Fetch per-shot measurement outcomes for each circuit of a completed job.
+
+        Args:
+            job (Job): the completed job resource.
+            child_ids (list[str] | None): child job IDs of a multi-circuit job,
+                ordered as in ``self.histograms``.
+
+        Returns:
+            list[array[int] or None]: one array of basis-state integers per circuit,
+            with ``None`` entries where per-shot results could not be retrieved.
+        """
+        manager = job.manager
+        if not child_ids:
+            results = (manager.http_response_data or {}).get("results") or {}
+            return [self._fetch_shots((results.get("shots") or {}).get("url"), manager)]
+
+        # The parent job only carries aggregated probabilities; each child job
+        # advertises its own per-shot results URL.
+        memory_results = []
+        for child_id in child_ids:
+            try:
+                response = manager.client.get(manager.join_path(str(child_id)))
+                response.raise_for_status()
+                results = response.json().get("results") or {}
+            except requests.exceptions.RequestException as e:
+                warnings.warn(
+                    f"Failed to retrieve per-shot results for job {child_id}: {e}. "
+                    "Samples for this circuit will be generated from the returned "
+                    "probabilities.",
+                    UserWarning,
+                )
+                memory_results.append(None)
+                continue
+            memory_results.append(
+                self._fetch_shots((results.get("shots") or {}).get("url"), manager)
+            )
+        return memory_results
+
+    def _fetch_shots(self, url, manager):
+        """Fetch a job's per-shot results and convert them to basis-state integers.
+
+        Args:
+            url (str | None): the job's ``results.shots.url``, if any.
+            manager (ResourceManager): the manager used for API requests.
+
+        Returns:
+            array[int] or None: one big-endian basis-state integer per shot, or
+            ``None`` if the per-shot results could not be retrieved.
+        """
+        if not url:
+            warnings.warn(
+                "The job did not report per-shot results; samples will be "
+                "generated from the returned probabilities.",
+                UserWarning,
+            )
+            return None
+        try:
+            response = manager.client.get(manager.join_path(url))
+            response.raise_for_status()
+            raw_shots = response.json()
+        except requests.exceptions.RequestException as e:
+            warnings.warn(
+                f"Failed to retrieve per-shot results: {e}. Samples will be "
+                "generated from the returned probabilities.",
+                UserWarning,
+            )
+            return None
+
+        # The API returns one decimal-encoded basis state per shot, in
+        # little-endian ordering like the histogram keys; rearrange to the
+        # big-endian ordering expected by PennyLane.
+        return np.fromiter(
+            (int(bin(int(s))[2:].rjust(self.num_wires, "0")[::-1], 2) for s in raw_shots),
+            dtype=np.int64,
+        )
+
+    def _memory_samples(self):
+        """Return the per-shot samples retrieved from the API for the current circuit.
+
+        Returns:
+            array[int] or None: binary samples of shape ``(shots, num_wires)``, or
+            ``None`` if per-shot results are not available.
+        """
+        if self.memory_results is None:
+            return None
+
+        if self._current_circuit_index is None and len(self.memory_results) > 1:
+            raise CircuitIndexNotSetException()
+
+        basis_states = self.memory_results[self._current_circuit_index or 0]
+        if basis_states is None:
+            return None
+        return QubitDevice.states_to_binary(basis_states, self.num_wires)
 
     @property
     def prob(self):
@@ -707,6 +824,9 @@ class SimulatorDevice(IonQDevice):
         noise_seed (int): seed for the noise model random number generator, for reproducible noisy
             simulation results. Must be an integer between 1 and 2\ :sup:`31` - 1. Only used when ``noise_model`` is set.
             Defaults to None (random seed).
+        memory (bool): if True, use the per-shot measurement outcomes returned by the API as the
+            device samples, instead of generating samples locally from the returned probabilities.
+            Per-shot results are not available for ideal simulation. Defaults to False.
         metadata (dict | None): optional metadata to attach to the job. Defaults to None.
         timeout (float): Request timeout in seconds. Defaults to None, which uses the
             ``APIClient`` default.
@@ -730,6 +850,7 @@ class SimulatorDevice(IonQDevice):
         api_key=None,
         noise_model=None,
         noise_seed=None,
+        memory=False,
         dry_run=False,
         metadata=None,
         timeout=None,
@@ -746,6 +867,7 @@ class SimulatorDevice(IonQDevice):
             compilation=compilation,
             noise_model=noise_model,
             noise_seed=noise_seed,
+            memory=memory,
             dry_run=dry_run,
             metadata=metadata,
             timeout=timeout,
@@ -754,7 +876,12 @@ class SimulatorDevice(IonQDevice):
         )
 
     def generate_samples(self):
-        """Generates samples by random sampling with the probabilities returned by the simulator."""
+        """Generates samples from the per-shot results if available, otherwise by
+        random sampling with the probabilities returned by the simulator."""
+        memory_samples = self._memory_samples()
+        if memory_samples is not None:
+            return memory_samples
+
         number_of_states = 2**self.num_wires
         samples = self.sample_basis_states(number_of_states, self.prob)
         return QubitDevice.states_to_binary(samples, self.num_wires)
@@ -790,6 +917,9 @@ class QPUDevice(IonQDevice):
             Defaults to None (no value passed at job retrieval). Will generally return more accurate results if
             your expected output distribution has peaks. See `IonQ Debiasing and Sharpening
             <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
+        memory (bool): if True, use the per-shot measurement outcomes returned by the API as the
+            device samples, instead of generating samples locally from the returned probabilities.
+            Defaults to False.
         dry_run (bool): whether to run the job in dry run mode. Defaults to False.
         metadata (dict | None): optional metadata to attach to the job. Defaults to None.
         timeout (float): Request timeout in seconds. Defaults to None, which uses the
@@ -816,6 +946,7 @@ class QPUDevice(IonQDevice):
         error_mitigation=None,
         sharpen=None,
         api_key=None,
+        memory=False,
         dry_run=False,
         metadata=None,
         timeout=None,
@@ -836,6 +967,7 @@ class QPUDevice(IonQDevice):
             compilation=compilation,
             error_mitigation=error_mitigation,
             sharpen=sharpen,
+            memory=memory,
             dry_run=dry_run,
             metadata=metadata,
             timeout=timeout,
@@ -846,10 +978,16 @@ class QPUDevice(IonQDevice):
     def generate_samples(self):
         """Generates samples from the qpu.
 
-        Note that the order of the samples returned here is not indicative of the order in which
-        the experiments were done, but is instead controlled by a random shuffle (and hence
-        set by numpy random seed).
+        If per-shot results were retrieved from the API, they are returned in the
+        order the shots were measured. Otherwise, samples are generated from the
+        returned probabilities, and their order is not indicative of the order in
+        which the experiments were done, but is instead controlled by a random
+        shuffle (and hence set by numpy random seed).
         """
+        memory_samples = self._memory_samples()
+        if memory_samples is not None:
+            return memory_samples
+
         number_of_states = 2**self.num_wires
         counts = np.rint(
             self.prob * self.shots,

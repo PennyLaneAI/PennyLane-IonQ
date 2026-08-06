@@ -2,6 +2,12 @@
 
 ### New features since last release
 
+* Added a ``memory`` device keyword argument. When set to ``True``, the per-shot
+  measurement outcomes returned by the API are used as the device samples, instead
+  of generating samples locally from the returned probabilities. Available for QPU
+  and noisy-simulator jobs.
+  [(#190)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/190)
+
 ### Improvements 🛠
 
 * Updated tests to stop using deprecated shots kwarg on the device.
