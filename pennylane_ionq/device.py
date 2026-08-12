@@ -33,7 +33,7 @@ from pennylane.ops.op_math.prod import Prod
 
 from pennylane.ops.op_math.linear_combination import LinearCombination
 
-from .api_client import Job, JobExecutionError
+from .api_client import Job, JobExecutionError, ResultsTypes
 from .exceptions import (
     CircuitIndexNotSetException,
     ComplexEvolutionCoefficientsNotSupported,
@@ -640,101 +640,52 @@ class IonQDevice(QubitDevice):
 
         params = {} if self.sharpen is None else {"sharpen": self.sharpen}
 
-        job.manager.get(resource_id=job.id.value, params=params)
+        if not self.memory or (self.target == "simulator" and self.noise_model in (None, "ideal")):
+            job.manager.get(resource_id=job.id.value, params=params, results_type=ResultsTypes.PROBS)
 
-        # The returned job histogram is of the form
-        # dict[str, float], and maps the computational basis
-        # state (as a base-10 integer string) to the probability
-        # as a floating point value between 0 and 1.
-        # e.g., {"0": 0.413, "9": 0.111, "17": 0.476}
-        # Multi-circuit job histograms are keyed by child job ID.
-        some_inner_value = next(iter(job.data.value.values()))
-        if isinstance(some_inner_value, dict):
-            child_ids = list(job.data.value.keys())
-            self.histograms = list(job.data.value.values())
+            # The returned job histogram is of the form
+            # dict[str, float], and maps the computational basis
+            # state (as a base-10 integer string) to the probability
+            # as a floating point value between 0 and 1.
+            # e.g., {"0": 0.413, "9": 0.111, "17": 0.476}
+            some_inner_value = next(iter(job.data.value.values()))
+            if isinstance(some_inner_value, dict):
+                self.histograms = list(job.data.value.values())
+            else:
+                self.histograms = [job.data.value]
         else:
-            child_ids = None
-            self.histograms = [job.data.value]
+            # Shotwise outputs using memory
+            if self.job.get("type") == "ionq.multi-circuit.v1":
+                # Multi-circuit job histograms are keyed by child job ID.
+                child_ids = list(job.data.value.keys())
 
-        if self.memory and not (self.target == "simulator" and self.noise_model in (None, "ideal")):
-            self.memory_results = self._fetch_memory_results(job, child_ids)
+                # The parent job only carries aggregated probabilities; each child job
+                # advertises its own per-shot results URL.
+                memory_results = []
+                for child_id in child_ids:
+                    job.manager.get(resource_id=child_id, params=params, results_type=ResultsTypes.SHOTS)
+                    memory_results.append(self._shots_to_samples(job.data.value))
+                self.memory_results = memory_results
+            else:
+                job.manager.get(resource_id=job.id.value, params=params, results_type=ResultsTypes.SHOTS)
+                self.memory_results = [self._shots_to_samples(job.data.value)]
 
-    def _fetch_memory_results(self, job, child_ids=None):
-        """Fetch per-shot measurement outcomes for each circuit of a completed job.
+    def _shots_to_samples(self, raw_shots):
+        """Convert IonQ API per-shot results into PennyLane binary samples.
 
-        Args:
-            job (Job): the completed job resource.
-            child_ids (list[str] | None): child job IDs of a multi-circuit job,
-                ordered as in ``self.histograms``.
-
-        Returns:
-            list[array[int] or None]: one array of basis-state integers per circuit,
-            with ``None`` entries where per-shot results could not be retrieved.
-        """
-        manager = job.manager
-        if not child_ids:
-            results = (manager.http_response_data or {}).get("results") or {}
-            return [self._fetch_shots((results.get("shots") or {}).get("url"), manager)]
-
-        # The parent job only carries aggregated probabilities; each child job
-        # advertises its own per-shot results URL.
-        memory_results = []
-        for child_id in child_ids:
-            try:
-                response = manager.client.get(manager.join_path(str(child_id)))
-                response.raise_for_status()
-                results = response.json().get("results") or {}
-            except requests.exceptions.RequestException as e:
-                warnings.warn(
-                    f"Failed to retrieve per-shot results for job {child_id}: {e}. "
-                    "Samples for this circuit will be generated from the returned "
-                    "probabilities.",
-                    UserWarning,
-                )
-                memory_results.append(None)
-                continue
-            memory_results.append(
-                self._fetch_shots((results.get("shots") or {}).get("url"), manager)
-            )
-        return memory_results
-
-    def _fetch_shots(self, url, manager):
-        """Fetch a job's per-shot results and convert them to basis-state integers.
+        The API encodes each shot as a basis-state integer using little-endian
+        ordering, like the histogram keys. ``states_to_binary`` places the least
+        significant bit last, so reversing the bit axis yields rows in the
+        big-endian wire ordering expected by PennyLane.
 
         Args:
-            url (str | None): the job's ``results.shots.url``, if any.
-            manager (ResourceManager): the manager used for API requests.
+            raw_shots (list[str]): one little-endian basis-state integer per shot.
 
         Returns:
-            array[int] or None: one big-endian basis-state integer per shot, or
-            ``None`` if the per-shot results could not be retrieved.
+            array[int]: binary samples of shape ``(shots, num_wires)``.
         """
-        if not url:
-            warnings.warn(
-                "The job did not report per-shot results; samples will be "
-                "generated from the returned probabilities.",
-                UserWarning,
-            )
-            return None
-        try:
-            response = manager.client.get(manager.join_path(url))
-            response.raise_for_status()
-            raw_shots = response.json()
-        except requests.exceptions.RequestException as e:
-            warnings.warn(
-                f"Failed to retrieve per-shot results: {e}. Samples will be "
-                "generated from the returned probabilities.",
-                UserWarning,
-            )
-            return None
-
-        # The API returns one decimal-encoded basis state per shot, in
-        # little-endian ordering like the histogram keys; rearrange to the
-        # big-endian ordering expected by PennyLane.
-        return np.fromiter(
-            (int(bin(int(s))[2:].rjust(self.num_wires, "0")[::-1], 2) for s in raw_shots),
-            dtype=np.int64,
-        )
+        basis_states = np.fromiter((int(s) for s in raw_shots), dtype=np.int64)
+        return QubitDevice.states_to_binary(basis_states, self.num_wires)[:, ::-1]
 
     def _memory_samples(self):
         """Return the per-shot samples retrieved from the API for the current circuit.
@@ -749,10 +700,7 @@ class IonQDevice(QubitDevice):
         if self._current_circuit_index is None and len(self.memory_results) > 1:
             raise CircuitIndexNotSetException()
 
-        basis_states = self.memory_results[self._current_circuit_index or 0]
-        if basis_states is None:
-            return None
-        return QubitDevice.states_to_binary(basis_states, self.num_wires)
+        return self.memory_results[self._current_circuit_index or 0]
 
     @property
     def prob(self):

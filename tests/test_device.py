@@ -1219,8 +1219,8 @@ class TestMemoryResults:
     def _mock_api(monkeypatch, job_json, payloads, requested=None):
         """Patch requests to serve fake IonQ API responses.
 
-        ``payloads`` maps URLs to a JSON payload or a (payload, status_code)
-        tuple; ``requested`` collects the URLs of all GET requests.
+        ``payloads`` maps URLs to a JSON payload; ``requested`` collects the
+        URLs of all GET requests.
         """
 
         def fake_post(url, data=None, timeout=None, headers=None):
@@ -1229,10 +1229,7 @@ class TestMemoryResults:
         def fake_get(url, params=None, timeout=None, headers=None):
             if requested is not None:
                 requested.append(url)
-            payload = payloads[url]
-            if isinstance(payload, tuple):
-                return MockJSONResponse(*payload)
-            return MockJSONResponse(payload)
+            return MockJSONResponse(payloads[url])
 
         monkeypatch.setattr(requests, "post", fake_post)
         monkeypatch.setattr(requests, "get", fake_get)
@@ -1307,81 +1304,6 @@ class TestMemoryResults:
         assert np.array_equal(results[0], [[1, 0]] * 4)
         assert np.array_equal(results[1], [[0, 1]] * 4)
 
-    def test_memory_multi_circuit_partial_failure(self, monkeypatch):
-        """A failed child job fetch warns and falls back to sampling from the
-        probabilities for that circuit only."""
-        job_json = {
-            "id": "parent",
-            "status": "completed",
-            "results": {"probabilities": {"url": "/v0.4/jobs/parent/results/probabilities"}},
-        }
-        payloads = {
-            f"{API_URL}/jobs/parent": job_json,
-            f"{API_URL}/jobs/parent/results/probabilities": {
-                "child-a": {"1": 1.0},
-                "child-b": {"2": 1.0},
-            },
-            f"{API_URL}/jobs/child-a": {
-                "id": "child-a",
-                "status": "completed",
-                "results": {"shots": {"url": "/v0.4/jobs/child-a/results/shots"}},
-            },
-            f"{API_URL}/jobs/child-a/results/shots": ["1", "1", "1", "1"],
-            f"{API_URL}/jobs/child-b": ({}, 500),
-        }
-        self._mock_api(monkeypatch, job_json, payloads)
-
-        dev = SimulatorDevice(
-            wires=2,
-            shots=4,
-            api_key=FAKE_API_KEY,
-            noise_model="aria-1",
-            memory=True,
-            max_retries=0,
-        )
-        with pytest.warns(UserWarning, match="Failed to retrieve per-shot results for job"):
-            results = dev.batch_execute([self._sample_tape(4), self._sample_tape(4)])
-
-        assert np.array_equal(dev.memory_results[0], [2, 2, 2, 2])
-        assert dev.memory_results[1] is None
-        assert np.array_equal(results[0], [[1, 0]] * 4)
-        assert np.array_equal(results[1], [[0, 1]] * 4)
-
-    def test_memory_no_shots_url(self, monkeypatch):
-        """A job response without per-shot results warns and falls back to
-        sampling from the probabilities."""
-        job_json, payloads = self._single_circuit_payloads()
-        self._mock_api(monkeypatch, job_json, payloads)
-
-        dev = SimulatorDevice(
-            wires=2, shots=4, api_key=FAKE_API_KEY, noise_model="aria-1", memory=True
-        )
-        with pytest.warns(UserWarning, match="did not report per-shot results"):
-            results = dev.batch_execute([self._sample_tape(4)])
-
-        assert dev.memory_results == [None]
-        assert np.asarray(results[0]).shape == (4, 2)
-
-    def test_memory_fetch_error(self, monkeypatch):
-        """A failed per-shot results fetch warns and falls back to sampling
-        from the probabilities."""
-        job_json, payloads = self._single_circuit_payloads(({}, 500))
-        self._mock_api(monkeypatch, job_json, payloads)
-
-        dev = SimulatorDevice(
-            wires=2,
-            shots=4,
-            api_key=FAKE_API_KEY,
-            noise_model="aria-1",
-            memory=True,
-            max_retries=0,
-        )
-        with pytest.warns(UserWarning, match="Failed to retrieve per-shot results"):
-            results = dev.batch_execute([self._sample_tape(4)])
-
-        assert dev.memory_results == [None]
-        assert np.asarray(results[0]).shape == (4, 2)
-
     def test_memory_false_skips_fetch(self, monkeypatch):
         """No per-shot results are fetched when memory is False."""
         job_json, payloads = self._single_circuit_payloads(["1", "0", "3", "1"])
@@ -1422,7 +1344,7 @@ class TestMemoryResults:
         """generate_samples returns the fetched per-shot results in order."""
         dev = device_class(2, shots=4, api_key=FAKE_API_KEY, memory=True, **kwargs)
         dev.histograms = [{"0": 0.25, "2": 0.75}]
-        dev.memory_results = [np.array([2, 0, 2, 2])]
+        dev.memory_results = [np.array([[1, 0], [0, 0], [1, 0], [1, 0]])]
 
         samples = dev.generate_samples()
 
@@ -1431,7 +1353,7 @@ class TestMemoryResults:
     def test_memory_samples_require_circuit_index(self):
         """Sampling multi-circuit per-shot results without a circuit index raises."""
         dev = QPUDevice(2, shots=4, api_key=FAKE_API_KEY, memory=True)
-        dev.memory_results = [np.array([0]), np.array([1])]
+        dev.memory_results = [np.array([[0, 0]]), np.array([[0, 1]])]
 
         with pytest.raises(CircuitIndexNotSetException):
             dev.generate_samples()
