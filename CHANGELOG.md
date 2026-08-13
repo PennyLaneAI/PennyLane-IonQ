@@ -6,7 +6,7 @@
   measurement outcomes returned by the API are used as the device samples, instead
   of generating samples locally from the returned probabilities. Available for QPU
   and noisy-simulator jobs.
-  [(#190)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/190)
+  [(#195)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/195)
 
 ### Improvements 🛠
 
