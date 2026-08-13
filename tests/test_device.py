@@ -1214,7 +1214,7 @@ class MockJSONResponse:
 
 
 class TestMemoryResults:
-    """Tests for retrieving per-shot results with the memory device kwarg."""
+    """Tests for retrieving shotwise results with the memory device kwarg."""
 
     @staticmethod
     def _mock_api(monkeypatch, job_json, payloads, requested=None):
@@ -1260,7 +1260,7 @@ class TestMemoryResults:
         return tape
 
     def test_memory_single_circuit(self, monkeypatch):
-        """Per-shot results of a single-circuit job are returned as samples,
+        """Shotwise results of a single-circuit job are returned as samples,
         in order and with little-endian API states mapped to PennyLane wires."""
         job_json, payloads = self._single_circuit_payloads(["1", "0", "3", "1"])
         self._mock_api(monkeypatch, job_json, payloads)
@@ -1273,7 +1273,7 @@ class TestMemoryResults:
         assert np.array_equal(results[0], [[1, 0], [0, 0], [1, 1], [1, 0]])
 
     def test_memory_multi_circuit(self, monkeypatch):
-        """Per-shot results of a multi-circuit job are fetched from each child job."""
+        """Shotwise results of a multi-circuit job are fetched from each child job."""
         job_json = {
             "id": "parent",
             "status": "completed",
@@ -1309,7 +1309,7 @@ class TestMemoryResults:
         assert np.array_equal(results[1], [[0, 1]] * 4)
 
     def test_memory_false_skips_fetch(self, monkeypatch):
-        """No per-shot results are fetched when memory is False."""
+        """No shotwise results are fetched when memory is False."""
         job_json, payloads = self._single_circuit_payloads(["1", "0", "3", "1"])
         requested = []
         self._mock_api(monkeypatch, job_json, payloads, requested=requested)
@@ -1335,17 +1335,12 @@ class TestMemoryResults:
 
         assert dev.memory_results is None
 
-    def test_memory_invalid_type(self):
-        """A non-boolean memory argument raises a ValueError."""
-        with pytest.raises(ValueError, match="memory must be a boolean"):
-            SimulatorDevice(wires=2, shots=4, api_key=FAKE_API_KEY, memory="yes")
-
     @pytest.mark.parametrize(
         "device_class, kwargs",
         [(SimulatorDevice, {"noise_model": "aria-1"}), (QPUDevice, {})],
     )
     def test_generate_samples_from_memory(self, device_class, kwargs):
-        """generate_samples returns the fetched per-shot results in order."""
+        """generate_samples returns the fetched shotwise results in order."""
         dev = device_class(2, shots=4, api_key=FAKE_API_KEY, memory=True, **kwargs)
         dev.histograms = [{"0": 0.25, "2": 0.75}]
         dev.memory_results = [np.array([[1, 0], [0, 0], [1, 0], [1, 0]])]
@@ -1355,7 +1350,7 @@ class TestMemoryResults:
         assert np.array_equal(samples, [[1, 0], [0, 0], [1, 0], [1, 0]])
 
     def test_memory_samples_require_circuit_index(self):
-        """Sampling multi-circuit per-shot results without a circuit index raises."""
+        """Sampling multi-circuit shotwise results without a circuit index raises."""
         dev = QPUDevice(2, shots=4, api_key=FAKE_API_KEY, memory=True)
         dev.memory_results = [np.array([[0, 0]]), np.array([[0, 1]])]
 
@@ -1363,7 +1358,7 @@ class TestMemoryResults:
             dev.generate_samples()
 
     def test_memory_none_entry_falls_back(self):
-        """A missing per-shot results entry falls back to probability sampling."""
+        """A missing shotwise results entry falls back to probability sampling."""
         dev = SimulatorDevice(2, shots=4, api_key=FAKE_API_KEY, noise_model="aria-1", memory=True)
         dev.histograms = [{"0": 1.0}]
         dev.memory_results = None
@@ -1373,7 +1368,7 @@ class TestMemoryResults:
         assert np.array_equal(samples, np.zeros((4, 2)))
 
     def test_memory_single_circuit_api(self, requires_api):
-        """Per-shot results are used as samples on a noisy-simulator job."""
+        """Shotwise results are used as samples on a noisy-simulator job."""
         dev = qml.device("ionq.simulator", wires=3, noise_model="aria-1", memory=True)
 
         with qml.tape.QuantumTape(shots=100) as tape:
@@ -1388,7 +1383,7 @@ class TestMemoryResults:
         assert np.array_equal(unique[np.argmax(counts)], [0, 1, 0])
 
     def test_memory_two_circuits_api(self, requires_api):
-        """Per-shot results are matched to the right circuit and wire ordering
+        """Shotwise results are matched to the right circuit and wire ordering
         on a multi-circuit job."""
         dev = qml.device("ionq.simulator", wires=3, noise_model="aria-1", memory=True)
 

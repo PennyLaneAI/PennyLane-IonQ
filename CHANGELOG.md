@@ -2,7 +2,7 @@
 
 ### New features since last release
 
-* Added a ``memory`` device keyword argument. When set to ``True``, the per-shot
+* Added a ``memory`` device keyword argument. When set to ``True``, the shotwise
   measurement outcomes returned by the API are used as the device samples, instead
   of generating samples locally from the returned probabilities. Available for QPU
   and noisy-simulator jobs.

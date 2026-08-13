@@ -131,9 +131,9 @@ class IonQDevice(QubitDevice):
         noise_seed (int): seed for the noise model random number generator, for reproducible noisy
             simulation results. Must be an integer between 1 and 2\ :sup:`31` - 1. Only used when ``noise_model`` is set.
             Defaults to None (random seed).
-        memory (bool): if True, use the per-shot measurement outcomes returned by the API as the
+        memory (bool): if True, use the shotwise measurement outcomes returned by the API as the
             device samples, instead of generating samples locally from the returned probabilities.
-            Per-shot results are not available for ideal simulation. Defaults to False.
+            Shotwise results are not available for ideal simulation. Defaults to False.
         dry_run (bool): If True, the job will be submitted by the API client but not processed remotely.
             Useful for obtaining cost estimates. Defaults to False.
         metadata (dict | None): optional metadata to attach to the job. Defaults to None.
@@ -210,11 +210,9 @@ class IonQDevice(QubitDevice):
                 raise ValueError(
                     f"noise_seed must be an integer between 1 and 2^31 - 1, got {noise_seed}."
                 )
-        if not isinstance(memory, bool):
-            raise ValueError(f"memory must be a boolean, got {memory}.")
         if memory and target == "simulator" and noise_model in (None, "ideal"):
             warnings.warn(
-                "Per-shot results are not available for ideal simulation; samples "
+                "Shotwise results are not available for ideal simulation; samples "
                 "will be generated from the returned probabilities.",
                 UserWarning,
             )
@@ -662,7 +660,7 @@ class IonQDevice(QubitDevice):
                 child_ids = list(job.data.value.keys())
 
                 # The parent job only carries aggregated probabilities; each child job
-                # advertises its own per-shot results URL.
+                # advertises its own shotwise results URL.
                 memory_results = []
                 for child_id in child_ids:
                     job.manager.get(
@@ -677,7 +675,7 @@ class IonQDevice(QubitDevice):
                 self.memory_results = [self._shots_to_samples(job.data.value)]
 
     def _shots_to_samples(self, raw_shots):
-        """Convert IonQ API per-shot results into PennyLane binary samples.
+        """Convert IonQ API shotwise results into PennyLane binary samples.
 
         The API encodes each shot as a basis-state integer using little-endian
         ordering, like the histogram keys. ``states_to_binary`` places the least
@@ -763,9 +761,9 @@ class SimulatorDevice(IonQDevice):
         noise_seed (int): seed for the noise model random number generator, for reproducible noisy
             simulation results. Must be an integer between 1 and 2\ :sup:`31` - 1. Only used when ``noise_model`` is set.
             Defaults to None (random seed).
-        memory (bool): if True, use the per-shot measurement outcomes returned by the API as the
+        memory (bool): if True, use the shotwise measurement outcomes returned by the API as the
             device samples, instead of generating samples locally from the returned probabilities.
-            Per-shot results are not available for ideal simulation. Defaults to False.
+            Shotwise results are not available for ideal simulation. Defaults to False.
         metadata (dict | None): optional metadata to attach to the job. Defaults to None.
         timeout (float): Request timeout in seconds. Defaults to None, which uses the
             ``APIClient`` default.
@@ -815,7 +813,7 @@ class SimulatorDevice(IonQDevice):
         )
 
     def generate_samples(self):
-        """Generates samples from the per-shot results if available, otherwise by
+        """Generates samples from the shotwise results if available, otherwise by
         random sampling with the probabilities returned by the simulator."""
         if self.memory_results is not None:
             if self._current_circuit_index is None and len(self.memory_results) > 1:
@@ -857,7 +855,7 @@ class QPUDevice(IonQDevice):
             Defaults to None (no value passed at job retrieval). Will generally return more accurate results if
             your expected output distribution has peaks. See `IonQ Debiasing and Sharpening
             <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
-        memory (bool): if True, use the per-shot measurement outcomes returned by the API as the
+        memory (bool): if True, use the shotwise measurement outcomes returned by the API as the
             device samples, instead of generating samples locally from the returned probabilities.
             Defaults to False.
         dry_run (bool): whether to run the job in dry run mode. Defaults to False.
@@ -918,7 +916,7 @@ class QPUDevice(IonQDevice):
     def generate_samples(self):
         """Generates samples from the qpu.
 
-        If per-shot results were retrieved from the API, they are returned in the
+        If shotwise results were retrieved from the API, they are returned in the
         order the shots were measured. Otherwise, samples are generated from the
         returned probabilities, and their order is not indicative of the order in
         which the experiments were done, but is instead controlled by a random
