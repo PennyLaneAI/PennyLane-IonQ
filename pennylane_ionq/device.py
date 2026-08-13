@@ -687,21 +687,6 @@ class IonQDevice(QubitDevice):
         basis_states = np.fromiter((int(s) for s in raw_shots), dtype=np.int64)
         return QubitDevice.states_to_binary(basis_states, self.num_wires)[:, ::-1]
 
-    def _memory_samples(self):
-        """Return the per-shot samples retrieved from the API for the current circuit.
-
-        Returns:
-            array[int] or None: binary samples of shape ``(shots, num_wires)``, or
-            ``None`` if per-shot results are not available.
-        """
-        if self.memory_results is None:
-            return None
-
-        if self._current_circuit_index is None and len(self.memory_results) > 1:
-            raise CircuitIndexNotSetException()
-
-        return self.memory_results[self._current_circuit_index or 0]
-
     @property
     def prob(self):
         """None or array[float]: Array of computational basis state probabilities. If
@@ -826,9 +811,10 @@ class SimulatorDevice(IonQDevice):
     def generate_samples(self):
         """Generates samples from the per-shot results if available, otherwise by
         random sampling with the probabilities returned by the simulator."""
-        memory_samples = self._memory_samples()
-        if memory_samples is not None:
-            return memory_samples
+        if self.memory_results is not None:
+            if self._current_circuit_index is None and len(self.memory_results) > 1:
+                raise CircuitIndexNotSetException()
+            return self.memory_results[self._current_circuit_index or 0]
 
         number_of_states = 2**self.num_wires
         samples = self.sample_basis_states(number_of_states, self.prob)
@@ -932,9 +918,10 @@ class QPUDevice(IonQDevice):
         which the experiments were done, but is instead controlled by a random
         shuffle (and hence set by numpy random seed).
         """
-        memory_samples = self._memory_samples()
-        if memory_samples is not None:
-            return memory_samples
+        if self.memory_results is not None:
+            if self._current_circuit_index is None and len(self.memory_results) > 1:
+                raise CircuitIndexNotSetException()
+            return self.memory_results[self._current_circuit_index or 0]
 
         number_of_states = 2**self.num_wires
         counts = np.rint(

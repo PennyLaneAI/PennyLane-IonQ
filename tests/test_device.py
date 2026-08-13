@@ -146,7 +146,7 @@ class TestDeviceIntegration:
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, results_type=None):
             """Return fake response data"""
             fake_json = {"0": 1}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
@@ -174,7 +174,7 @@ class TestDeviceIntegration:
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, results_type=None):
             """Return fake response data"""
             fake_json = {"0": 1}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
@@ -216,7 +216,7 @@ class TestDeviceIntegration:
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, results_type=None):
             """Return fake response data"""
             fake_json = {"0": 1}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
@@ -254,7 +254,7 @@ class TestDeviceIntegration:
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, results_type=None):
             """Return fake response data"""
             fake_json = {"0": 1}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
@@ -288,7 +288,7 @@ class TestDeviceIntegration:
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, results_type=None):
             """Return fake response data"""
             fake_json = {"0": 1}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
@@ -318,7 +318,7 @@ class TestDeviceIntegration:
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, results_type=None):
             """Return fake response data"""
             fake_json = {"0": 1}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
@@ -357,7 +357,7 @@ class TestDeviceIntegration:
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, results_type=None):
             """Return fake response data"""
             fake_json = {"0": 1}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
@@ -408,7 +408,7 @@ class TestDeviceIntegration:
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, results_type=None):
             """Return fake response data"""
             fake_json = {"0": 1}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
@@ -1362,7 +1362,7 @@ class TestMemoryResults:
         """A missing per-shot results entry falls back to probability sampling."""
         dev = SimulatorDevice(2, shots=4, api_key=FAKE_API_KEY, noise_model="aria-1", memory=True)
         dev.histograms = [{"0": 1.0}]
-        dev.memory_results = [None]
+        dev.memory_results = None
 
         samples = dev.generate_samples()
 

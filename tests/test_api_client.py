@@ -25,6 +25,7 @@ from pennylane_ionq.api_client import (
     Resource,
     Field,
     ResourceManager,
+    ResultsTypes,
     ObjectAlreadyCreatedException,
     MethodNotSupportedException,
 )
@@ -194,7 +195,9 @@ class TestResourceManager:
 
         # TODO test that this is called with correct path
         mock_client.get.assert_called_once()
-        manager.handle_response.assert_called_once_with(mock_response, params)
+        manager.handle_response.assert_called_once_with(
+            mock_response, params, results_type=ResultsTypes.PROBS
+        )
 
     def test_create_unsupported(self):
         """
@@ -269,7 +272,9 @@ class TestResourceManager:
 
         mock_response.status_code = 200
         manager.handle_response(mock_response)
-        mock_handle_success_response.assert_called_once_with(mock_response, params=None)
+        mock_handle_success_response.assert_called_once_with(
+            mock_response, params=None, results_type=ResultsTypes.PROBS
+        )
 
     def test_handle_response_non_json_error(self):
         """
