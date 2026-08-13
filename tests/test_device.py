@@ -1216,59 +1216,40 @@ class MockJSONResponse:
 class TestMemoryResults:
     """Tests for retrieving shotwise results with the memory device kwarg."""
 
-    @staticmethod
-    def _mock_api(monkeypatch, job_json, payloads, requested=None):
-        """Patch requests to serve fake IonQ API responses.
-
-        ``payloads`` maps URLs to a JSON payload; ``requested`` collects the
-        URLs of all GET requests. The API hostname is pinned to ``TEST_HOSTNAME``
-        so that payload lookups work regardless of any ``IONQ_API_HOSTNAME``
-        set in the environment.
-        """
+    def test_memory_single_circuit(self, monkeypatch):
+        """Shotwise results of a single-circuit job are returned as samples,
+        in order and with little-endian API states mapped to PennyLane wires."""
         monkeypatch.setenv("IONQ_API_HOSTNAME", TEST_HOSTNAME)
+
+        shots_payload = ["1", "0", "3", "1"]
+
+        results = {
+            "probabilities": {"url": "/v0.4/jobs/job-1/results/probabilities"},
+            "shots": {"url": "/v0.4/jobs/job-1/results/shots"}
+                   }
+        job_json = {"id": "job-1", "status": "completed", "results": results}
+        payloads = {
+            f"{API_URL}/jobs/job-1": job_json,
+            f"{API_URL}/jobs/job-1/results/probabilities": {"0": 0.5, "1": 0.5},
+            f"{API_URL}/jobs/job-1/results/shots": shots_payload,
+        }
 
         def fake_post(url, data=None, timeout=None, headers=None):
             return MockJSONResponse(job_json, 201)
 
         def fake_get(url, params=None, timeout=None, headers=None):
-            if requested is not None:
-                requested.append(url)
             return MockJSONResponse(payloads[url])
 
         monkeypatch.setattr(requests, "post", fake_post)
         monkeypatch.setattr(requests, "get", fake_get)
 
-    @staticmethod
-    def _single_circuit_payloads(shots_payload=None):
-        """Build a completed single-circuit job response and its result payloads."""
-        results = {"probabilities": {"url": "/v0.4/jobs/job-1/results/probabilities"}}
-        payloads = {
-            f"{API_URL}/jobs/job-1/results/probabilities": {"0": 0.5, "1": 0.5},
-        }
-        if shots_payload is not None:
-            results["shots"] = {"url": "/v0.4/jobs/job-1/results/shots"}
-            payloads[f"{API_URL}/jobs/job-1/results/shots"] = shots_payload
-        job_json = {"id": "job-1", "status": "completed", "results": results}
-        payloads[f"{API_URL}/jobs/job-1"] = job_json
-        return job_json, payloads
-
-    @staticmethod
-    def _sample_tape(shots):
-        with qml.tape.QuantumTape(shots=shots) as tape:
-            qml.PauliX(0)
-            qml.sample(wires=[0, 1])
-        return tape
-
-    def test_memory_single_circuit(self, monkeypatch):
-        """Shotwise results of a single-circuit job are returned as samples,
-        in order and with little-endian API states mapped to PennyLane wires."""
-        job_json, payloads = self._single_circuit_payloads(["1", "0", "3", "1"])
-        self._mock_api(monkeypatch, job_json, payloads)
-
         dev = SimulatorDevice(
             wires=2, shots=4, api_key=FAKE_API_KEY, noise_model="aria-1", memory=True
         )
-        results = dev.batch_execute([self._sample_tape(4)])
+        with qml.tape.QuantumTape() as tape:
+            qml.PauliX(0)
+            qml.sample(wires=[0, 1])
+        results = dev.batch_execute([tape])
 
         assert np.array_equal(results[0], [[1, 0], [0, 0], [1, 1], [1, 0]])
 
@@ -1298,24 +1279,65 @@ class TestMemoryResults:
             f"{API_URL}/jobs/child-a/results/shots": ["1", "1", "1", "1"],
             f"{API_URL}/jobs/child-b/results/shots": ["2", "2", "2", "2"],
         }
-        self._mock_api(monkeypatch, job_json, payloads)
+        monkeypatch.setenv("IONQ_API_HOSTNAME", TEST_HOSTNAME)
+
+        def fake_post(url, data=None, timeout=None, headers=None):
+            return MockJSONResponse(job_json, 201)
+
+        def fake_get(url, params=None, timeout=None, headers=None):
+            return MockJSONResponse(payloads[url])
+
+        monkeypatch.setattr(requests, "post", fake_post)
+        monkeypatch.setattr(requests, "get", fake_get)
 
         dev = SimulatorDevice(
             wires=2, shots=4, api_key=FAKE_API_KEY, noise_model="aria-1", memory=True
         )
-        results = dev.batch_execute([self._sample_tape(4), self._sample_tape(4)])
+        with qml.tape.QuantumTape() as tape:
+            qml.PauliX(0)
+            qml.sample(wires=[0, 1])
+
+        results = dev.batch_execute([tape, tape])
 
         assert np.array_equal(results[0], [[1, 0]] * 4)
         assert np.array_equal(results[1], [[0, 1]] * 4)
 
     def test_memory_false_skips_fetch(self, monkeypatch):
         """No shotwise results are fetched when memory is False."""
-        job_json, payloads = self._single_circuit_payloads(["1", "0", "3", "1"])
+        shots_payload = ["1", "0", "3", "1"]
+
+        results = {
+            "probabilities": {"url": "/v0.4/jobs/job-1/results/probabilities"},
+            "shots": {"url": "/v0.4/jobs/job-1/results/shots"}
+                   }
+        job_json = {"id": "job-1", "status": "completed", "results": results}
+        payloads = {
+            f"{API_URL}/jobs/job-1": job_json,
+            f"{API_URL}/jobs/job-1/results/probabilities": {"0": 0.5, "1": 0.5},
+            f"{API_URL}/jobs/job-1/results/shots": shots_payload,
+        }
         requested = []
-        self._mock_api(monkeypatch, job_json, payloads, requested=requested)
+
+        monkeypatch.setenv("IONQ_API_HOSTNAME", TEST_HOSTNAME)
+
+        def fake_post(url, data=None, timeout=None, headers=None):
+            return MockJSONResponse(job_json, 201)
+
+        def fake_get(url, params=None, timeout=None, headers=None):
+            if requested is not None:
+                requested.append(url)
+            return MockJSONResponse(payloads[url])
+
+        monkeypatch.setattr(requests, "post", fake_post)
+        monkeypatch.setattr(requests, "get", fake_get)
 
         dev = SimulatorDevice(wires=2, shots=4, api_key=FAKE_API_KEY, noise_model="aria-1")
-        dev.batch_execute([self._sample_tape(4)])
+
+        with qml.tape.QuantumTape() as tape:
+            qml.PauliX(0)
+            qml.sample(wires=[0, 1])
+
+        dev.batch_execute([tape])
 
         assert dev.memory_results is None
         assert f"{API_URL}/jobs/job-1/results/shots" not in requested
@@ -1323,15 +1345,42 @@ class TestMemoryResults:
     @pytest.mark.parametrize("noise_model", [None, "ideal"])
     def test_memory_ideal_simulator(self, noise_model, monkeypatch):
         """Requesting memory on the ideal simulator warns and skips the fetch."""
-        job_json, payloads = self._single_circuit_payloads()
+        shots_payload = None
+
+        results = {
+            "probabilities": {"url": "/v0.4/jobs/job-1/results/probabilities"},
+            "shots": {"url": "/v0.4/jobs/job-1/results/shots"}
+                   }
+        job_json = {"id": "job-1", "status": "completed", "results": results}
+        payloads = {
+            f"{API_URL}/jobs/job-1": job_json,
+            f"{API_URL}/jobs/job-1/results/probabilities": {"0": 0.5, "1": 0.5},
+            f"{API_URL}/jobs/job-1/results/shots": shots_payload,
+        }
         requested = []
-        self._mock_api(monkeypatch, job_json, payloads, requested=requested)
+        monkeypatch.setenv("IONQ_API_HOSTNAME", TEST_HOSTNAME)
+
+        def fake_post(url, data=None, timeout=None, headers=None):
+            return MockJSONResponse(job_json, 201)
+
+        def fake_get(url, params=None, timeout=None, headers=None):
+            if requested is not None:
+                requested.append(url)
+            return MockJSONResponse(payloads[url])
+
+        monkeypatch.setattr(requests, "post", fake_post)
+        monkeypatch.setattr(requests, "get", fake_get)
 
         with pytest.warns(UserWarning, match="not available for ideal simulation"):
             dev = SimulatorDevice(
                 wires=2, shots=4, api_key=FAKE_API_KEY, noise_model=noise_model, memory=True
             )
-        dev.batch_execute([self._sample_tape(4)])
+
+        with qml.tape.QuantumTape() as tape:
+            qml.PauliX(0)
+            qml.sample(wires=[0, 1])
+
+        dev.batch_execute([tape])
 
         assert dev.memory_results is None
 
@@ -1359,9 +1408,10 @@ class TestMemoryResults:
 
     def test_memory_none_entry_falls_back(self):
         """A missing shotwise results entry falls back to probability sampling."""
-        dev = SimulatorDevice(2, shots=4, api_key=FAKE_API_KEY, noise_model="aria-1", memory=True)
+        with pytest.warns(UserWarning, match=r"Shotwise results are not available"):
+            dev = SimulatorDevice(2, shots=4, api_key=FAKE_API_KEY, memory=True)
+
         dev.histograms = [{"0": 1.0}]
-        dev.memory_results = None
 
         samples = dev.generate_samples()
 
