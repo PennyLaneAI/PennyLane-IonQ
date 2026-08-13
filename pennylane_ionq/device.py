@@ -656,25 +656,25 @@ class IonQDevice(QubitDevice):
         else:
             # Shotwise outputs using memory
             if self.job.get("type") == "ionq.multi-circuit.v1":
-                # Multi-circuit job histograms are keyed by child job ID.
-                child_ids = list(job.data.value.keys())
-
-                # The parent job only carries aggregated probabilities; each child job
-                # advertises its own shotwise results URL.
-                memory_results = []
-                for child_id in child_ids:
-                    job.manager.get(
-                        resource_id=child_id, params=params, results_type=ResultsTypes.SHOTS
-                    )
-                    memory_results.append(self._shots_to_samples(job.data.value))
-                self.memory_results = memory_results
+                # Multi-circuit job shots:
+                # ------------------------
+                # Parent job only carries aggregated probabilities;
+                # Results are keyed by child job ID. Each child job advertises
+                # its own shotwise results URL so store these IDs.
+                child_ids = job.data.value.keys()
+                job_ids = list(child_ids)
             else:
-                job.manager.get(
-                    resource_id=job.id.value, params=params, results_type=ResultsTypes.SHOTS
-                )
-                self.memory_results = [self._shots_to_samples(job.data.value)]
+                job_ids = [job.id.value]
 
-    def _shots_to_samples(self, raw_shots):
+            memory_results = []
+            for job_id in job_ids:
+                job.manager.get(
+                    resource_id=job_id, params=params, results_type=ResultsTypes.SHOTS
+                )
+                memory_results.append(self._shotwise_to_samples(job.data.value))
+            self.memory_results = memory_results
+
+    def _shotwise_to_samples(self, raw_shots):
         """Convert IonQ API shotwise results into PennyLane binary samples.
 
         The API encodes each shot as a basis-state integer using little-endian
