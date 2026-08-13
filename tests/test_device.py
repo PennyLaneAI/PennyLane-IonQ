@@ -1193,7 +1193,8 @@ class TestJobAttribute:
         assert gate["rotation"] == rotation
 
 
-API_URL = "https://api.ionq.co/v0.4"
+TEST_HOSTNAME = "api.example.com/v0.4"
+API_URL = f"https://{TEST_HOSTNAME}"
 
 
 class MockJSONResponse:
@@ -1220,8 +1221,11 @@ class TestMemoryResults:
         """Patch requests to serve fake IonQ API responses.
 
         ``payloads`` maps URLs to a JSON payload; ``requested`` collects the
-        URLs of all GET requests.
+        URLs of all GET requests. The API hostname is pinned to ``TEST_HOSTNAME``
+        so that payload lookups work regardless of any ``IONQ_API_HOSTNAME``
+        set in the environment.
         """
+        monkeypatch.setenv("IONQ_API_HOSTNAME", TEST_HOSTNAME)
 
         def fake_post(url, data=None, timeout=None, headers=None):
             return MockJSONResponse(job_json, 201)

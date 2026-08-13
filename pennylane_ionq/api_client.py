@@ -137,14 +137,20 @@ class APIClient:  # pylint: disable=too-many-instance-attributes
         max_retries (int): Maximum number of retries for retriable HTTP errors (default: 3)
         retry_delay (float): Base delay in seconds between retries. Every subsequent k-th retry
             will be delayed by ``retry_delay * (2 ** k)`` (default: 0.5)
+
+    The API hostname can be overridden with the ``IONQ_API_HOSTNAME`` environment
+    variable.
     """
 
     USER_AGENT = "pennylane-ionq-api-client/0.4"
-    HOSTNAME = "api.ionq.co/v0.4"
-    BASE_URL = f"https://{HOSTNAME}"
+    DEFAULT_HOSTNAME = "api.ionq.co/v0.4"
     DEFAULT_TIMEOUT = 600
 
     def __init__(self, **kwargs):
+        # IONQ_API_HOSTNAME allows targeting a different API host
+        self.HOSTNAME = os.getenv("IONQ_API_HOSTNAME", self.DEFAULT_HOSTNAME)
+        self.BASE_URL = f"https://{self.HOSTNAME}"
+
         self.AUTHENTICATION_TOKEN = (
             kwargs.get("api_key", None)
             or os.getenv("PENNYLANE_IONQ_API_KEY")
