@@ -668,9 +668,7 @@ class IonQDevice(QubitDevice):
 
             memory_results = []
             for job_id in job_ids:
-                job.manager.get(
-                    resource_id=job_id, params=params, results_type=ResultsTypes.SHOTS
-                )
+                job.manager.get(resource_id=job_id, params=params, results_type=ResultsTypes.SHOTS)
                 memory_results.append(self._shotwise_to_samples(job.data.value))
             self.memory_results = memory_results
 
