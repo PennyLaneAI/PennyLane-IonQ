@@ -80,11 +80,13 @@ RETRIABLE_STATUS_CODES = (
 # 409 Conflict is retriable only for GET requests (Cloudflare DNS resolution errors).
 RETRIABLE_FOR_GET = (409,)
 
+
 class ResultsTypes(str, Enum):
     """Supported results types."""
 
     SHOTS = "shots"
     PROBS = "probabilities"
+
 
 def join_path(base_path, path):
     """

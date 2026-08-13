@@ -641,7 +641,9 @@ class IonQDevice(QubitDevice):
         params = {} if self.sharpen is None else {"sharpen": self.sharpen}
 
         if not self.memory or (self.target == "simulator" and self.noise_model in (None, "ideal")):
-            job.manager.get(resource_id=job.id.value, params=params, results_type=ResultsTypes.PROBS)
+            job.manager.get(
+                resource_id=job.id.value, params=params, results_type=ResultsTypes.PROBS
+            )
 
             # The returned job histogram is of the form
             # dict[str, float], and maps the computational basis
@@ -663,11 +665,15 @@ class IonQDevice(QubitDevice):
                 # advertises its own per-shot results URL.
                 memory_results = []
                 for child_id in child_ids:
-                    job.manager.get(resource_id=child_id, params=params, results_type=ResultsTypes.SHOTS)
+                    job.manager.get(
+                        resource_id=child_id, params=params, results_type=ResultsTypes.SHOTS
+                    )
                     memory_results.append(self._shots_to_samples(job.data.value))
                 self.memory_results = memory_results
             else:
-                job.manager.get(resource_id=job.id.value, params=params, results_type=ResultsTypes.SHOTS)
+                job.manager.get(
+                    resource_id=job.id.value, params=params, results_type=ResultsTypes.SHOTS
+                )
                 self.memory_results = [self._shots_to_samples(job.data.value)]
 
     def _shots_to_samples(self, raw_shots):
