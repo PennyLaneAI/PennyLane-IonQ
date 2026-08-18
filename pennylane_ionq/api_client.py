@@ -60,6 +60,7 @@ import json
 import warnings
 import os
 import time
+from enum import Enum
 
 import dateutil.parser
 
@@ -78,6 +79,13 @@ RETRIABLE_STATUS_CODES = (
 
 # 409 Conflict is retriable only for GET requests (Cloudflare DNS resolution errors).
 RETRIABLE_FOR_GET = (409,)
+
+
+class ResultsTypes(str, Enum):
+    """Supported results types."""
+
+    SHOTS = "shots"
+    PROBS = "probabilities"
 
 
 def join_path(base_path, path):
@@ -131,14 +139,20 @@ class APIClient:  # pylint: disable=too-many-instance-attributes
         max_retries (int): Maximum number of retries for retriable HTTP errors (default: 3)
         retry_delay (float): Base delay in seconds between retries. Every subsequent k-th retry
             will be delayed by ``retry_delay * (2 ** k)`` (default: 0.5)
+
+    The API hostname can be overridden with the ``IONQ_API_HOSTNAME`` environment
+    variable.
     """
 
     USER_AGENT = "pennylane-ionq-api-client/0.4"
-    HOSTNAME = "api.ionq.co/v0.4"
-    BASE_URL = f"https://{HOSTNAME}"
+    DEFAULT_HOSTNAME = "api.ionq.co/v0.4"
     DEFAULT_TIMEOUT = 600
 
     def __init__(self, **kwargs):
+        # IONQ_API_HOSTNAME allows targeting a different API host
+        self.HOSTNAME = os.getenv("IONQ_API_HOSTNAME", self.DEFAULT_HOSTNAME)
+        self.BASE_URL = f"https://{self.HOSTNAME}"
+
         self.AUTHENTICATION_TOKEN = (
             kwargs.get("api_key", None)
             or os.getenv("PENNYLANE_IONQ_API_KEY")
@@ -332,7 +346,7 @@ class ResourceManager:
         """
         return join_path(self.resource.PATH, path)
 
-    def get(self, resource_id=None, params=None):
+    def get(self, resource_id=None, params=None, results_type=ResultsTypes.PROBS):
         """
         Attempts to retrieve a particular record by sending a GET
         request to the appropriate endpoint. If successful, the resource
@@ -350,7 +364,7 @@ class ResourceManager:
             response = self.client.get(self.resource.PATH, params=params)
 
         # we need params later, unfortuantely
-        self.handle_response(response, params)
+        self.handle_response(response, params, results_type=results_type)
 
     def create(self, **params):
         """
@@ -370,7 +384,7 @@ class ResourceManager:
 
         self.handle_response(response)
 
-    def handle_response(self, response, params=None):
+    def handle_response(self, response, params=None, results_type=ResultsTypes.PROBS):
         """
         Store the status code on the manager object and handle the response
         based on the status code.
@@ -383,7 +397,7 @@ class ResourceManager:
 
             if response.status_code in (200, 201):
                 self.http_response_data = response.json()
-                self.handle_success_response(response, params=params)
+                self.handle_success_response(response, params=params, results_type=results_type)
             else:
                 try:
                     self.http_response_data = response.json()
@@ -399,14 +413,14 @@ class ResourceManager:
         """
         warnings.warn("Your request could not be completed")
 
-    def handle_success_response(self, response, params=None):
+    def handle_success_response(self, response, params=None, results_type=ResultsTypes.PROBS):
         """
         Handles a successful response by refreshing the instance fields.
 
         Args:
             response (requests.Response): a response object to be parsed
         """
-        self.refresh_data(response.json(), params=params)
+        self.refresh_data(response.json(), params=params, results_type=results_type)
 
     def handle_error_response(self, response):
         """
@@ -427,7 +441,7 @@ class ResourceManager:
         except Exception as e:
             raise Exception(response.text) from e
 
-    def refresh_data(self, data, params=None):
+    def refresh_data(self, data, params=None, results_type=ResultsTypes.PROBS):
         """
         Refreshes the instance's attributes with the provided data and
         converts it to the correct type.
@@ -439,9 +453,16 @@ class ResourceManager:
             field.set(data.get(field.name, None))
 
         results = data.get("results") or {}
-        probabilities = results.get("probabilities") or {}
-        url = probabilities.get("url")
-        if isinstance(url, str) and url:
+        url = None
+        if results_type == ResultsTypes.PROBS:
+            probabilities = results.get("probabilities") or {}
+            url = probabilities.get("url")
+
+        elif results_type == ResultsTypes.SHOTS:
+            shotwise_outputs = results.get("shots") or {}
+            url = shotwise_outputs.get("url")
+
+        if url and isinstance(url, str):
             resp = self.client.get(self.join_path(url), params=params)
             self.resource.fields[-1].set(resp.json())
 
