@@ -80,6 +80,43 @@ Both devices support the same set of operations.
 .. raw::html
     </section>
 
+Mid-circuit measurements and qubit reset
+----------------------------------------
+
+Both devices support mid-circuit measurements via
+:func:`qp.measure <pennylane.measure>`. When a circuit contains a mid-circuit
+measurement, the plugin converts it to an OpenQASM 3.0 program and submits it
+through IonQ's ``ionq.qasm3.v1`` job type instead of the flat gate-list format:
+
+.. code-block:: python
+
+    import pennylane as qp
+
+    dev = qp.device("ionq.simulator", wires=1)
+
+    @qp.set_shots(1024)
+    @qp.qnode(dev)
+    def circuit():
+        qp.Hadamard(wires=0)
+        qp.measure(0, reset=True)
+        qp.PauliX(wires=0)
+        return qp.probs(wires=[0])
+
+Measuring with ``reset=True`` emits an explicit ``reset`` statement in the
+generated OpenQASM 3.0 program.
+
+The following restrictions apply:
+
+* Postselection (``qp.measure(0, postselect=1)``) is not supported.
+
+* Classically controlled operations (:func:`qp.cond <pennylane.cond>`) are not
+  supported. Apply :func:`qp.defer_measurements <pennylane.defer_measurements>`
+  to the circuit (or use ``mcm_method="deferred"``) to convert conditionals to
+  controlled gates.
+
+* Circuits with mid-circuit measurements must be submitted one at a time; they
+  cannot be part of a batch submission.
+
 IonQ Operations
 ---------------
 

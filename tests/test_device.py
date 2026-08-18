@@ -15,8 +15,9 @@
 
 import json
 import logging
+import warnings
 import numpy as np
-import pennylane as qml
+import pennylane as qp
 import pytest
 import requests
 
@@ -27,6 +28,7 @@ from pennylane_ionq.device import (
     IonQDevice,
     SimulatorDevice,
     CircuitIndexNotSetException,
+    circuit_requires_qasm3,
 )
 from pennylane_ionq.ops import GPI, GPI2, MS, XX, YY, ZZ
 from pennylane.measurements import SampleMeasurement, ShotCopies
@@ -86,7 +88,7 @@ class TestDeviceIntegration:
     @pytest.mark.parametrize("d", shortnames)
     def test_load_device(self, d):
         """Test that the device loads correctly"""
-        dev = qml.device(d, wires=2)
+        dev = qp.device(d, wires=2)
         assert dev.num_wires == 2
         assert dev.shots.total_shots is None
         assert dev.short_name == d
@@ -95,17 +97,17 @@ class TestDeviceIntegration:
     def test_args(self, d):
         """Test that the device requires correct arguments"""
         with pytest.raises(TypeError, match="missing 1 required positional argument"):
-            qml.device(d)
+            qp.device(d)
 
         # IonQ devices allow shots=None
-        dev = qml.device(d, wires=1)
+        dev = qp.device(d, wires=1)
 
         # But the execution will raise error
-        @qml.qnode(dev, shots=None)
+        @qp.qnode(dev, shots=None)
         def circuit():
             """Reference QNode"""
-            qml.PauliX(wires=0)
-            return qml.expval(qml.PauliZ(0))
+            qp.PauliX(wires=0)
+            return qp.expval(qp.PauliZ(0))
 
         with pytest.raises(ValueError, match="does not support analytic"):
             circuit()
@@ -153,13 +155,13 @@ class TestDeviceIntegration:
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
-        dev = qml.device("ionq.simulator", wires=1, api_key="test")
+        dev = qp.device("ionq.simulator", wires=1, api_key="test")
 
-        @qml.qnode(dev, shots=shots)
+        @qp.qnode(dev, shots=shots)
         def circuit():
             """Reference QNode"""
-            qml.PauliX(wires=0)
-            return qml.expval(qml.PauliZ(0))
+            qp.PauliX(wires=0)
+            return qp.expval(qp.PauliZ(0))
 
         spy = mocker.spy(requests, "post")
         circuit()
@@ -181,13 +183,13 @@ class TestDeviceIntegration:
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
-        dev = qml.device("ionq.simulator", wires=1, dry_run=True, api_key="test")
+        dev = qp.device("ionq.simulator", wires=1, dry_run=True, api_key="test")
 
-        @qml.qnode(dev, shots=1024)
+        @qp.qnode(dev, shots=1024)
         def circuit():
             """Reference QNode"""
-            qml.Identity(wires=0)
-            return qml.probs(wires=[0])
+            qp.Identity(wires=0)
+            return qp.probs(wires=[0])
 
         spy = mocker.spy(requests, "post")
         circuit()
@@ -197,12 +199,12 @@ class TestDeviceIntegration:
     def test_dry_run_execute(self, requires_api):
         """Send a job with dry_run option set to true to the API."""
 
-        dev = qml.device("ionq.simulator", wires=1, dry_run=True)
+        dev = qp.device("ionq.simulator", wires=1, dry_run=True)
 
-        @qml.qnode(dev, shots=1024)
+        @qp.qnode(dev, shots=1024)
         def circuit():
-            qml.Identity(wires=0)
-            return qml.probs(wires=[0])
+            qp.Identity(wires=0)
+            return qp.probs(wires=[0])
 
         res = circuit()
         assert res == []
@@ -223,7 +225,7 @@ class TestDeviceIntegration:
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
-        dev = qml.device(
+        dev = qp.device(
             "ionq.simulator",
             wires=1,
             noise_model="ideal",
@@ -231,11 +233,11 @@ class TestDeviceIntegration:
             api_key="test",
         )
 
-        @qml.qnode(dev, shots=1024)
+        @qp.qnode(dev, shots=1024)
         def circuit():
             """Reference QNode"""
-            qml.Identity(wires=0)
-            return qml.probs(wires=[0])
+            qp.Identity(wires=0)
+            return qp.probs(wires=[0])
 
         spy = mocker.spy(requests, "post")
         circuit()
@@ -261,18 +263,18 @@ class TestDeviceIntegration:
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
-        dev = qml.device(
+        dev = qp.device(
             "ionq.simulator",
             wires=1,
             metadata={"key": "value"},
             api_key="test",
         )
 
-        @qml.qnode(dev, shots=1024)
+        @qp.qnode(dev, shots=1024)
         def circuit():
             """Reference QNode"""
-            qml.Identity(wires=0)
-            return qml.probs(wires=[0])
+            qp.Identity(wires=0)
+            return qp.probs(wires=[0])
 
         spy = mocker.spy(requests, "post")
         circuit()
@@ -295,13 +297,13 @@ class TestDeviceIntegration:
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
-        dev = qml.device("ionq.simulator", wires=1, job_name="test_name", api_key="test")
+        dev = qp.device("ionq.simulator", wires=1, job_name="test_name", api_key="test")
 
-        @qml.qnode(dev, shots=1024)
+        @qp.qnode(dev, shots=1024)
         def circuit():
             """Reference QNode"""
-            qml.Identity(wires=0)
-            return qml.probs(wires=[0])
+            qp.Identity(wires=0)
+            return qp.probs(wires=[0])
 
         spy = mocker.spy(requests, "post")
         circuit()
@@ -325,18 +327,18 @@ class TestDeviceIntegration:
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
-        dev = qml.device(
+        dev = qp.device(
             "ionq.qpu",
             wires=1,
             api_key="test",
             compilation=compilation,
         )
 
-        @qml.qnode(dev, shots=5000)
+        @qp.qnode(dev, shots=5000)
         def circuit():
             """Reference QNode"""
-            qml.PauliX(wires=0)
-            return qml.expval(qml.PauliZ(0))
+            qp.PauliX(wires=0)
+            return qp.expval(qp.PauliZ(0))
 
         spy = mocker.spy(requests, "post")
         circuit()
@@ -364,18 +366,18 @@ class TestDeviceIntegration:
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
-        dev = qml.device(
+        dev = qp.device(
             "ionq.qpu",
             wires=1,
             api_key="test",
             error_mitigation=error_mitigation,
         )
 
-        @qml.qnode(dev, shots=5000)
+        @qp.qnode(dev, shots=5000)
         def circuit():
             """Reference QNode"""
-            qml.PauliX(wires=0)
-            return qml.expval(qml.PauliZ(0))
+            qp.PauliX(wires=0)
+            return qp.expval(qp.PauliZ(0))
 
         spy = mocker.spy(requests, "post")
         circuit()
@@ -415,7 +417,7 @@ class TestDeviceIntegration:
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
 
-        dev = qml.device(
+        dev = qp.device(
             "ionq.simulator",
             wires=1,
             api_key="test",
@@ -423,12 +425,12 @@ class TestDeviceIntegration:
             noise_seed=noise_seed,
         )
 
-        @qml.set_shots(5000)
-        @qml.qnode(dev)
+        @qp.set_shots(5000)
+        @qp.qnode(dev)
         def circuit():
             """Reference QNode"""
-            qml.PauliX(wires=0)
-            return qml.expval(qml.PauliZ(0))
+            qp.PauliX(wires=0)
+            return qp.expval(qp.PauliZ(0))
 
         spy = mocker.spy(requests, "post")
         circuit()
@@ -446,62 +448,62 @@ class TestDeviceIntegration:
     def test_noise_model_invalid(self):
         """Test that an invalid noise model raises ValueError."""
         with pytest.raises(ValueError, match="Invalid noise model"):
-            qml.device("ionq.simulator", wires=1, api_key="test", noise_model="invalid")
+            qp.device("ionq.simulator", wires=1, api_key="test", noise_model="invalid")
 
     def test_noise_seed_invalid(self):
         """Test that an invalid noise seed raises ValueError."""
         with pytest.raises(ValueError, match="noise_seed must be an integer"):
-            qml.device(
+            qp.device(
                 "ionq.simulator", wires=1, api_key="test", noise_model="aria-1", noise_seed=0
             )
         with pytest.raises(ValueError, match="noise_seed must be an integer"):
-            qml.device(
+            qp.device(
                 "ionq.simulator", wires=1, api_key="test", noise_model="aria-1", noise_seed=-1
             )
         with pytest.raises(ValueError, match="noise_seed must be an integer"):
-            qml.device(
+            qp.device(
                 "ionq.simulator", wires=1, api_key="test", noise_model="aria-1", noise_seed=2**31
             )
         with pytest.raises(ValueError, match="noise_seed must be an integer"):
-            qml.device(
+            qp.device(
                 "ionq.simulator", wires=1, api_key="test", noise_model="aria-1", noise_seed=True
             )
 
     def test_noise_seed_without_model(self):
         """Test that noise_seed without noise_model raises ValueError."""
         with pytest.raises(ValueError, match="noise_seed requires noise_model"):
-            qml.device("ionq.simulator", wires=1, api_key="test", noise_seed=42)
+            qp.device("ionq.simulator", wires=1, api_key="test", noise_seed=42)
 
     @pytest.mark.parametrize("shots", [8192])
     def test_one_qubit_circuit(self, shots, requires_api, tol):
         """Test that devices provide correct result for a simple circuit"""
-        dev = qml.device("ionq.simulator", wires=1)
+        dev = qp.device("ionq.simulator", wires=1)
 
         a = 0.543
         b = 0.123
-        c = qml.numpy.array(0.987, requires_grad=False)
+        c = qp.numpy.array(0.987, requires_grad=False)
 
-        @qml.set_shots(shots)
-        @qml.qnode(dev)
+        @qp.set_shots(shots)
+        @qp.qnode(dev)
         def circuit(x, y, z):
             """Reference QNode"""
-            qml.BasisState(np.array([1]), wires=0)
-            qml.Hadamard(wires=0)
-            qml.Rot(x, y, z, wires=0)
-            return qml.expval(qml.PauliZ(0))
+            qp.BasisState(np.array([1]), wires=0)
+            qp.Hadamard(wires=0)
+            qp.Rot(x, y, z, wires=0)
+            return qp.expval(qp.PauliZ(0))
 
         assert np.allclose(circuit(a, b, c), np.cos(a) * np.sin(b), **tol)
 
     @pytest.mark.parametrize("shots", [8192])
     def test_one_qubit_ordering(self, shots, requires_api, tol):
         """Test that probabilities are returned with the correct qubit ordering"""
-        dev = qml.device("ionq.simulator", wires=2)
+        dev = qp.device("ionq.simulator", wires=2)
 
-        @qml.set_shots(shots)
-        @qml.qnode(dev)
+        @qp.set_shots(shots)
+        @qp.qnode(dev)
         def circuit():
-            qml.PauliX(wires=1)
-            return qml.probs(wires=[0, 1])
+            qp.PauliX(wires=1)
+            return qp.probs(wires=[0, 1])
 
         res = circuit()
         assert np.allclose(res, np.array([0.0, 1.0, 0.0, 0.0]), **tol)
@@ -510,7 +512,7 @@ class TestDeviceIntegration:
     def test_prob_no_results(self, d):
         """Test that the prob attribute is
         None if no job has yet been run."""
-        dev = qml.device(d, wires=1)
+        dev = qp.device(d, wires=1)
         assert dev.prob is None
 
     @pytest.mark.parametrize(
@@ -526,7 +528,7 @@ class TestDeviceIntegration:
     )
     def test_backend_initialization(self, backend):
         """Test that the device initializes with the correct backend."""
-        dev = qml.device(
+        dev = qp.device(
             "ionq.qpu",
             wires=2,
             backend=backend,
@@ -536,47 +538,65 @@ class TestDeviceIntegration:
     def test_recording_when_pennylane_tracker_active(self, requires_api):
         """Test recording device execution history via pennnylane tracker class."""
         dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
-        dev.tracker = qml.Tracker()
+        dev.tracker = qp.Tracker()
         dev.tracker.active = True
         dev.tracker.reset()
-        with qml.tape.QuantumTape(shots=1024) as tape1:
+        with qp.tape.QuantumTape(shots=1024) as tape1:
             GPI(0, wires=[0])
-            qml.probs(wires=[0])
+            qp.probs(wires=[0])
         dev.batch_execute([tape1, tape1])
         assert dev.tracker.history["executions"] == [1, 1]
         assert dev.tracker.history["shots"] == [1024, 1024]
         assert dev.tracker.history["batches"] == [1]
         assert dev.tracker.history["batch_len"] == [2]
         assert len(dev.tracker.history["resources"]) == 2
-        resources = dev.tracker.history["resources"][0]
-        assert resources.num_allocs == 1
-        assert resources.total_quantum_operations == 1
-        assert resources.depth == 1
-        assert resources.quantum_operations == {"GPI": 1}
-        assert resources.measurement_processes == {"probs(all wires)": 1}
+        assert dev.tracker.history["resources"][0] == tape1.specs["resources"]
+        assert dev.tracker.history["resources"][1] == tape1.specs["resources"]
         assert len(dev.tracker.history["results"]) == 2
 
     def test_not_recording_when_pennylane_tracker_not_active(self, requires_api):
         """Test recording device not executed when tracker is inactive."""
         dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
-        dev.tracker = qml.Tracker()
+        dev.tracker = qp.Tracker()
         dev.tracker.active = False
         dev.tracker.reset()
-        with qml.tape.QuantumTape(shots=1024) as tape1:
+        with qp.tape.QuantumTape(shots=1024) as tape1:
             GPI(0, wires=[0])
-            qml.probs(wires=[0])
+            qp.probs(wires=[0])
         dev.batch_execute([tape1])
         assert dev.tracker.history == {}
 
     def test_warning_on_empty_circuit(self, requires_api):
         """Test warning are shown when circuit is empty."""
         dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
-        with qml.tape.QuantumTape(shots=1024) as tape1:
-            qml.probs(wires=[0])
+        with qp.tape.QuantumTape(shots=1024) as tape1:
+            qp.probs(wires=[0])
         with pytest.warns(
             UserWarning,
             match="Circuit is empty. Empty circuits return failures. Submitting anyway.",
         ):
+            dev.batch_execute([tape1])
+
+    @pytest.mark.parametrize("postselect_mode", ["hw-like", "fill-shots"])
+    def test_batch_execute_postselect_mode_warns(self, monkeypatch, postselect_mode):
+        """An explicitly set postselect_mode raises a UserWarning and is ignored."""
+        monkeypatch.setattr(IonQDevice, "_submit_job", lambda self: None)
+        dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024, dry_run=True)
+        with qp.tape.QuantumTape(shots=1024) as tape1:
+            GPI(0, wires=[0])
+            qp.probs(wires=[0])
+        with pytest.warns(UserWarning, match="'postselect_mode' is ignored"):
+            dev.batch_execute([tape1], postselect_mode=postselect_mode)
+
+    def test_batch_execute_postselect_mode_default_no_warning(self, monkeypatch):
+        """The default postselect_mode=None does not warn."""
+        monkeypatch.setattr(IonQDevice, "_submit_job", lambda self: None)
+        dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024, dry_run=True)
+        with qp.tape.QuantumTape(shots=1024) as tape1:
+            GPI(0, wires=[0])
+            qp.probs(wires=[0])
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
             dev.batch_execute([tape1])
 
     @mock.patch("logging.Logger.isEnabledFor", return_value=True)
@@ -589,9 +609,9 @@ class TestDeviceIntegration:
     ):
         """Test logging invoked in batch_execute method."""
         dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
-        with qml.tape.QuantumTape(shots=1024) as tape1:
+        with qp.tape.QuantumTape(shots=1024) as tape1:
             GPI(0, wires=[0])
-            qml.probs(wires=[0])
+            qp.probs(wires=[0])
         dev.batch_execute([tape1])
         assert mock_logging_is_enabled_for_method.called
         assert mock_logging_is_enabled_for_method.call_args[0][0] == logging.DEBUG
@@ -602,9 +622,9 @@ class TestDeviceIntegration:
         previously set when multiple circuits are submitted in one job.
         """
         dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
-        with qml.tape.QuantumTape(shots=1024) as tape1:
+        with qp.tape.QuantumTape(shots=1024) as tape1:
             GPI(0.5, wires=[0])
-            qml.probs(wires=[0])
+            qp.probs(wires=[0])
         dev.batch_execute([tape1, tape1])
         with pytest.raises(
             CircuitIndexNotSetException,
@@ -616,16 +636,16 @@ you want to access must be first set via the set_current_circuit_index device me
     def test_batch_execute_probabilities(self, requires_api):
         """Test batch_execute method when computing circuit probabilities."""
         dev = SimulatorDevice(wires=(0, 1, 2), gateset="native", shots=1024)
-        with qml.tape.QuantumTape(shots=1024) as tape1:
+        with qp.tape.QuantumTape(shots=1024) as tape1:
             GPI(0.5, wires=[0])
             GPI2(0, wires=[1])
             MS(0, 0.5, wires=[1, 2])
-            qml.probs(wires=[0, 1, 2])
-        with qml.tape.QuantumTape(shots=1024) as tape2:
+            qp.probs(wires=[0, 1, 2])
+        with qp.tape.QuantumTape(shots=1024) as tape2:
             GPI2(0, wires=[0])
             GPI(0.5, wires=[1])
             MS(0, 0.5, wires=[1, 2])
-            qml.probs(wires=[0, 1, 2])
+            qp.probs(wires=[0, 1, 2])
         results = dev.batch_execute([tape1, tape2])
         assert np.array_equal(results[0], [0.0, 0.0, 0.0, 0.0, 0.25, 0.25, 0.25, 0.25])
         assert np.array_equal(results[1], [0.0, 0.25, 0.25, 0.0, 0.0, 0.25, 0.25, 0.0])
@@ -644,21 +664,21 @@ you want to access must be first set via the set_current_circuit_index device me
         """Test batch_execute method with shot vector."""
         dev = SimulatorDevice(wires=(0, 1, 2), gateset="native", shots=1024)
         dev._shot_vector = (ShotCopies(1, 3),)
-        with qml.tape.QuantumTape(shots=1024) as tape1:
+        with qp.tape.QuantumTape(shots=1024) as tape1:
             GPI(0, wires=[0])
-            qml.probs(wires=[0])
+            qp.probs(wires=[0])
         results = dev.batch_execute([tape1])
         assert len(results[0]) == 3
 
     def test_batch_execute_variance(self, requires_api):
         """Test batch_execute method when computing variance of an observable."""
         dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
-        with qml.tape.QuantumTape(shots=1024) as tape1:
+        with qp.tape.QuantumTape(shots=1024) as tape1:
             GPI(0, wires=[0])
-            qml.var(qml.PauliZ(0))
-        with qml.tape.QuantumTape(shots=1024) as tape2:
+            qp.var(qp.PauliZ(0))
+        with qp.tape.QuantumTape(shots=1024) as tape2:
             GPI2(0, wires=[0])
-            qml.var(qml.PauliZ(0))
+            qp.var(qp.PauliZ(0))
         results = dev.batch_execute([tape1, tape2])
         assert results[0] == pytest.approx(0, abs=0.01)
         assert results[1] == pytest.approx(1, abs=0.01)
@@ -666,12 +686,12 @@ you want to access must be first set via the set_current_circuit_index device me
     def test_batch_execute_expectation_value(self, requires_api):
         """Test batch_execute method when computing expectation value of an observable."""
         dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
-        with qml.tape.QuantumTape(shots=1024) as tape1:
+        with qp.tape.QuantumTape(shots=1024) as tape1:
             GPI(0, wires=[0])
-            qml.expval(qml.PauliZ(0))
-        with qml.tape.QuantumTape(shots=1024) as tape2:
+            qp.expval(qp.PauliZ(0))
+        with qp.tape.QuantumTape(shots=1024) as tape2:
             GPI2(0, wires=[0])
-            qml.expval(qml.PauliZ(0))
+            qp.expval(qp.PauliZ(0))
         results = dev.batch_execute([tape1, tape2])
         assert results[0] == pytest.approx(-1, abs=0.1)
         assert results[1] == pytest.approx(0, abs=0.1)
@@ -680,11 +700,11 @@ you want to access must be first set via the set_current_circuit_index device me
         """Test batch_execute method when computing expectation value of an
         observable that requires rotations for diagonalization."""
         dev = SimulatorDevice(wires=(0,), gateset="qis", shots=1024)
-        with qml.tape.QuantumTape(shots=1024) as tape1:
-            qml.Hadamard(0)
-            qml.expval(qml.PauliX(0))
-        with qml.tape.QuantumTape(shots=1024) as tape2:
-            qml.expval(qml.PauliX(0))
+        with qp.tape.QuantumTape(shots=1024) as tape1:
+            qp.Hadamard(0)
+            qp.expval(qp.PauliX(0))
+        with qp.tape.QuantumTape(shots=1024) as tape2:
+            qp.expval(qp.PauliX(0))
         results = dev.batch_execute([tape1, tape2])
         assert results[0] == pytest.approx(1, abs=0.1)
         assert results[1] == pytest.approx(0, abs=0.1)
@@ -694,12 +714,12 @@ you want to access must be first set via the set_current_circuit_index device me
         previously set when multiple circuits are submitted in one job.
         """
         dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
-        with qml.tape.QuantumTape(shots=1024) as tape1:
+        with qp.tape.QuantumTape(shots=1024) as tape1:
             GPI(0, wires=[0])
-            qml.probs(wires=[0])
-        with qml.tape.QuantumTape(shots=1024) as tape2:
+            qp.probs(wires=[0])
+        with qp.tape.QuantumTape(shots=1024) as tape2:
             GPI2(0, wires=[0])
-            qml.probs(wires=[0])
+            qp.probs(wires=[0])
         dev.batch_execute([tape1, tape2])
         with pytest.raises(
             CircuitIndexNotSetException,
@@ -711,12 +731,12 @@ you want to access must be first set via the set_current_circuit_index device me
     def test_batch_execute_prob_property(self, requires_api):
         """Test batch_execute method with invoking invoking prob device property."""
         dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
-        with qml.tape.QuantumTape(shots=1024) as tape1:
+        with qp.tape.QuantumTape(shots=1024) as tape1:
             GPI(0, wires=[0])
-            qml.sample(qml.PauliZ(0))
-        with qml.tape.QuantumTape(shots=1024) as tape2:
+            qp.sample(qp.PauliZ(0))
+        with qp.tape.QuantumTape(shots=1024) as tape2:
             GPI2(0, wires=[0])
-            qml.sample(qml.PauliZ(0))
+            qp.sample(qp.PauliZ(0))
         dev.batch_execute([tape1, tape2])
         dev.set_current_circuit_index(0)
         prob0 = dev.prob
@@ -728,12 +748,12 @@ you want to access must be first set via the set_current_circuit_index device me
     def test_batch_execute_counts(self, requires_api):
         """Test batch_execute method when computing counts."""
         dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
-        with qml.tape.QuantumTape(shots=1024) as tape1:
+        with qp.tape.QuantumTape(shots=1024) as tape1:
             GPI(0, wires=[0])
-            qml.counts(qml.PauliZ(0))
-        with qml.tape.QuantumTape(shots=1024) as tape2:
+            qp.counts(qp.PauliZ(0))
+        with qp.tape.QuantumTape(shots=1024) as tape2:
             GPI2(0, wires=[0])
-            qml.counts(qml.PauliZ(0))
+            qp.counts(qp.PauliZ(0))
         results = dev.batch_execute([tape1, tape2])
         assert results[0][-1] == 1024
         assert results[1][-1] == pytest.approx(512, abs=100)
@@ -748,7 +768,7 @@ you want to access must be first set via the set_current_circuit_index device me
                 super().__init__(wires=wires)
 
             def process_samples(self, samples, wire_order, shot_range=None, bin_size=None):
-                counts_mp = qml.counts(wires=self._wires)
+                counts_mp = qp.counts(wires=self._wires)
                 counts = counts_mp.process_samples(samples, wire_order, shot_range, bin_size)
                 return float(counts.get(self.state, 0))
 
@@ -760,11 +780,11 @@ you want to access must be first set via the set_current_circuit_index device me
 
         dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
 
-        with qml.tape.QuantumTape(shots=1024) as tape1:
+        with qp.tape.QuantumTape(shots=1024) as tape1:
             GPI(0, wires=[0])
             CountState(state="1")
 
-        with qml.tape.QuantumTape(shots=1024) as tape2:
+        with qp.tape.QuantumTape(shots=1024) as tape2:
             GPI2(0, wires=[0])
             CountState(state="1")
 
@@ -785,8 +805,8 @@ class TestJobAttribute:
         mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
         dev = IonQDevice(wires=(0,), target="foo", shots=1024)
 
-        with qml.tape.QuantumTape() as tape:
-            qml.PauliX(0)
+        with qp.tape.QuantumTape() as tape:
+            qp.PauliX(0)
 
         dev.apply(tape.operations)
 
@@ -809,8 +829,8 @@ class TestJobAttribute:
         mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
         dev = IonQDevice(wires=(0,), target="foo", shots=1024)
 
-        with qml.tape.QuantumTape() as tape:
-            qml.PauliX(0)
+        with qp.tape.QuantumTape() as tape:
+            qp.PauliX(0)
 
         dev.reset(circuits_array_length=1)
         dev.batch_apply(tape.operations, circuit_index=0)
@@ -834,8 +854,8 @@ class TestJobAttribute:
         mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
         dev = IonQDevice(wires=(0,), target="foo")
 
-        with qml.tape.QuantumTape() as tape:
-            qml.PauliX(0)
+        with qp.tape.QuantumTape() as tape:
+            qp.PauliX(0)
 
         dev.reset(circuits_array_length=2)
         dev.batch_apply(tape.operations, circuit_index=0)
@@ -865,9 +885,9 @@ class TestJobAttribute:
         mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
         dev = IonQDevice(wires=(0,))
 
-        with qml.tape.QuantumTape() as tape:
-            qml.RX(1.2345, wires=0)
-            qml.RY(qml.numpy.array(2.3456), wires=0)
+        with qp.tape.QuantumTape() as tape:
+            qp.RX(1.2345, wires=0)
+            qp.RY(qp.numpy.array(2.3456), wires=0)
 
         dev.apply(tape.operations)
 
@@ -896,9 +916,9 @@ class TestJobAttribute:
         mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
         dev = IonQDevice(wires=(0,), shots=1024)
 
-        with qml.tape.QuantumTape() as tape:
-            qml.RX(1.2345, wires=0)
-            qml.RY(qml.numpy.array(2.3456), wires=0)
+        with qp.tape.QuantumTape() as tape:
+            qp.RX(1.2345, wires=0)
+            qp.RY(qp.numpy.array(2.3456), wires=0)
 
         dev.reset(circuits_array_length=1)
         dev.batch_apply(tape.operations, circuit_index=0)
@@ -927,9 +947,9 @@ class TestJobAttribute:
         mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
         dev = IonQDevice(wires=(0,))
 
-        with qml.tape.QuantumTape() as tape:
-            qml.RX(1.2345, wires=0)
-            qml.RY(qml.numpy.array(2.3456), wires=0)
+        with qp.tape.QuantumTape() as tape:
+            qp.RX(1.2345, wires=0)
+            qp.RY(qp.numpy.array(2.3456), wires=0)
 
         dev.reset(circuits_array_length=2)
         dev.batch_apply(tape.operations, circuit_index=0)
@@ -971,7 +991,7 @@ class TestJobAttribute:
         mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
         dev = IonQDevice(wires=(0, 1, 2), gateset="native", shots=1024)
 
-        with qml.tape.QuantumTape() as tape:
+        with qp.tape.QuantumTape() as tape:
             GPI(0.1, wires=[0])
             GPI2(0.2, wires=[1])
             MS(0.2, 0.3, wires=[1, 2])
@@ -1019,10 +1039,10 @@ class TestJobAttribute:
         mocker.patch("pennylane_ionq.device.SimulatorDevice._submit_job", mock_submit_job)
         dev = SimulatorDevice(wires=(0,), gateset="native")
 
-        with qml.tape.QuantumTape(shots=1024) as tape:
+        with qp.tape.QuantumTape(shots=1024) as tape:
             GPI(0.7, wires=[0])
             GPI2(0.8, wires=[0])
-            qml.expval(qml.PauliZ(0))
+            qp.expval(qp.PauliZ(0))
 
         try:
             dev.batch_execute([tape])
@@ -1057,13 +1077,13 @@ class TestJobAttribute:
         mocker.patch("pennylane_ionq.device.SimulatorDevice._submit_job", mock_submit_job)
         dev = SimulatorDevice(wires=(0,), gateset="native", shots=1024)
 
-        with qml.tape.QuantumTape(shots=1024) as tape1:
+        with qp.tape.QuantumTape(shots=1024) as tape1:
             GPI(0.7, wires=[0])
             GPI2(0.8, wires=[0])
-            qml.expval(qml.PauliZ(0))
-        with qml.tape.QuantumTape(shots=1024) as tape2:
+            qp.expval(qp.PauliZ(0))
+        with qp.tape.QuantumTape(shots=1024) as tape2:
             GPI2(0.9, wires=[0])
-            qml.expval(qml.PauliZ(0))
+            qp.expval(qp.PauliZ(0))
 
         try:
             dev.batch_execute([tape1, tape2])
@@ -1131,17 +1151,17 @@ class TestJobAttribute:
 
     def test_simple_operations_SWAP_gate(self, requires_api):
         """Test SWAP gate operation is correctly processed and sent to IonQ."""
-        dev = qml.device("ionq.simulator", wires=2, gateset="qis")
+        dev = qp.device("ionq.simulator", wires=2, gateset="qis")
 
-        with qml.tape.QuantumTape(shots=1024) as tape:
-            qml.PauliX(wires=0)
-            qml.SWAP(wires=[0, 1])
-            qml.probs(wires=[0, 1])
+        with qp.tape.QuantumTape(shots=1024) as tape:
+            qp.PauliX(wires=0)
+            qp.SWAP(wires=[0, 1])
+            qp.probs(wires=[0, 1])
 
         result_ionq = dev.execute([tape])
 
-        simulator = qml.device("default.qubit", wires=2)
-        result_simulator = qml.execute([tape.copy(shots=None)], simulator)
+        simulator = qp.device("default.qubit", wires=2)
+        result_simulator = qp.execute([tape.copy(shots=None)], simulator)
 
         assert np.allclose(
             result_ionq, result_simulator, atol=1e-5
@@ -1149,17 +1169,17 @@ class TestJobAttribute:
 
     def test_simple_operations_controlled_gate(self, requires_api):
         """Test a controlled gate operation is correctly processed and sent to IonQ."""
-        dev = qml.device("ionq.simulator", wires=2, gateset="qis")
+        dev = qp.device("ionq.simulator", wires=2, gateset="qis")
 
-        with qml.tape.QuantumTape(shots=1024) as tape:
-            qml.Hadamard(wires=0)
-            qml.CNOT(wires=[0, 1])
-            qml.probs(wires=[0, 1])
+        with qp.tape.QuantumTape(shots=1024) as tape:
+            qp.Hadamard(wires=0)
+            qp.CNOT(wires=[0, 1])
+            qp.probs(wires=[0, 1])
 
         result_ionq = dev.execute([tape])
 
-        simulator = qml.device("default.qubit", wires=2)
-        result_simulator = qml.execute([tape.copy(shots=None)], simulator)
+        simulator = qp.device("default.qubit", wires=2)
+        result_simulator = qp.execute([tape.copy(shots=None)], simulator)
 
         assert np.allclose(
             result_ionq, result_simulator, atol=1e-5
@@ -1168,9 +1188,9 @@ class TestJobAttribute:
     @pytest.mark.parametrize(
         "gate_class, expected_ionq_gate",
         [
-            (qml.IsingXX, "xx"),
-            (qml.IsingYY, "yy"),
-            (qml.IsingZZ, "zz"),
+            (qp.IsingXX, "xx"),
+            (qp.IsingYY, "yy"),
+            (qp.IsingZZ, "zz"),
             (XX, "xx"),
             (YY, "yy"),
             (ZZ, "zz"),
@@ -1191,3 +1211,199 @@ class TestJobAttribute:
         assert "control" not in gate
         assert "target" not in gate
         assert gate["rotation"] == rotation
+
+
+def _mcm_tape():
+    """1-qubit mid-circuit-measurement tape with a qubit reset (the API
+    schema example)."""
+    with qp.tape.QuantumTape(shots=1024) as tape:
+        qp.Hadamard(0)
+        qp.measure(0)
+        qp.PauliX(0)
+        qp.measure(0, reset=True)
+        qp.PauliX(0)
+        qp.measure(0)
+        qp.probs(wires=0)
+    return tape
+
+
+class TestMidCircuitMeasurement:
+    """Tests for routing mid-circuit measurement and reset through the
+    ionq.qasm3.v1 submission path. Classically controlled operations
+    (qp.cond) and postselection are rejected with a clear error."""
+
+    def test_requires_qasm3_mcm(self):
+        """Reusing a qubit after a mid-circuit measurement requires the qasm3 path."""
+        assert circuit_requires_qasm3(_mcm_tape()) is True
+
+    def test_requires_qasm3_reset(self):
+        """A mid-circuit measurement with reset requires the qasm3 path."""
+        with qp.tape.QuantumTape() as tape:
+            qp.Hadamard(0)
+            qp.measure(0, reset=True)
+            qp.PauliX(0)
+        assert circuit_requires_qasm3(tape) is True
+
+    def test_cond_raises(self):
+        """Classically controlled operations (qp.cond) are not supported."""
+        with qp.tape.QuantumTape() as tape:
+            qp.Hadamard(0)
+            m = qp.measure(0)
+            qp.cond(m, qp.PauliX)(0)
+        with pytest.raises(ValueError, match="qp.cond.*not supported"):
+            circuit_requires_qasm3(tape)
+
+    @pytest.mark.parametrize(
+        "measurement",
+        [
+            pytest.param(lambda: qp.expval(qp.PauliZ(0)), id="expval"),
+            pytest.param(lambda: qp.var(qp.PauliZ(0)), id="var"),
+            pytest.param(lambda: qp.probs(wires=[0, 1]), id="probs"),
+            pytest.param(lambda: qp.sample(qp.PauliZ(0)), id="sample"),
+            pytest.param(lambda: qp.counts(), id="counts"),
+        ],
+    )
+    def test_requires_qasm3_plain(self, measurement):
+        """A plain terminal-measurement tape stays on the v1 path."""
+        with qp.tape.QuantumTape() as tape:
+            qp.Hadamard(0)
+            qp.CNOT(wires=[0, 1])
+            measurement()
+        assert circuit_requires_qasm3(tape) is False
+
+    def test_postselect_raises(self, monkeypatch):
+        """A mid-circuit measurement with postselection is rejected."""
+        monkeypatch.setattr(IonQDevice, "_submit_job", lambda self: None)
+        dev = IonQDevice(wires=(0,), shots=1024)
+        with qp.tape.QuantumTape(shots=1024) as tape:
+            qp.Hadamard(0)
+            qp.measure(0, postselect=0)
+            qp.PauliX(0)
+            qp.probs(wires=0)
+        with pytest.raises(NotImplementedError, match="postselection"):
+            dev.apply(tape.operations)
+
+    def test_cond_else_raises(self):
+        """A conditional with both true and false branches is not supported."""
+        with qp.tape.QuantumTape() as tape:
+            qp.Hadamard(0)
+            m = qp.measure(0)
+            qp.cond(m, qp.PauliX, qp.PauliZ)(0)
+        with pytest.raises(ValueError, match="qp.cond.*not supported"):
+            circuit_requires_qasm3(tape)
+
+    def test_requires_qasm3_reuse(self):
+        """A gate after a mid-circuit measurement (qubit reuse) requires the qasm3 path."""
+        with qp.tape.QuantumTape() as tape:
+            qp.Hadamard(0)
+            qp.measure(0)
+            qp.PauliX(0)
+        assert circuit_requires_qasm3(tape) is True
+
+    def test_qasm3_payload_shape(self, monkeypatch):
+        """MCM tapes serialize to an ionq.qasm3.v1 payload with QASM 3 input."""
+        monkeypatch.setattr(IonQDevice, "_submit_job", lambda self: None)
+        dev = IonQDevice(wires=(0,), shots=1024)
+
+        dev.apply(_mcm_tape().operations)
+
+        assert dev.job["type"] == "ionq.qasm3.v1"
+        assert dev.job["input"]["qubits"] == 1
+        assert dev.job["shots"] == 1024
+        data = dev.job["input"]["data"]
+        assert data.startswith("OPENQASM 3.0;")
+        # Exactly the operations we built (1 H, 2 X, 3 measure, 1 reset) and nothing injected.
+        assert data.count("measure") == 3
+        assert data.count("h q") == 1
+        assert data.count("x q") == 2
+        assert data.count("reset q") == 1
+
+    def test_qasm3_settings_passthrough(self, monkeypatch):
+        """compilation and error_mitigation settings flow through on the qasm3 path."""
+        monkeypatch.setattr(IonQDevice, "_submit_job", lambda self: None)
+        dev = IonQDevice(
+            wires=(0,),
+            shots=1024,
+            compilation={"opt": 0},
+            error_mitigation={"debiasing": False},
+        )
+
+        # Before apply, the job is a plain v1 payload with the settings
+        # verbatim; service_version is only pinned on the qasm3 path.
+        assert dev.job["type"] == "ionq.circuit.v1"
+        assert dev.job["settings"]["compilation"] == {"opt": 0}
+        assert dev.job["settings"]["error_mitigation"] == {"debiasing": False}
+
+        dev.apply(_mcm_tape().operations)
+
+        assert dev.job["type"] == "ionq.qasm3.v1"
+        assert dev.job["settings"]["compilation"] == {"opt": 0, "service_version": "v0.4"}
+        assert dev.job["settings"]["error_mitigation"] == {"debiasing": False}
+
+    def test_qasm3_service_version(self, monkeypatch):
+        """qasm3 jobs pin compilation.service_version v0.4; a caller can override."""
+        monkeypatch.setattr(IonQDevice, "_submit_job", lambda self: None)
+
+        dev = IonQDevice(wires=(0,), shots=1024)
+        dev.apply(_mcm_tape().operations)
+        assert dev.job["settings"]["compilation"]["service_version"] == "v0.4"
+
+        dev = IonQDevice(wires=(0,), shots=1024, compilation={"service_version": "v0.5"})
+        dev.apply(_mcm_tape().operations)
+        assert dev.job["settings"]["compilation"]["service_version"] == "v0.5"
+
+    def test_qasm3_native_gateset(self, monkeypatch):
+        """MCM circuits in the native gateset serialize with native gate
+        spellings and without stdgates.inc."""
+        monkeypatch.setattr(IonQDevice, "_submit_job", lambda self: None)
+        dev = IonQDevice(wires=2, shots=1024, gateset="native")
+
+        with qp.tape.QuantumTape() as tape:
+            GPI(0.5, wires=[0])
+            qp.measure(0, reset=True)
+            MS(0, 0.5, wires=[0, 1])
+            qp.probs(wires=[0, 1])
+
+        dev.apply(tape.operations)
+
+        assert dev.job["type"] == "ionq.qasm3.v1"
+        data = dev.job["input"]["data"]
+        assert "stdgates.inc" not in data
+        assert "gpi(0.5) q[0];" in data
+        assert "reset q[0];" in data
+        assert "ms(0,0.5,0.25) q[0], q[1];" in data
+
+    def test_multi_circuit_mcm_raises(self, monkeypatch):
+        """Multi-circuit MCM submissions are rejected with a clear error."""
+        monkeypatch.setattr(IonQDevice, "_submit_job", lambda self: None)
+        dev = IonQDevice(wires=(0,), shots=1024)
+
+        with pytest.raises(ValueError, match="single-circuit"):
+            dev.batch_execute([_mcm_tape(), _mcm_tape()])
+
+    def test_qasm3_simulator_noise(self, monkeypatch):
+        """MCM on the simulator carries the noise block, like the v1 path."""
+        monkeypatch.setattr(IonQDevice, "_submit_job", lambda self: None)
+        dev = SimulatorDevice(wires=(0,), shots=1024, noise_model="ideal")
+
+        dev.apply(_mcm_tape().operations)
+
+        assert dev.job["type"] == "ionq.qasm3.v1"
+        assert dev.job["backend"] == "simulator"
+        assert dev.job["noise"]["model"] == "ideal"
+
+    def test_qasm3_reset_payload(self, monkeypatch):
+        """A mid-circuit reset routes to qasm3 and the reset survives export."""
+        monkeypatch.setattr(IonQDevice, "_submit_job", lambda self: None)
+        dev = IonQDevice(wires=(0,), shots=1024)
+
+        with qp.tape.QuantumTape() as tape:
+            qp.Hadamard(0)
+            qp.measure(0, reset=True)
+            qp.PauliX(0)
+            qp.probs(wires=0)
+
+        dev.apply(tape.operations)
+
+        assert dev.job["type"] == "ionq.qasm3.v1"
+        assert "reset" in dev.job["input"]["data"]
