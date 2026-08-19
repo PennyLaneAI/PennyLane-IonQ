@@ -114,14 +114,24 @@ class IonQDevice(QubitDevice):
             Example: ``{"opt": 0, "precision": "1E-3"}``. See
             `IonQ API Job Creation <https://docs.ionq.com/api-reference/v0.4/jobs/create-job>`_ for details.
         error_mitigation (dict | None): settings for error mitigation when creating a job. Defaults to None.
-            Not available on all backends. Set by default on some hardware systems. See
-            `IonQ API Job Creation <https://docs.ionq.com/api-reference/v0.4/jobs/create-job>`_  and
-            `IonQ Debiasing and Sharpening <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
-            Valid keys include: ``debiasing`` (bool).
-        sharpen (bool): whether to use sharpening when accessing the results of an executed job. Defaults to None
-            (no value passed at job retrieval). Will generally return more accurate results if your expected output
-            distribution has peaks. See `IonQ Debiasing and Sharpening
-            <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
+            Not available on all backends. Set by default on some hardware systems.
+            Valid entries include either one or both of the following:
+                "debiasing": True | False
+                "symmetry_verification": True | False
+        aggregation (str | None): Aggregation method for debiased jobs. How the per-variant results of a
+            debiased job are combined into one distribution. Defaults to None.
+                One of ``"average"``, ``"voting"``, or ``"dnl"``:
+                - ``"average"`` (default): mean of the variant histograms.
+                - ``"voting"``: plurality voting across variants; sharpens the distribution toward the most
+                    frequent outcomes.
+                - ``"dnl"``: debiasing with non-linear filtering — a power-law filter that suppresses outcomes
+                    observed in only a few variants.
+        sharpen (bool | None): Deprecated alias for ``aggregation="voting"``.
+                Use ``aggregation`` instead, ``sharpen=True`` maps to ``aggregation="voting"``.
+                Defaults to None.
+
+            .. deprecated:: 0.46.0
+                Use ``aggregation="voting"`` instead.
         noise_model (str): the noise model to use for simulation. Only applies when ``target="simulator"``.
             Valid values are ``"ideal"``, ``"harmony"``, ``"aria-1"``, ``"aria-2"``, ``"forte-1"``,
             and ``"forte-enterprise-1"``. Defaults to None (ideal simulation). See
@@ -168,6 +178,61 @@ class IonQDevice(QubitDevice):
         "forte-enterprise-1",
     }
 
+    @staticmethod
+    def _validate_noise_options(noise_model, noise_seed, noise_models):
+        """Validate noise model and seed options."""
+        if noise_model is not None and noise_model not in noise_models:
+            raise ValueError(
+                f"Invalid noise model '{noise_model}'. Valid options are: "
+                f"{', '.join(sorted(noise_models))}."
+            )
+        if noise_seed is not None and noise_model is None:
+            raise ValueError("noise_seed requires noise_model to be set.")
+        if noise_seed is None:
+            return
+        if (
+            isinstance(noise_seed, bool)
+            or not isinstance(noise_seed, int)
+            or not 1 <= noise_seed <= 2**31 - 1
+        ):
+            raise ValueError(
+                f"noise_seed must be an integer between 1 and 2^31 - 1, got {noise_seed}."
+            )
+
+    @staticmethod
+    def _validate_error_mitigation_options(error_mitigation):
+        """Validate error mitigation options."""
+        if error_mitigation is None:
+            return
+        if not isinstance(error_mitigation, dict):
+            raise ValueError("error_mitigation must be a dictionary.")
+        if error_mitigation.keys() - {"debiasing", "symmetry_verification"}:
+            raise ValueError(
+                "error_mitigation must only contain the keys 'debiasing' and/or 'symmetry_verification'."
+            )
+        if "debiasing" in error_mitigation and not isinstance(error_mitigation["debiasing"], bool):
+            raise ValueError("error_mitigation `debiasing` value must be a boolean")
+        if "symmetry_verification" in error_mitigation and not isinstance(
+            error_mitigation["symmetry_verification"], bool
+        ):
+            raise ValueError("error_mitigation `symmetry_verification` value must be a boolean.")
+
+    @staticmethod
+    def _validate_aggregation_option(aggregation):
+        """Validate aggregation option."""
+        if aggregation is None:
+            return
+        if aggregation not in ["average", "voting", "dnl"]:
+            raise ValueError(
+                "aggregation must be either None or one of: `average`, `voting` or `dnl`."
+            )
+
+    def _validate_init_options(self, noise_model, noise_seed, error_mitigation, aggregation):
+        """Validate constructor options related to noise and error mitigation settings."""
+        self._validate_noise_options(noise_model, noise_seed, self.NOISE_MODELS)
+        self._validate_error_mitigation_options(error_mitigation)
+        self._validate_aggregation_option(aggregation)
+
     def __init__(
         self,
         wires,
@@ -179,6 +244,7 @@ class IonQDevice(QubitDevice):
         api_key=None,
         compilation=None,
         error_mitigation=None,
+        aggregation=None,
         sharpen=None,
         noise_model=None,
         noise_seed=None,
@@ -189,22 +255,7 @@ class IonQDevice(QubitDevice):
         retry_delay=None,
     ):
 
-        if noise_model is not None and noise_model not in self.NOISE_MODELS:
-            raise ValueError(
-                f"Invalid noise model '{noise_model}'. Valid options are: "
-                f"{', '.join(sorted(self.NOISE_MODELS))}."
-            )
-        if noise_seed is not None and noise_model is None:
-            raise ValueError("noise_seed requires noise_model to be set.")
-        if noise_seed is not None:
-            if (
-                isinstance(noise_seed, bool)
-                or not isinstance(noise_seed, int)
-                or not 1 <= noise_seed <= 2**31 - 1
-            ):
-                raise ValueError(
-                    f"noise_seed must be an integer between 1 and 2^31 - 1, got {noise_seed}."
-                )
+        self._validate_init_options(noise_model, noise_seed, error_mitigation, aggregation)
 
         super().__init__(wires=wires, shots=shots)
         self._current_circuit_index = None
@@ -214,6 +265,7 @@ class IonQDevice(QubitDevice):
         self.gateset = gateset
         self.compilation = compilation
         self.error_mitigation = error_mitigation
+        self.aggregation = aggregation
         self.sharpen = sharpen
         self.noise_model = noise_model
         self.noise_seed = noise_seed
@@ -270,7 +322,7 @@ class IonQDevice(QubitDevice):
             self.job["metadata"] = self.metadata
         if self.compilation is not None:
             self.job["settings"] = {"compilation": self.compilation}
-        if self.error_mitigation is not None:
+        if self.error_mitigation:
             if "settings" not in self.job:
                 self.job["settings"] = {}
             self.job["settings"]["error_mitigation"] = self.error_mitigation
@@ -622,7 +674,19 @@ class IonQDevice(QubitDevice):
             if job.is_failed:
                 raise JobExecutionError("Job failed")
 
-        params = {} if self.sharpen is None else {"sharpen": self.sharpen}
+        params = {}
+
+        if self.sharpen is not None:
+            warnings.warn(
+                "sharpen is deprecated. Use `aggregation=..` instead.",
+                DeprecationWarning,
+            )
+            if self.sharpen is True:
+                if self.aggregation is None:
+                    params["aggregation"] = "voting"
+
+        if self.aggregation is not None:
+            params["aggregation"] = self.aggregation
 
         job.manager.get(resource_id=job.id.value, params=params)
 
@@ -782,14 +846,24 @@ class QPUDevice(IonQDevice):
         api_key (str): The IonQ API key. If not provided, the environment
             variable ``IONQ_API_KEY`` is used.
         error_mitigation (dict | None): settings for error mitigation when creating a job. Defaults to None.
-            Not available on all backends. Set by default on some hardware systems. See
-            `IonQ API Job Creation <https://docs.ionq.com/api-reference/v0.4/jobs/create-job>`_  and
-            `IonQ Debiasing and Sharpening <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
-            Valid keys include: ``debiasing`` (bool).
-        sharpen (bool): whether to use sharpening when accessing the results of an executed job.
-            Defaults to None (no value passed at job retrieval). Will generally return more accurate results if
-            your expected output distribution has peaks. See `IonQ Debiasing and Sharpening
-            <https://ionq.com/resources/debiasing-and-sharpening>`_ for details.
+            Not available on all backends. Set by default on some hardware systems.
+            Valid entries include either one or both of the following:
+                "debiasing": True | False
+                "symmetry_verification": True | False
+        aggregation (str | None): Aggregation method for debiased jobs. How the per-variant results of a
+            debiased job are combined into one distribution. Defaults to None.
+                One of ``"average"``, ``"voting"``, or ``"dnl"``:
+                - ``"average"`` (default): mean of the variant histograms.
+                - ``"voting"``: plurality voting across variants; sharpens the distribution toward the
+                    most frequent outcomes.
+                - ``"dnl"``: debiasing with non-linear filtering — a power-law filter thatsuppresses
+                    outcomes observed in only a few variants.
+        sharpen (bool | None): Deprecated alias for ``aggregation="voting"``.
+                Use ``aggregation`` instead. ``sharpen=True`` maps to ``aggregation="voting"``.
+                Defaults to None.
+
+            .. deprecated:: 0.46.0
+                Use ``aggregation="voting"`` instead.
         dry_run (bool): whether to run the job in dry run mode. Defaults to False.
         metadata (dict | None): optional metadata to attach to the job. Defaults to None.
         timeout (float): Request timeout in seconds. Defaults to None, which uses the
@@ -814,6 +888,7 @@ class QPUDevice(IonQDevice):
         backend="aria-1",
         compilation=None,
         error_mitigation=None,
+        aggregation=None,
         sharpen=None,
         api_key=None,
         dry_run=False,
@@ -835,6 +910,7 @@ class QPUDevice(IonQDevice):
             api_key=api_key,
             compilation=compilation,
             error_mitigation=error_mitigation,
+            aggregation=aggregation,
             sharpen=sharpen,
             dry_run=dry_run,
             metadata=metadata,
