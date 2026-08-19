@@ -19,6 +19,7 @@ import numpy as np
 import pennylane as qml
 import pytest
 import requests
+from pennylane.devices import QubitDevice
 
 from conftest import shortnames
 from pennylane_ionq.api_client import JobExecutionError, ResourceManager, Job
@@ -79,6 +80,132 @@ class TestDevice:
         sorted_outcomes2 = np.sort(sample2, axis=0)
         assert np.all(sorted_outcomes1 == sorted_outcomes2)  # set of outcomes is the same
 
+    @pytest.mark.parametrize("device_cls", [SimulatorDevice, QPUDevice], ids=["simulator", "qpu"])
+    def test_generate_samples_falls_back_when_memory_results_is_none(self, device_cls):
+        """Test generate_samples still produces samples when memory_results is None."""
+
+        if device_cls is QPUDevice:
+            dev = device_cls(wires=2, shots=2, api_key=FAKE_API_KEY)
+        else:
+            dev = device_cls(wires=2, shots=2, api_key=FAKE_API_KEY)
+
+        dev.histograms = [{"3": 1.0}]
+        dev.memory_results = None
+
+        result = dev.generate_samples()
+
+        np.testing.assert_array_equal(result, np.array([[1, 1], [1, 1]]))
+
+    @pytest.mark.parametrize("device_cls", [SimulatorDevice, QPUDevice], ids=["simulator", "qpu"])
+    def test_generate_samples_uses_memory_results_when_available(self, monkeypatch, device_cls):
+        """Test generate_samples uses memory results directly when available."""
+
+        dev = device_cls(wires=2, api_key=FAKE_API_KEY)
+        expected = np.array([[1, 0], [1, 1]])
+        captured = {}
+
+        def fake_states_to_binary(states, num_wires):
+            captured["states"] = states
+            captured["num_wires"] = num_wires
+            return expected
+
+        monkeypatch.setattr(QubitDevice, "states_to_binary", fake_states_to_binary)
+
+        dev.memory_results = [
+            np.array([0, 1], dtype=np.int64),
+            np.array([2, 3], dtype=np.int64),
+        ]
+        dev.set_current_circuit_index(1)
+
+        result = dev.generate_samples()
+
+        np.testing.assert_array_equal(result, expected)
+        np.testing.assert_array_equal(captured["states"], np.array([2, 3], dtype=np.int64))
+        assert captured["num_wires"] == 2
+
+    @pytest.mark.parametrize("device_cls", [SimulatorDevice, QPUDevice], ids=["simulator", "qpu"])
+    def test_generate_samples_raises_without_circuit_index_for_multicircuit_memory_results(
+        self, device_cls
+    ):
+        """Test generate_samples raises when memory results exist for multiple circuits without an active index."""
+
+        dev = device_cls(wires=2, api_key=FAKE_API_KEY)
+        dev.histograms = [{"0": 1.0}, {"3": 1.0}]
+        dev.memory_results = [
+            np.array([0, 1], dtype=np.int64),
+            np.array([2, 3], dtype=np.int64),
+        ]
+
+        with pytest.raises(
+            CircuitIndexNotSetException,
+            match="Because multiple circuits have been submitted in this job, the index of the circuit \
+you want to access must be first set via the set_current_circuit_index device method.",
+        ):
+            dev.generate_samples()
+
+    def test_generate_samples_simulator_falls_back_when_current_memory_result_is_none(
+        self, monkeypatch
+    ):
+        """Test SimulatorDevice falls back to generated samples when the active memory result is None."""
+
+        dev = SimulatorDevice(wires=2, api_key=FAKE_API_KEY)
+        expected = np.array([[1, 1], [1, 1]])
+        captured = {}
+
+        def fake_sample_basis_states(number_of_states, probability):
+            captured["number_of_states"] = number_of_states
+            captured["probability"] = probability
+            return np.array([3, 3], dtype=np.int64)
+
+        def fake_states_to_binary(states, num_wires):
+            captured["states"] = states
+            captured["num_wires"] = num_wires
+            return expected
+
+        monkeypatch.setattr(dev, "sample_basis_states", fake_sample_basis_states)
+        monkeypatch.setattr(QubitDevice, "states_to_binary", fake_states_to_binary)
+
+        dev.histograms = [{"3": 1.0}]
+        dev.memory_results = [None]
+        dev.set_current_circuit_index(0)
+
+        result = dev.generate_samples()
+
+        np.testing.assert_array_equal(result, expected)
+        assert captured["number_of_states"] == 4
+        np.testing.assert_array_equal(captured["probability"], np.array([0.0, 0.0, 0.0, 1.0]))
+        np.testing.assert_array_equal(captured["states"], np.array([3, 3], dtype=np.int64))
+        assert captured["num_wires"] == 2
+
+    def test_generate_samples_qpu_falls_back_when_current_memory_result_is_none(self, monkeypatch):
+        """Test QPUDevice falls back to generated samples when the active memory result is None."""
+
+        dev = QPUDevice(wires=2, shots=2, api_key=FAKE_API_KEY)
+        expected = np.array([[1, 1], [1, 1]])
+        captured = {}
+
+        def fake_shuffle(samples):
+            captured["shuffled_samples"] = samples.copy()
+
+        def fake_states_to_binary(states, num_wires):
+            captured["states"] = states
+            captured["num_wires"] = num_wires
+            return expected
+
+        monkeypatch.setattr(np.random, "shuffle", fake_shuffle)
+        monkeypatch.setattr(QubitDevice, "states_to_binary", fake_states_to_binary)
+
+        dev.histograms = [{"3": 1.0}]
+        dev.memory_results = [None]
+        dev.set_current_circuit_index(0)
+
+        result = dev.generate_samples()
+
+        np.testing.assert_array_equal(result, expected)
+        np.testing.assert_array_equal(captured["shuffled_samples"], np.array([3, 3]))
+        np.testing.assert_array_equal(captured["states"], np.array([3, 3]))
+        assert captured["num_wires"] == 2
+
 
 class TestDeviceIntegration:
     """Test the devices work correctly from the PennyLane frontend."""
@@ -124,8 +251,9 @@ class TestDeviceIntegration:
 
     def test_failedcircuit(self, monkeypatch):
         monkeypatch.setattr(
-            requests, "post",
-            lambda url, timeout, data, headers: MockPOSTResponse(201, url, data, headers)
+            requests,
+            "post",
+            lambda url, timeout, data, headers: MockPOSTResponse(201, url, data, headers),
         )
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", False)
@@ -140,15 +268,16 @@ class TestDeviceIntegration:
         """Test that shots are correctly specified when submitting a job to the API."""
 
         monkeypatch.setattr(
-            requests, "post",
-            lambda url, timeout, data, headers: MockPOSTResponse(201, url, data, headers)
+            requests,
+            "post",
+            lambda url, timeout, data, headers: MockPOSTResponse(201, url, data, headers),
         )
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, fetch_shots=False):
             """Return fake response data"""
-            fake_json = {"0": 1}
+            fake_json = {"probabilities": {"0": 1}}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
@@ -174,9 +303,9 @@ class TestDeviceIntegration:
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, fetch_shots=False):
             """Return fake response data"""
-            fake_json = {"0": 1}
+            fake_json = {"probabilities": {"0": 1}}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
@@ -216,9 +345,9 @@ class TestDeviceIntegration:
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, fetch_shots=False):
             """Return fake response data"""
-            fake_json = {"0": 1}
+            fake_json = {"probabilities": {"0": 1}}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
@@ -254,9 +383,9 @@ class TestDeviceIntegration:
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, fetch_shots=False):
             """Return fake response data"""
-            fake_json = {"0": 1}
+            fake_json = {"probabilities": {"0": 1}}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
@@ -279,6 +408,242 @@ class TestDeviceIntegration:
 
         assert json.loads(spy.call_args[1]["data"])["metadata"] == {"key": "value"}
 
+    @pytest.mark.parametrize(
+        "device_name,device_kwargs,expected_memory",
+        [
+            ("ionq.simulator", {}, False),
+            ("ionq.simulator", {"noise_model": "ideal"}, False),
+            (
+                "ionq.simulator",
+                {"noise_model": "forte-enterprise-1"},
+                True,
+            ),
+            ("ionq.qpu", {}, True),
+        ],
+    )
+    def test_retrieve_shots_only_for_qpu_or_noisy_simulator(
+        self, monkeypatch, device_name, device_kwargs, expected_memory
+    ):
+        """Test shot retrieval is requested only for qpu or noisy simulator jobs."""
+
+        monkeypatch.setattr(
+            requests, "post", lambda url, timeout, data, headers: (url, data, headers)
+        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
+        monkeypatch.setattr(Job, "is_complete", True)
+
+        seen_fetch_shots = []
+
+        def fake_response(self, resource_id=None, params=None, fetch_shots=False):
+            """Return fake response data and capture whether shots were requested."""
+            seen_fetch_shots.append(fetch_shots)
+            fake_json = {"probabilities": {"0": 1}}
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
+
+        monkeypatch.setattr(ResourceManager, "get", fake_response)
+
+        dev = qml.device(device_name, wires=1, api_key="test", memory=True, **device_kwargs)
+
+        @qml.qnode(dev, shots=1024)
+        def circuit():
+            """Reference QNode"""
+            qml.Identity(wires=0)
+            return qml.probs(wires=[0])
+
+        circuit()
+
+        assert len(seen_fetch_shots) == 1
+        assert seen_fetch_shots[0] is expected_memory
+
+    @pytest.mark.parametrize(
+        "device_name,device_kwargs",
+        [
+            ("ionq.simulator", {"noise_model": "forte-enterprise-1"}),
+            ("ionq.qpu", {}),
+        ],
+        ids=["noisy-simulator", "qpu"],
+    )
+    def test_memory_defaults_to_false_and_disables_shot_retrieval(
+        self, monkeypatch, device_name, device_kwargs
+    ):
+        """Test memory defaults to False and keeps fetch_shots disabled."""
+
+        monkeypatch.setattr(
+            requests, "post", lambda url, timeout, data, headers: (url, data, headers)
+        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
+        monkeypatch.setattr(Job, "is_complete", True)
+
+        seen_fetch_shots = []
+
+        def fake_response(self, resource_id=None, params=None, fetch_shots=False):
+            """Return fake response data and capture whether shots were requested."""
+            seen_fetch_shots.append(fetch_shots)
+            fake_json = {"probabilities": {"0": 1}}
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
+
+        monkeypatch.setattr(ResourceManager, "get", fake_response)
+
+        dev = qml.device(device_name, wires=1, api_key="test", **device_kwargs)
+
+        @qml.qnode(dev, shots=1024)
+        def circuit():
+            """Reference QNode"""
+            qml.Identity(wires=0)
+            return qml.probs(wires=[0])
+
+        circuit()
+
+        assert dev.memory is False
+        assert len(seen_fetch_shots) == 1
+        assert seen_fetch_shots[0] is False
+
+    def test_sharpen_is_forwarded_in_result_retrieval_params(self, monkeypatch):
+        """Test sharpen is forwarded in result retrieval params when enabled."""
+
+        monkeypatch.setattr(
+            requests, "post", lambda url, timeout, data, headers: (url, data, headers)
+        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
+        monkeypatch.setattr(Job, "is_complete", True)
+
+        seen_params = []
+
+        def fake_response(self, resource_id=None, params=None, fetch_shots=False):
+            """Return fake response data and capture request params."""
+            seen_params.append(params)
+            fake_json = {"probabilities": {"0": 1}}
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
+
+        monkeypatch.setattr(ResourceManager, "get", fake_response)
+
+        dev = qml.device("ionq.qpu", wires=1, api_key="test", sharpen=True)
+
+        @qml.qnode(dev, shots=1024)
+        def circuit():
+            """Reference QNode"""
+            qml.Identity(wires=0)
+            return qml.probs(wires=[0])
+
+        circuit()
+
+        assert len(seen_params) == 1
+        assert seen_params[0] == {"sharpen": True}
+
+    def test_missing_child_shots_fall_back_to_generated_samples(self, mocker):
+        """Test missing multi-circuit child shots fall back to generated samples."""
+
+        mock_job = mock.MagicMock()
+        mock_job.is_complete = True
+        mock_job.is_failed = False
+        mock_job.id.value = "test-id"
+        mock_job.data.value = {
+            "child_1": {"1": 1.0},
+            "child_2": {"4": 1.0},
+        }
+        mock_job.has_shots = True
+        mock_job.shots = {
+            "child_1": ["1", "1", "1"],
+            "child_2": None,
+        }
+
+        mocker.patch("pennylane_ionq.device.Job", return_value=mock_job)
+
+        dev = SimulatorDevice(
+            wires=["q0", "q1", "q2"],
+            shots=3,
+            api_key="test",
+            noise_model="aria-1",
+            memory=True,
+        )
+
+        dev._submit_job()
+
+        assert len(dev.histograms) == 2
+        assert len(dev.memory_results) == 2
+        np.testing.assert_array_equal(dev.memory_results[0], np.array([4, 4, 4], dtype=np.int64))
+        assert dev.memory_results[1] is None
+
+        dev.set_current_circuit_index(1)
+        np.testing.assert_array_equal(
+            dev.generate_samples(),
+            np.array([[0, 0, 1], [0, 0, 1], [0, 0, 1]], dtype=np.int64),
+        )
+
+    def test_single_circuit_memory_reverses_bits(self, mocker):
+        """Test single-circuit memory path reverses LE-wire bits to PennyLane's BE.
+
+        The IonQ v0.4 API serializes basis-state integers as little-endian
+        (qubit 0 = LSB). PennyLane indexes qubit 0 as the MSB, so a wire-side
+        state of "1" on 3 wires (binary 001, i.e. |q0=1, q1=0, q2=0>) must be
+        reversed to integer 4 (binary 100) on read. This mirrors the live API
+        behavior covered by tests/test_memory_output.py.
+        """
+
+        mock_job = mock.MagicMock()
+        mock_job.is_complete = True
+        mock_job.is_failed = False
+        mock_job.id.value = "test-id"
+        mock_job.data.value = {"1": 1.0}
+        mock_job.has_shots = True
+        mock_job.shots = ["1", "1", "1", "1"]
+
+        mocker.patch("pennylane_ionq.device.Job", return_value=mock_job)
+
+        dev = SimulatorDevice(
+            wires=["q0", "q1", "q2"],
+            shots=4,
+            api_key="test",
+            noise_model="aria-1",
+            memory=True,
+        )
+
+        dev._submit_job()
+
+        assert len(dev.histograms) == 1
+        assert dev.memory_results is not None
+        assert len(dev.memory_results) == 1
+        np.testing.assert_array_equal(dev.memory_results[0], np.array([4, 4, 4, 4], dtype=np.int64))
+
+    @pytest.mark.parametrize("device_cls", [SimulatorDevice, QPUDevice], ids=["simulator", "qpu"])
+    def test_single_circuit_missing_raw_shots_still_generates_samples(self, mocker, device_cls):
+        """Test single-circuit jobs fall back to generated samples when raw_shots is None."""
+
+        mock_job = mock.MagicMock()
+        mock_job.is_complete = True
+        mock_job.is_failed = False
+        mock_job.id.value = "test-id"
+        mock_job.data.value = {"3": 1.0}
+        mock_job.has_shots = True
+        mock_job.shots = None
+
+        mocker.patch("pennylane_ionq.device.Job", return_value=mock_job)
+
+        dev = device_cls(wires=2, shots=2, api_key="test", memory=True)
+
+        dev._submit_job()
+
+        assert dev.histograms == [{"3": 1.0}]
+        assert dev.memory_results == [None]
+
+        dev.set_current_circuit_index(0)
+        np.testing.assert_array_equal(dev.generate_samples(), np.array([[1, 1], [1, 1]]))
+
+    @pytest.mark.parametrize(
+        "value,num_bits,error_message",
+        [
+            (-1, 3, "value=-1 must be non-negative"),
+            (8, 3, "value=8 cannot be represented on 3 bits"),
+        ],
+    )
+    def test_reverse_bits_decimal_rejects_invalid_values(self, value, num_bits, error_message):
+        """Test reverse_bits_decimal raises on negative and out-of-range values."""
+
+        dev = SimulatorDevice(wires=3)
+
+        with pytest.raises(ValueError, match=error_message):
+            dev.reverse_bits_decimal(value, num_bits)
+
     def test_job_name_submit_job(self, monkeypatch, mocker):
         """Test that name is correctly specified when submitting a job to the API."""
 
@@ -288,9 +653,9 @@ class TestDeviceIntegration:
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, fetch_shots=False):
             """Return fake response data"""
-            fake_json = {"0": 1}
+            fake_json = {"probabilities": {"0": 1}}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
@@ -318,9 +683,9 @@ class TestDeviceIntegration:
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, fetch_shots=False):
             """Return fake response data"""
-            fake_json = {"0": 1}
+            fake_json = {"probabilities": {"0": 1}}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
@@ -351,15 +716,16 @@ class TestDeviceIntegration:
         """Test that error mitigation settings are properly handled when submitting a job to the API."""
 
         monkeypatch.setattr(
-            requests, "post",
-            lambda url, timeout, data, headers: MockPOSTResponse(201, url, data, headers)
+            requests,
+            "post",
+            lambda url, timeout, data, headers: MockPOSTResponse(201, url, data, headers),
         )
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, fetch_shots=False):
             """Return fake response data"""
-            fake_json = {"0": 1}
+            fake_json = {"probabilities": {"0": 1}}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
@@ -408,9 +774,9 @@ class TestDeviceIntegration:
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, fetch_shots=False):
             """Return fake response data"""
-            fake_json = {"0": 1}
+            fake_json = {"probabilities": {"0": 1}}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
 
         monkeypatch.setattr(ResourceManager, "get", fake_response)
@@ -471,6 +837,20 @@ class TestDeviceIntegration:
         """Test that noise_seed without noise_model raises ValueError."""
         with pytest.raises(ValueError, match="noise_seed requires noise_model"):
             qml.device("ionq.simulator", wires=1, api_key="test", noise_seed=42)
+
+    @pytest.mark.parametrize(
+        "memory,should_raise",
+        [(None, True), (1, True), ("true", True), (True, False)],
+        ids=["none", "int", "str", "bool"],
+    )
+    def test_memory_validation(self, memory, should_raise):
+        """Test that memory rejects non-boolean values."""
+        if should_raise:
+            with pytest.raises(ValueError, match="memory argument must be a boolean"):
+                qml.device("ionq.simulator", wires=1, api_key="test", memory=memory)
+        else:
+            dev = qml.device("ionq.simulator", wires=1, api_key="test", memory=memory)
+            assert isinstance(dev.memory, bool)
 
     @pytest.mark.parametrize("shots", [8192])
     def test_one_qubit_circuit(self, shots, requires_api, tol):
