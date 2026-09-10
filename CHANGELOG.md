@@ -12,6 +12,10 @@
 * Upgraded Sphinx to version 9.0.
   [(#188)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/188)
 
+* Updated the tracker tests to use `SpecsResources.num_wires`, which replaces the
+  removed `num_allocs` attribute in PennyLane.
+  [(#191)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/191)
+
 ### Breaking changes 💔
 
 * Support for Python 3.11 has been removed.
