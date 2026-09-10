@@ -146,7 +146,7 @@ class TestDeviceIntegration:
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, results_type=None):
             """Return fake response data"""
             fake_json = {"0": 1}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
@@ -174,7 +174,7 @@ class TestDeviceIntegration:
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, results_type=None):
             """Return fake response data"""
             fake_json = {"0": 1}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
@@ -216,7 +216,7 @@ class TestDeviceIntegration:
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, results_type=None):
             """Return fake response data"""
             fake_json = {"0": 1}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
@@ -254,7 +254,7 @@ class TestDeviceIntegration:
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, results_type=None):
             """Return fake response data"""
             fake_json = {"0": 1}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
@@ -288,7 +288,7 @@ class TestDeviceIntegration:
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, results_type=None):
             """Return fake response data"""
             fake_json = {"0": 1}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
@@ -318,7 +318,7 @@ class TestDeviceIntegration:
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, results_type=None):
             """Return fake response data"""
             fake_json = {"0": 1}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
@@ -357,7 +357,7 @@ class TestDeviceIntegration:
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, results_type=None):
             """Return fake response data"""
             fake_json = {"0": 1}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
@@ -408,7 +408,7 @@ class TestDeviceIntegration:
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
 
-        def fake_response(self, resource_id=None, params=None):
+        def fake_response(self, resource_id=None, params=None, results_type=None):
             """Return fake response data"""
             fake_json = {"0": 1}
             setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
@@ -1191,3 +1191,262 @@ class TestJobAttribute:
         assert "control" not in gate
         assert "target" not in gate
         assert gate["rotation"] == rotation
+
+
+TEST_HOSTNAME = "api.example.com/v0.4"
+API_URL = f"https://{TEST_HOSTNAME}"
+
+
+class MockJSONResponse:
+    """Mock requests response returning a JSON payload."""
+
+    def __init__(self, json_data, status_code=200):
+        self.status_code = status_code
+        self._json = json_data
+        self.text = json.dumps(json_data)
+
+    def json(self):
+        return self._json
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise requests.exceptions.HTTPError(f"{self.status_code} error")
+
+
+class TestMemoryResults:
+    """Tests for retrieving shotwise results with the memory device kwarg."""
+
+    def test_memory_single_circuit(self, monkeypatch):
+        """Shotwise results of a single-circuit job are returned as samples,
+        in order and with little-endian API states mapped to PennyLane wires."""
+        monkeypatch.setenv("IONQ_API_HOSTNAME", TEST_HOSTNAME)
+
+        shots_payload = ["1", "0", "3", "1"]
+
+        results = {
+            "probabilities": {"url": "/v0.4/jobs/job-1/results/probabilities"},
+            "shots": {"url": "/v0.4/jobs/job-1/results/shots"}
+                   }
+        job_json = {"id": "job-1", "status": "completed", "results": results}
+        payloads = {
+            f"{API_URL}/jobs/job-1": job_json,
+            f"{API_URL}/jobs/job-1/results/probabilities": {"0": 0.5, "1": 0.5},
+            f"{API_URL}/jobs/job-1/results/shots": shots_payload,
+        }
+
+        def fake_post(url, data=None, timeout=None, headers=None):
+            return MockJSONResponse(job_json, 201)
+
+        def fake_get(url, params=None, timeout=None, headers=None):
+            return MockJSONResponse(payloads[url])
+
+        monkeypatch.setattr(requests, "post", fake_post)
+        monkeypatch.setattr(requests, "get", fake_get)
+
+        dev = SimulatorDevice(
+            wires=2, shots=4, api_key=FAKE_API_KEY, noise_model="aria-1", memory=True
+        )
+        with qml.tape.QuantumTape() as tape:
+            qml.PauliX(0)
+            qml.sample(wires=[0, 1])
+        results = dev.batch_execute([tape])
+
+        assert np.array_equal(results[0], [[1, 0], [0, 0], [1, 1], [1, 0]])
+
+    def test_memory_multi_circuit(self, monkeypatch):
+        """Shotwise results of a multi-circuit job are fetched from each child job."""
+        job_json = {
+            "id": "parent",
+            "status": "completed",
+            "results": {"probabilities": {"url": "/v0.4/jobs/parent/results/probabilities"}},
+        }
+        payloads = {
+            f"{API_URL}/jobs/parent": job_json,
+            f"{API_URL}/jobs/parent/results/probabilities": {
+                "child-a": {"1": 1.0},
+                "child-b": {"2": 1.0},
+            },
+            f"{API_URL}/jobs/child-a": {
+                "id": "child-a",
+                "status": "completed",
+                "results": {"shots": {"url": "/v0.4/jobs/child-a/results/shots"}},
+            },
+            f"{API_URL}/jobs/child-b": {
+                "id": "child-b",
+                "status": "completed",
+                "results": {"shots": {"url": "/v0.4/jobs/child-b/results/shots"}},
+            },
+            f"{API_URL}/jobs/child-a/results/shots": ["1", "1", "1", "1"],
+            f"{API_URL}/jobs/child-b/results/shots": ["2", "2", "2", "2"],
+        }
+        monkeypatch.setenv("IONQ_API_HOSTNAME", TEST_HOSTNAME)
+
+        def fake_post(url, data=None, timeout=None, headers=None):
+            return MockJSONResponse(job_json, 201)
+
+        def fake_get(url, params=None, timeout=None, headers=None):
+            return MockJSONResponse(payloads[url])
+
+        monkeypatch.setattr(requests, "post", fake_post)
+        monkeypatch.setattr(requests, "get", fake_get)
+
+        dev = SimulatorDevice(
+            wires=2, shots=4, api_key=FAKE_API_KEY, noise_model="aria-1", memory=True
+        )
+        with qml.tape.QuantumTape() as tape:
+            qml.PauliX(0)
+            qml.sample(wires=[0, 1])
+
+        results = dev.batch_execute([tape, tape])
+
+        assert np.array_equal(results[0], [[1, 0]] * 4)
+        assert np.array_equal(results[1], [[0, 1]] * 4)
+
+    def test_memory_false_skips_fetch(self, monkeypatch):
+        """No shotwise results are fetched when memory is False."""
+        shots_payload = ["1", "0", "3", "1"]
+
+        results = {
+            "probabilities": {"url": "/v0.4/jobs/job-1/results/probabilities"},
+            "shots": {"url": "/v0.4/jobs/job-1/results/shots"}
+                   }
+        job_json = {"id": "job-1", "status": "completed", "results": results}
+        payloads = {
+            f"{API_URL}/jobs/job-1": job_json,
+            f"{API_URL}/jobs/job-1/results/probabilities": {"0": 0.5, "1": 0.5},
+            f"{API_URL}/jobs/job-1/results/shots": shots_payload,
+        }
+        requested = []
+
+        monkeypatch.setenv("IONQ_API_HOSTNAME", TEST_HOSTNAME)
+
+        def fake_post(url, data=None, timeout=None, headers=None):
+            return MockJSONResponse(job_json, 201)
+
+        def fake_get(url, params=None, timeout=None, headers=None):
+            if requested is not None:
+                requested.append(url)
+            return MockJSONResponse(payloads[url])
+
+        monkeypatch.setattr(requests, "post", fake_post)
+        monkeypatch.setattr(requests, "get", fake_get)
+
+        dev = SimulatorDevice(wires=2, shots=4, api_key=FAKE_API_KEY, noise_model="aria-1")
+
+        with qml.tape.QuantumTape() as tape:
+            qml.PauliX(0)
+            qml.sample(wires=[0, 1])
+
+        dev.batch_execute([tape])
+
+        assert dev.memory_results is None
+        assert f"{API_URL}/jobs/job-1/results/shots" not in requested
+
+    @pytest.mark.parametrize("noise_model", [None, "ideal"])
+    def test_memory_ideal_simulator(self, noise_model, monkeypatch):
+        """Requesting memory on the ideal simulator warns and skips the fetch."""
+        shots_payload = None
+
+        results = {
+            "probabilities": {"url": "/v0.4/jobs/job-1/results/probabilities"},
+            "shots": {"url": "/v0.4/jobs/job-1/results/shots"}
+                   }
+        job_json = {"id": "job-1", "status": "completed", "results": results}
+        payloads = {
+            f"{API_URL}/jobs/job-1": job_json,
+            f"{API_URL}/jobs/job-1/results/probabilities": {"0": 0.5, "1": 0.5},
+            f"{API_URL}/jobs/job-1/results/shots": shots_payload,
+        }
+        requested = []
+        monkeypatch.setenv("IONQ_API_HOSTNAME", TEST_HOSTNAME)
+
+        def fake_post(url, data=None, timeout=None, headers=None):
+            return MockJSONResponse(job_json, 201)
+
+        def fake_get(url, params=None, timeout=None, headers=None):
+            if requested is not None:
+                requested.append(url)
+            return MockJSONResponse(payloads[url])
+
+        monkeypatch.setattr(requests, "post", fake_post)
+        monkeypatch.setattr(requests, "get", fake_get)
+
+        with pytest.warns(UserWarning, match="not available for ideal simulation"):
+            dev = SimulatorDevice(
+                wires=2, shots=4, api_key=FAKE_API_KEY, noise_model=noise_model, memory=True
+            )
+
+        with qml.tape.QuantumTape() as tape:
+            qml.PauliX(0)
+            qml.sample(wires=[0, 1])
+
+        dev.batch_execute([tape])
+
+        assert dev.memory_results is None
+
+    @pytest.mark.parametrize(
+        "device_class, kwargs",
+        [(SimulatorDevice, {"noise_model": "aria-1"}), (QPUDevice, {})],
+    )
+    def test_generate_samples_from_memory(self, device_class, kwargs):
+        """generate_samples returns the fetched shotwise results in order."""
+        dev = device_class(2, shots=4, api_key=FAKE_API_KEY, memory=True, **kwargs)
+        dev.histograms = [{"0": 0.25, "2": 0.75}]
+        dev.memory_results = [np.array([[1, 0], [0, 0], [1, 0], [1, 0]])]
+
+        samples = dev.generate_samples()
+
+        assert np.array_equal(samples, [[1, 0], [0, 0], [1, 0], [1, 0]])
+
+    def test_memory_samples_require_circuit_index(self):
+        """Sampling multi-circuit shotwise results without a circuit index raises."""
+        dev = QPUDevice(2, shots=4, api_key=FAKE_API_KEY, memory=True)
+        dev.memory_results = [np.array([[0, 0]]), np.array([[0, 1]])]
+
+        with pytest.raises(CircuitIndexNotSetException):
+            dev.generate_samples()
+
+    def test_memory_none_entry_falls_back(self):
+        """A missing shotwise results entry falls back to probability sampling."""
+        with pytest.warns(UserWarning, match=r"Shotwise results are not available"):
+            dev = SimulatorDevice(2, shots=4, api_key=FAKE_API_KEY, memory=True)
+
+        dev.histograms = [{"0": 1.0}]
+
+        samples = dev.generate_samples()
+
+        assert np.array_equal(samples, np.zeros((4, 2)))
+
+    def test_memory_single_circuit_api(self, requires_api):
+        """Shotwise results are used as samples on a noisy-simulator job."""
+        dev = qml.device("ionq.simulator", wires=3, noise_model="aria-1", memory=True)
+
+        with qml.tape.QuantumTape(shots=100) as tape:
+            qml.PauliX(1)
+            qml.sample(wires=[0, 1, 2])
+
+        results = dev.batch_execute([tape])
+
+        assert len(dev.memory_results) == 1
+        assert dev.memory_results[0] is not None
+        unique, counts = np.unique(results[0], axis=0, return_counts=True)
+        assert np.array_equal(unique[np.argmax(counts)], [0, 1, 0])
+
+    def test_memory_two_circuits_api(self, requires_api):
+        """Shotwise results are matched to the right circuit and wire ordering
+        on a multi-circuit job."""
+        dev = qml.device("ionq.simulator", wires=3, noise_model="aria-1", memory=True)
+
+        with qml.tape.QuantumTape(shots=100) as tape1:
+            qml.PauliX(0)
+            qml.sample(wires=[0, 1, 2])
+
+        with qml.tape.QuantumTape(shots=100) as tape2:
+            qml.PauliX(2)
+            qml.sample(wires=[0, 1, 2])
+
+        results = dev.batch_execute([tape1, tape2])
+
+        for result, expected in zip(results, ([1, 0, 0], [0, 0, 1])):
+            unique, counts = np.unique(result, axis=0, return_counts=True)
+            assert np.array_equal(unique[np.argmax(counts)], expected)
