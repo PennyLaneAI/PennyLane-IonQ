@@ -549,7 +549,7 @@ class TestDeviceIntegration:
         assert dev.tracker.history["batch_len"] == [2]
         assert len(dev.tracker.history["resources"]) == 2
         resources = dev.tracker.history["resources"][0]
-        assert resources.num_allocs == 1
+        assert resources.num_wires == 1
         assert resources.total_quantum_operations == 1
         assert resources.depth == 1
         assert resources.quantum_operations == {"GPI": 1}
