@@ -520,7 +520,6 @@ class IonQDevice(QubitDevice):
         # service_version via the compilation setting.
         settings = dict(self.job.get("settings") or {})
         compilation = dict(settings.get("compilation") or {})
-        compilation.setdefault("service_version", "v0.4")
         settings["compilation"] = compilation
         self.job["settings"] = settings
 
