@@ -26,11 +26,10 @@ import numpy as np
 
 from pennylane import BooleanFn, pauli_decompose, SparseHamiltonian
 from pennylane.devices import QubitDevice
-from pennylane.measurements import MeasurementProcess, MidMeasureMP
+from pennylane.measurements import MidMeasureMP
 from pennylane.ops.op_math import Conditional, Exp, Sum, SProd
 from pennylane.ops import Identity, PauliX, PauliY, PauliZ
 from pennylane.ops.op_math.prod import Prod
-from pennylane.tape import QuantumScript
 
 from pennylane.ops.op_math.linear_combination import LinearCombination
 
@@ -477,7 +476,6 @@ class IonQDevice(QubitDevice):
             if isinstance(obj, Conditional):
                 return accepts_obj(obj.base)
             return self.supports_operation(obj.name)
-            )
 
         return BooleanFn(accepts_obj)
 
