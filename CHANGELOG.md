@@ -35,7 +35,8 @@
 
 This release contains contributions from (in alphabetical order):
 
-Antal Száva, Marcus Edwards
+Marcus Edwards,
+Antal Száva
 
 ---
 # Release 0.45.0
