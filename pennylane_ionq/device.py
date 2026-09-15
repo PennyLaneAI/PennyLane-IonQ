@@ -378,7 +378,7 @@ class IonQDevice(QubitDevice):
                     circuit_index=circuit_index,
                 )
         else:
-            # Only single-circuit submission is support for qasm3
+            # Only single-circuit submission is supported for qasm3
             circuit = circuits[0]
             self.check_validity(circuit.operations, circuit.observables)
             self._apply_qasm3(
