@@ -476,8 +476,7 @@ class IonQDevice(QubitDevice):
                 return True
             if isinstance(obj, Conditional):
                 return accepts_obj(obj.base)
-            return not isinstance(obj, QuantumScript) and (
-                isinstance(obj, MeasurementProcess) or self.supports_operation(obj.name)
+            return self.supports_operation(obj.name)
             )
 
         return BooleanFn(accepts_obj)
