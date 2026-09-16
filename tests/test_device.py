@@ -1342,6 +1342,49 @@ class TestMemoryResults:
         assert dev.memory_results is None
         assert f"{API_URL}/jobs/job-1/results/shots" not in requested
 
+    def test_multi_circuit_histograms_without_memory(self, monkeypatch):
+        """Without memory, a multi-circuit job stores one histogram per child job
+        and no shotwise results are fetched."""
+        job_json = {
+            "id": "parent",
+            "status": "completed",
+            "results": {"probabilities": {"url": "/v0.4/jobs/parent/results/probabilities"}},
+        }
+        payloads = {
+            f"{API_URL}/jobs/parent": job_json,
+            f"{API_URL}/jobs/parent/results/probabilities": {
+                "child-a": {"1": 1.0},
+                "child-b": {"2": 1.0},
+            },
+        }
+        requested = []
+
+        monkeypatch.setenv("IONQ_API_HOSTNAME", TEST_HOSTNAME)
+
+        def fake_post(url, data=None, timeout=None, headers=None):
+            return MockJSONResponse(job_json, 201)
+
+        def fake_get(url, params=None, timeout=None, headers=None):
+            requested.append(url)
+            return MockJSONResponse(payloads[url])
+
+        monkeypatch.setattr(requests, "post", fake_post)
+        monkeypatch.setattr(requests, "get", fake_get)
+
+        dev = SimulatorDevice(wires=2, shots=4, api_key=FAKE_API_KEY, noise_model="aria-1")
+
+        with qml.tape.QuantumTape() as tape:
+            qml.PauliX(0)
+            qml.sample(wires=[0, 1])
+
+        results = dev.batch_execute([tape, tape])
+
+        assert dev.memory_results is None
+        assert dev.histograms == [{"1": 1.0}, {"2": 1.0}]
+        assert not any(url.endswith("/results/shots") for url in requested)
+        assert np.array_equal(results[0], [[1, 0]] * 4)
+        assert np.array_equal(results[1], [[0, 1]] * 4)
+
     @pytest.mark.parametrize("noise_model", [None, "ideal"])
     def test_memory_ideal_simulator(self, noise_model, monkeypatch):
         """Requesting memory on the ideal simulator warns and skips the fetch."""
@@ -1398,9 +1441,13 @@ class TestMemoryResults:
 
         assert np.array_equal(samples, [[1, 0], [0, 0], [1, 0], [1, 0]])
 
-    def test_memory_samples_require_circuit_index(self):
+    @pytest.mark.parametrize(
+        "device_class, kwargs",
+        [(SimulatorDevice, {"noise_model": "aria-1"}), (QPUDevice, {})],
+    )
+    def test_memory_samples_require_circuit_index(self, device_class, kwargs):
         """Sampling multi-circuit shotwise results without a circuit index raises."""
-        dev = QPUDevice(2, shots=4, api_key=FAKE_API_KEY, memory=True)
+        dev = device_class(2, shots=4, api_key=FAKE_API_KEY, memory=True, **kwargs)
         dev.memory_results = [np.array([[0, 0]]), np.array([[0, 1]])]
 
         with pytest.raises(CircuitIndexNotSetException):
