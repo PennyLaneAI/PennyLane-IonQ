@@ -513,9 +513,6 @@ class IonQDevice(QubitDevice):
         self.job["type"] = "ionq.qasm3.v1"
         self.job["input"] = self.input
 
-        # OpenQASM 3 jobs need the v0.4 compiler stack to return
-        # register-named results; pin it unless the caller set their own
-        # service_version via the compilation setting.
         settings = dict(self.job.get("settings") or {})
         compilation = dict(settings.get("compilation") or {})
         settings["compilation"] = compilation

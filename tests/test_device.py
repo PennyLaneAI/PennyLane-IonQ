@@ -1329,7 +1329,7 @@ class TestMidCircuitMeasurement:
         )
 
         # Before apply, the job is a plain v1 payload with the settings
-        # verbatim; service_version is only pinned on the qasm3 path.
+        # verbatim.
         assert dev.job["type"] == "ionq.circuit.v1"
         assert dev.job["settings"]["compilation"] == {"opt": 0}
         assert dev.job["settings"]["error_mitigation"] == {"debiasing": False}
@@ -1337,20 +1337,8 @@ class TestMidCircuitMeasurement:
         dev.apply(_mcm_tape().operations)
 
         assert dev.job["type"] == "ionq.qasm3.v1"
-        assert dev.job["settings"]["compilation"] == {"opt": 0, "service_version": "v0.4"}
+        assert dev.job["settings"]["compilation"] == {"opt": 0}
         assert dev.job["settings"]["error_mitigation"] == {"debiasing": False}
-
-    def test_qasm3_service_version(self, monkeypatch):
-        """qasm3 jobs pin compilation.service_version v0.4; a caller can override."""
-        monkeypatch.setattr(IonQDevice, "_submit_job", lambda self: None)
-
-        dev = IonQDevice(wires=(0,), shots=1024)
-        dev.apply(_mcm_tape().operations)
-        assert dev.job["settings"]["compilation"]["service_version"] == "v0.4"
-
-        dev = IonQDevice(wires=(0,), shots=1024, compilation={"service_version": "v0.5"})
-        dev.apply(_mcm_tape().operations)
-        assert dev.job["settings"]["compilation"]["service_version"] == "v0.5"
 
     def test_qasm3_native_gateset(self, monkeypatch):
         """MCM circuits in the native gateset serialize with native gate
@@ -1407,3 +1395,55 @@ class TestMidCircuitMeasurement:
 
         assert dev.job["type"] == "ionq.qasm3.v1"
         assert "reset" in dev.job["input"]["data"]
+
+    def test_batch_execute_single_mcm_circuit(self, monkeypatch):
+        """A single MCM circuit submitted via batch_execute routes to qasm3,
+        with the diagonalizing rotations of its observables appended."""
+        monkeypatch.setattr(IonQDevice, "_submit_job", lambda self: None)
+        dev = IonQDevice(wires=(0,), shots=1024, dry_run=True)
+
+        with qp.tape.QuantumTape(shots=1024) as tape:
+            qp.PauliX(0)
+            qp.measure(0, reset=True)
+            qp.expval(qp.PauliX(0))
+
+        results = dev.batch_execute([tape])
+
+        assert results == [[]]
+        assert dev.job["type"] == "ionq.qasm3.v1"
+        assert dev.job["input"]["qubits"] == 1
+        assert dev.job["shots"] == 1024
+        data = dev.job["input"]["data"]
+        assert data.count("x q") == 1
+        assert data.count("reset q") == 1
+        # expval(PauliX) is diagonalized by a Hadamard after the circuit body
+        assert data.count("h q") == 1
+        assert data.rfind("h q") > data.rfind("reset q")
+
+    def test_stopping_condition(self):
+        """The stopping condition accepts mid-circuit measurements and
+        conditionals with a supported base, and rejects unsupported gates."""
+        dev = IonQDevice(wires=(0,), shots=1024)
+
+        with qp.tape.QuantumTape() as tape:
+            m = qp.measure(0)
+            qp.cond(m, qp.PauliX)(0)
+            qp.cond(m, qp.QubitUnitary)(np.eye(2), wires=0)
+        mcm, cond_supported, cond_unsupported = tape.operations
+
+        assert dev.stopping_condition(mcm) is True
+        assert dev.stopping_condition(cond_supported) is True
+        assert dev.stopping_condition(cond_unsupported) is False
+        assert dev.stopping_condition(qp.PauliX(0)) is True
+        assert dev.stopping_condition(qp.QubitUnitary(np.eye(2), wires=0)) is False
+
+    def test_apply_plain_with_rotations_stays_v1(self, monkeypatch):
+        """A tape without mid-circuit measurements stays on the v1 gate-list
+        path, with diagonalizing rotations appended after the operations."""
+        monkeypatch.setattr(IonQDevice, "_submit_job", lambda self: None)
+        dev = IonQDevice(wires=(0,), shots=1024)
+
+        dev.apply([qp.PauliX(0)], rotations=[qp.Hadamard(0)])
+
+        assert dev.job["type"] == "ionq.circuit.v1"
+        assert [gate["gate"] for gate in dev.job["input"]["circuit"]] == ["x", "h"]
