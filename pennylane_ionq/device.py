@@ -131,7 +131,7 @@ class IonQDevice(QubitDevice):
         noise_seed (int): seed for the noise model random number generator, for reproducible noisy
             simulation results. Must be an integer between 1 and 2\ :sup:`31` - 1. Only used when ``noise_model`` is set.
             Defaults to None (random seed).
-        memory (bool): if True, use the shotwise measurement outcomes returned by the API as the
+        memory (bool): if True, use the shotwise measurement outcomes returned by the IonQ API as the
             device samples, instead of generating samples locally from the returned probabilities.
             Shotwise results are not available for ideal simulation. Defaults to False.
         dry_run (bool): If True, the job will be submitted by the API client but not processed remotely.
@@ -216,6 +216,7 @@ class IonQDevice(QubitDevice):
                 "will be generated from the returned probabilities.",
                 UserWarning,
             )
+            memory = False
 
         super().__init__(wires=wires, shots=shots)
         self._current_circuit_index = None
@@ -638,7 +639,7 @@ class IonQDevice(QubitDevice):
 
         params = {} if self.sharpen is None else {"sharpen": self.sharpen}
 
-        if not self.memory or (self.target == "simulator" and self.noise_model in (None, "ideal")):
+        if not self.memory:
             job.manager.get(
                 resource_id=job.id.value, params=params, results_type=ResultsTypes.PROBS
             )
@@ -759,7 +760,7 @@ class SimulatorDevice(IonQDevice):
         noise_seed (int): seed for the noise model random number generator, for reproducible noisy
             simulation results. Must be an integer between 1 and 2\ :sup:`31` - 1. Only used when ``noise_model`` is set.
             Defaults to None (random seed).
-        memory (bool): if True, use the shotwise measurement outcomes returned by the API as the
+        memory (bool): if True, use the shotwise measurement outcomes returned by the IonQ API as the
             device samples, instead of generating samples locally from the returned probabilities.
             Shotwise results are not available for ideal simulation. Defaults to False.
         metadata (dict | None): optional metadata to attach to the job. Defaults to None.
