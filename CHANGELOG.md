@@ -8,10 +8,18 @@
   and noisy-simulator jobs.
   [(#195)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/195)
 
+* The IonQ API hostname can now be overridden with the ``IONQ_API_HOSTNAME``
+  environment variable, making it possible to target a different API host.
+  [(#195)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/195)
+
 ### Improvements 🛠
 
 * Updated tests to stop using deprecated shots kwarg on the device.
   [(#184)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/184)
+
+* Added the ``ResultsTypes`` enum to ``api_client``, used to select whether
+  probabilities or shotwise results are fetched for a job.
+  [(#195)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/195)
 
 ### Internal changes ⚙️
 
