@@ -639,22 +639,7 @@ class IonQDevice(QubitDevice):
 
         params = {} if self.sharpen is None else {"sharpen": self.sharpen}
 
-        if not self.memory:
-            job.manager.get(
-                resource_id=job.id.value, params=params, results_type=ResultsTypes.PROBS
-            )
-
-            # The returned job histogram is of the form
-            # dict[str, float], and maps the computational basis
-            # state (as a base-10 integer string) to the probability
-            # as a floating point value between 0 and 1.
-            # e.g., {"0": 0.413, "9": 0.111, "17": 0.476}
-            some_inner_value = next(iter(job.data.value.values()))
-            if isinstance(some_inner_value, dict):
-                self.histograms = list(job.data.value.values())
-            else:
-                self.histograms = [job.data.value]
-        else:
+        if self.memory:
             # Shotwise outputs using memory
             if self.job.get("type") == "ionq.multi-circuit.v1":
                 # Multi-circuit job shots:
@@ -672,6 +657,21 @@ class IonQDevice(QubitDevice):
                 job.manager.get(resource_id=job_id, params=params, results_type=ResultsTypes.SHOTS)
                 memory_results.append(self._shotwise_to_samples(job.data.value))
             self.memory_results = memory_results
+        else:
+            job.manager.get(
+                resource_id=job.id.value, params=params, results_type=ResultsTypes.PROBS
+            )
+
+            # The returned job histogram is of the form
+            # dict[str, float], and maps the computational basis
+            # state (as a base-10 integer string) to the probability
+            # as a floating point value between 0 and 1.
+            # e.g., {"0": 0.413, "9": 0.111, "17": 0.476}
+            some_inner_value = next(iter(job.data.value.values()))
+            if isinstance(some_inner_value, dict):
+                self.histograms = list(job.data.value.values())
+            else:
+                self.histograms = [job.data.value]
 
     def _shotwise_to_samples(self, raw_shots):
         """Convert IonQ API shotwise results into PennyLane binary samples.
