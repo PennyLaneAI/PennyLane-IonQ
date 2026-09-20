@@ -124,8 +124,9 @@ class TestDeviceIntegration:
 
     def test_failedcircuit(self, monkeypatch):
         monkeypatch.setattr(
-            requests, "post",
-            lambda url, timeout, data, headers: MockPOSTResponse(201, url, data, headers)
+            requests,
+            "post",
+            lambda url, timeout, data, headers: MockPOSTResponse(201, url, data, headers),
         )
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", False)
@@ -140,8 +141,9 @@ class TestDeviceIntegration:
         """Test that shots are correctly specified when submitting a job to the API."""
 
         monkeypatch.setattr(
-            requests, "post",
-            lambda url, timeout, data, headers: MockPOSTResponse(201, url, data, headers)
+            requests,
+            "post",
+            lambda url, timeout, data, headers: MockPOSTResponse(201, url, data, headers),
         )
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
@@ -346,13 +348,45 @@ class TestDeviceIntegration:
             with pytest.raises(KeyError, match="settings"):
                 json.loads(spy.call_args[1]["data"])["settings"]
 
-    @pytest.mark.parametrize("error_mitigation", [None, {"debiasing": True}, {"debiasing": False}])
-    def test_error_mitigation(self, error_mitigation, monkeypatch, mocker):
+    @pytest.mark.parametrize(
+        "error_mitigation,expected_error_mitigation",
+        [
+            (None, None),
+            ({"debiasing": True}, {"debiasing": True}),
+            ({"debiasing": False}, {"debiasing": False}),
+            ({"symmetry_verification": True}, {"symmetry_verification": True}),
+            ({"symmetry_verification": False}, {"symmetry_verification": False}),
+            (
+                {
+                    "debiasing": True,
+                    "symmetry_verification": True,
+                },
+                {
+                    "debiasing": True,
+                    "symmetry_verification": True,
+                },
+            ),
+            (
+                {
+                    "debiasing": False,
+                    "symmetry_verification": False,
+                },
+                {
+                    "debiasing": False,
+                    "symmetry_verification": False,
+                },
+            ),
+        ],
+    )
+    def test_error_mitigation(
+        self, error_mitigation, expected_error_mitigation, monkeypatch, mocker
+    ):
         """Test that error mitigation settings are properly handled when submitting a job to the API."""
 
         monkeypatch.setattr(
-            requests, "post",
-            lambda url, timeout, data, headers: MockPOSTResponse(201, url, data, headers)
+            requests,
+            "post",
+            lambda url, timeout, data, headers: MockPOSTResponse(201, url, data, headers),
         )
         monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
         monkeypatch.setattr(Job, "is_complete", True)
@@ -382,7 +416,7 @@ class TestDeviceIntegration:
         if error_mitigation is not None:
             assert (
                 json.loads(spy.call_args[1]["data"])["settings"]["error_mitigation"]
-                == error_mitigation
+                == expected_error_mitigation
             )
         else:
             with pytest.raises(KeyError, match="settings"):
@@ -471,6 +505,116 @@ class TestDeviceIntegration:
         """Test that noise_seed without noise_model raises ValueError."""
         with pytest.raises(ValueError, match="noise_seed requires noise_model"):
             qml.device("ionq.simulator", wires=1, api_key="test", noise_seed=42)
+
+    def test_error_mitigation_must_be_dictionary(self):
+        """Test that error_mitigation must be a dictionary when provided."""
+        with pytest.raises(ValueError, match="error_mitigation must be a dictionary"):
+            qml.device("ionq.qpu", wires=1, api_key="test", error_mitigation=True)
+
+    def test_error_mitigation_must_only_contain_supported_keys(self):
+        """Test that error_mitigation rejects unsupported keys."""
+        with pytest.raises(
+            ValueError,
+            match="error_mitigation must only contain the keys 'debiasing' and/or 'symmetry_verification'",
+        ):
+            qml.device(
+                "ionq.qpu",
+                wires=1,
+                api_key="test",
+                error_mitigation={"debiasing": True, "unsupported": True},
+            )
+
+    @pytest.mark.parametrize(
+        "key,value,match",
+        [
+            ("debiasing", "yes", "error_mitigation `debiasing` value must be a boolean"),
+            (
+                "symmetry_verification",
+                1,
+                "error_mitigation `symmetry_verification` value must be a boolean",
+            ),
+        ],
+    )
+    def test_error_mitigation_values_must_be_booleans(self, key, value, match):
+        """Test that supported error_mitigation keys only accept boolean values."""
+        with pytest.raises(ValueError, match=match):
+            qml.device("ionq.qpu", wires=1, api_key="test", error_mitigation={key: value})
+
+    def test_aggregation_invalid_raises(self):
+        """Test that invalid aggregation values raise ValueError."""
+        with pytest.raises(
+            ValueError,
+            match="aggregation must be either None or one of: `average`, `voting` or `dnl`",
+        ):
+            qml.device("ionq.qpu", wires=1, api_key="test", aggregation="invalid")
+
+    @pytest.mark.parametrize("aggregation", ["average", "voting", "dnl"])
+    def test_aggregation_sets_get_params(self, aggregation, monkeypatch):
+        """Test that aggregation is correctly specified when retrieving job results."""
+
+        monkeypatch.setattr(
+            requests,
+            "post",
+            lambda url, timeout, data, headers: MockPOSTResponse(201, url, data, headers),
+        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
+        monkeypatch.setattr(Job, "is_complete", True)
+
+        captured = {}
+
+        def fake_response(self, resource_id=None, params=None):
+            """Capture params and return fake response data."""
+            captured["params"] = params
+            fake_json = {"0": 1}
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
+
+        monkeypatch.setattr(ResourceManager, "get", fake_response)
+
+        dev = qml.device("ionq.qpu", wires=1, api_key="test", aggregation=aggregation)
+
+        @qml.qnode(dev, shots=100)
+        def circuit():
+            qml.PauliX(wires=0)
+            return qml.expval(qml.PauliZ(0))
+
+        circuit()
+
+        assert captured["params"] == {"aggregation": aggregation}
+
+    def test_sharpen_true_sets_voting_param_and_warns(self, monkeypatch):
+        """Test that sharpen=True adds sharpen/voting params and emits deprecation warning."""
+
+        monkeypatch.setattr(
+            requests,
+            "post",
+            lambda url, timeout, data, headers: MockPOSTResponse(201, url, data, headers),
+        )
+        monkeypatch.setattr(ResourceManager, "handle_response", lambda self, response: None)
+        monkeypatch.setattr(Job, "is_complete", True)
+
+        captured = {}
+
+        def fake_response(self, resource_id=None, params=None):
+            """Capture params and return fake response data."""
+            captured["params"] = params
+            fake_json = {"0": 1}
+            setattr(self.resource, "data", type("data", tuple(), {"value": fake_json})())
+
+        monkeypatch.setattr(ResourceManager, "get", fake_response)
+
+        dev = qml.device("ionq.qpu", wires=1, api_key="test", sharpen=True)
+
+        @qml.qnode(dev, shots=100)
+        def circuit():
+            qml.PauliX(wires=0)
+            return qml.expval(qml.PauliZ(0))
+
+        with pytest.warns(
+            DeprecationWarning, match="sharpen is deprecated. Use `aggregation=..` instead."
+        ):
+            circuit()
+
+        assert captured["params"] == {"aggregation": "voting"}
 
     @pytest.mark.parametrize("shots", [8192])
     def test_one_qubit_circuit(self, shots, requires_api, tol):
