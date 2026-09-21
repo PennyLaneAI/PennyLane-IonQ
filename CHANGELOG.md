@@ -2,6 +2,10 @@
 
 ### New features since last release
 
+* Added support for mid-circuit measurements and qubit reset via `qp.measure`.
+  Such circuits are converted to OpenQASM 3.0 and submitted as `ionq.qasm3.v1` jobs.
+  [(#193)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/193)
+
 ### Improvements 🛠
 
 * Updated tests to stop using deprecated shots kwarg on the device.
@@ -31,7 +35,8 @@
 
 This release contains contributions from (in alphabetical order):
 
-Marcus Edwards
+Marcus Edwards,
+Antal Száva
 
 ---
 # Release 0.45.0
