@@ -5,7 +5,8 @@
 * Added a ``memory`` device keyword argument. When set to ``True``, the shotwise
   measurement outcomes returned by the API are used as the device samples, instead
   of generating samples locally from the returned probabilities. Available for QPU
-  and noisy-simulator jobs.
+  and noisy-simulator jobs. Probabilities requested with ``qml.probs`` are then
+  estimated from the shotwise results.
   [(#195)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/195)
 
 * The IonQ API hostname can now be overridden with the ``IONQ_API_HOSTNAME``

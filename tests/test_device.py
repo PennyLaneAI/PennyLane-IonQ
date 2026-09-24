@@ -507,11 +507,12 @@ class TestDeviceIntegration:
         assert np.allclose(res, np.array([0.0, 1.0, 0.0, 0.0]), **tol)
 
     @pytest.mark.parametrize("d", shortnames)
-    def test_prob_no_results(self, d):
-        """Test that the prob attribute is
-        None if no job has yet been run."""
+    def test_probability_no_results_raises(self, d):
+        """Test that computing probabilities raises a clear error if neither a
+        histogram nor samples are available."""
         dev = qml.device(d, wires=1)
-        assert dev.prob is None
+        with pytest.raises(ValueError, match="No results are available"):
+            dev.probability()
 
     @pytest.mark.parametrize(
         "backend",
@@ -1297,6 +1298,98 @@ class TestMemoryResults:
         assert np.array_equal(results[0], [[1, 0]] * 4)
         assert np.array_equal(results[1], [[0, 1]] * 4)
 
+    def test_memory_probs_single_circuit(self, monkeypatch):
+        """Probabilities requested with memory are estimated from the shotwise
+        results instead of the (unavailable) histogram."""
+        monkeypatch.setenv("IONQ_API_HOSTNAME", TEST_HOSTNAME)
+
+        # little-endian API states: "1" -> |10>, "3" -> |11>
+        shots_payload = ["1", "1", "3", "1"]
+
+        results = {
+            "probabilities": {"url": "/v0.4/jobs/job-1/results/probabilities"},
+            "shots": {"url": "/v0.4/jobs/job-1/results/shots"},
+        }
+        job_json = {"id": "job-1", "status": "completed", "results": results}
+        payloads = {
+            f"{API_URL}/jobs/job-1": job_json,
+            f"{API_URL}/jobs/job-1/results/probabilities": {"1": 0.75, "3": 0.25},
+            f"{API_URL}/jobs/job-1/results/shots": shots_payload,
+        }
+
+        def fake_post(url, data=None, timeout=None, headers=None):
+            return MockJSONResponse(job_json, 201)
+
+        def fake_get(url, params=None, timeout=None, headers=None):
+            return MockJSONResponse(payloads[url])
+
+        monkeypatch.setattr(requests, "post", fake_post)
+        monkeypatch.setattr(requests, "get", fake_get)
+
+        dev = SimulatorDevice(wires=2, api_key=FAKE_API_KEY, noise_model="aria-1", memory=True)
+
+        @qml.set_shots(4)
+        @qml.qnode(dev)
+        def circuit():
+            qml.PauliX(0)
+            return qml.probs(wires=[0, 1]), qml.probs(wires=[1])
+
+        probs, marginal = circuit()
+
+        assert dev.histograms == []
+        assert np.allclose(probs, [0.0, 0.0, 0.75, 0.25])
+        assert np.allclose(marginal, [0.75, 0.25])
+
+    def test_memory_probs_multi_circuit(self, monkeypatch):
+        """Probabilities of a multi-circuit job with memory are estimated from the
+        shotwise results of the matching child job."""
+        job_json = {
+            "id": "parent",
+            "status": "completed",
+            "results": {"probabilities": {"url": "/v0.4/jobs/parent/results/probabilities"}},
+        }
+        payloads = {
+            f"{API_URL}/jobs/parent": job_json,
+            f"{API_URL}/jobs/parent/results/probabilities": {
+                "child-a": {"1": 1.0},
+                "child-b": {"2": 1.0},
+            },
+            f"{API_URL}/jobs/child-a": {
+                "id": "child-a",
+                "status": "completed",
+                "results": {"shots": {"url": "/v0.4/jobs/child-a/results/shots"}},
+            },
+            f"{API_URL}/jobs/child-b": {
+                "id": "child-b",
+                "status": "completed",
+                "results": {"shots": {"url": "/v0.4/jobs/child-b/results/shots"}},
+            },
+            f"{API_URL}/jobs/child-a/results/shots": ["1", "1", "1", "1"],
+            f"{API_URL}/jobs/child-b/results/shots": ["2", "2", "2", "2"],
+        }
+        monkeypatch.setenv("IONQ_API_HOSTNAME", TEST_HOSTNAME)
+
+        def fake_post(url, data=None, timeout=None, headers=None):
+            return MockJSONResponse(job_json, 201)
+
+        def fake_get(url, params=None, timeout=None, headers=None):
+            return MockJSONResponse(payloads[url])
+
+        monkeypatch.setattr(requests, "post", fake_post)
+        monkeypatch.setattr(requests, "get", fake_get)
+
+        dev = SimulatorDevice(
+            wires=2, shots=4, api_key=FAKE_API_KEY, noise_model="aria-1", memory=True
+        )
+        with qml.tape.QuantumTape() as tape:
+            qml.PauliX(0)
+            qml.probs(wires=[0, 1])
+
+        results = dev.batch_execute([tape, tape])
+
+        assert np.allclose(results[0], [0.0, 0.0, 1.0, 0.0])
+        assert np.allclose(results[1], [0.0, 1.0, 0.0, 0.0])
+
     def test_memory_false_skips_fetch(self, monkeypatch):
         """No shotwise results are fetched when memory is False."""
         shots_payload = ["1", "0", "3", "1"]
@@ -1447,6 +1540,21 @@ class TestMemoryResults:
 
         with pytest.raises(CircuitIndexNotSetException):
             dev.generate_samples()
+
+    @pytest.mark.parametrize(
+        "device_class, kwargs",
+        [(SimulatorDevice, {"noise_model": "aria-1"}), (QPUDevice, {})],
+    )
+    def test_memory_no_results_raises(self, device_class, kwargs):
+        """Sampling or computing probabilities with memory before any job has run
+        raises a clear error."""
+        dev = device_class(2, api_key=FAKE_API_KEY, memory=True, **kwargs)
+
+        with pytest.raises(ValueError, match="No results are available"):
+            dev.generate_samples()
+
+        with pytest.raises(ValueError, match="No results are available"):
+            dev.probability()
 
     def test_memory_none_entry_falls_back(self):
         """A missing shotwise results entry falls back to probability sampling."""
