@@ -512,7 +512,7 @@ class TestDeviceIntegration:
     def test_probability_no_results_raises(self, d):
         """Test that computing probabilities raises a clear error if neither a
         histogram nor samples are available."""
-        dev = qml.device(d, wires=1)
+        dev = qp.device(d, wires=1)
         with pytest.raises(ValueError, match="No results are available"):
             dev.probability()
 
@@ -1266,9 +1266,9 @@ class TestMemoryResults:
         dev = SimulatorDevice(
             wires=2, shots=4, api_key=FAKE_API_KEY, noise_model="aria-1", memory=True
         )
-        with qml.tape.QuantumTape() as tape:
-            qml.PauliX(0)
-            qml.sample(wires=[0, 1])
+        with qp.tape.QuantumTape() as tape:
+            qp.PauliX(0)
+            qp.sample(wires=[0, 1])
         results = dev.batch_execute([tape])
 
         assert np.array_equal(results[0], [[1, 0], [0, 0], [1, 1], [1, 0]])
@@ -1313,9 +1313,9 @@ class TestMemoryResults:
         dev = SimulatorDevice(
             wires=2, shots=4, api_key=FAKE_API_KEY, noise_model="aria-1", memory=True
         )
-        with qml.tape.QuantumTape() as tape:
-            qml.PauliX(0)
-            qml.sample(wires=[0, 1])
+        with qp.tape.QuantumTape() as tape:
+            qp.PauliX(0)
+            qp.sample(wires=[0, 1])
 
         results = dev.batch_execute([tape, tape])
 
@@ -1352,11 +1352,11 @@ class TestMemoryResults:
 
         dev = SimulatorDevice(wires=2, api_key=FAKE_API_KEY, noise_model="aria-1", memory=True)
 
-        @qml.set_shots(4)
-        @qml.qnode(dev)
+        @qp.set_shots(4)
+        @qp.qnode(dev)
         def circuit():
-            qml.PauliX(0)
-            return qml.probs(wires=[0, 1]), qml.probs(wires=[1])
+            qp.PauliX(0)
+            return qp.probs(wires=[0, 1]), qp.probs(wires=[1])
 
         probs, marginal = circuit()
 
@@ -1405,9 +1405,9 @@ class TestMemoryResults:
         dev = SimulatorDevice(
             wires=2, shots=4, api_key=FAKE_API_KEY, noise_model="aria-1", memory=True
         )
-        with qml.tape.QuantumTape() as tape:
-            qml.PauliX(0)
-            qml.probs(wires=[0, 1])
+        with qp.tape.QuantumTape() as tape:
+            qp.PauliX(0)
+            qp.probs(wires=[0, 1])
 
         results = dev.batch_execute([tape, tape])
 
@@ -1445,9 +1445,9 @@ class TestMemoryResults:
 
         dev = SimulatorDevice(wires=2, shots=4, api_key=FAKE_API_KEY, noise_model="aria-1")
 
-        with qml.tape.QuantumTape() as tape:
-            qml.PauliX(0)
-            qml.sample(wires=[0, 1])
+        with qp.tape.QuantumTape() as tape:
+            qp.PauliX(0)
+            qp.sample(wires=[0, 1])
 
         dev.batch_execute([tape])
 
@@ -1485,9 +1485,9 @@ class TestMemoryResults:
 
         dev = SimulatorDevice(wires=2, shots=4, api_key=FAKE_API_KEY, noise_model="aria-1")
 
-        with qml.tape.QuantumTape() as tape:
-            qml.PauliX(0)
-            qml.sample(wires=[0, 1])
+        with qp.tape.QuantumTape() as tape:
+            qp.PauliX(0)
+            qp.sample(wires=[0, 1])
 
         results = dev.batch_execute([tape, tape])
 
@@ -1531,9 +1531,9 @@ class TestMemoryResults:
                 wires=2, shots=4, api_key=FAKE_API_KEY, noise_model=noise_model, memory=True
             )
 
-        with qml.tape.QuantumTape() as tape:
-            qml.PauliX(0)
-            qml.sample(wires=[0, 1])
+        with qp.tape.QuantumTape() as tape:
+            qp.PauliX(0)
+            qp.sample(wires=[0, 1])
 
         dev.batch_execute([tape])
 
@@ -1593,11 +1593,11 @@ class TestMemoryResults:
 
     def test_memory_single_circuit_api(self, requires_api):
         """Shotwise results are used as samples on a noisy-simulator job."""
-        dev = qml.device("ionq.simulator", wires=3, noise_model="aria-1", memory=True)
+        dev = qp.device("ionq.simulator", wires=3, noise_model="aria-1", memory=True)
 
-        with qml.tape.QuantumTape(shots=100) as tape:
-            qml.PauliX(1)
-            qml.sample(wires=[0, 1, 2])
+        with qp.tape.QuantumTape(shots=100) as tape:
+            qp.PauliX(1)
+            qp.sample(wires=[0, 1, 2])
 
         results = dev.batch_execute([tape])
 
@@ -1609,15 +1609,15 @@ class TestMemoryResults:
     def test_memory_two_circuits_api(self, requires_api):
         """Shotwise results are matched to the right circuit and wire ordering
         on a multi-circuit job."""
-        dev = qml.device("ionq.simulator", wires=3, noise_model="aria-1", memory=True)
+        dev = qp.device("ionq.simulator", wires=3, noise_model="aria-1", memory=True)
 
-        with qml.tape.QuantumTape(shots=100) as tape1:
-            qml.PauliX(0)
-            qml.sample(wires=[0, 1, 2])
+        with qp.tape.QuantumTape(shots=100) as tape1:
+            qp.PauliX(0)
+            qp.sample(wires=[0, 1, 2])
 
-        with qml.tape.QuantumTape(shots=100) as tape2:
-            qml.PauliX(2)
-            qml.sample(wires=[0, 1, 2])
+        with qp.tape.QuantumTape(shots=100) as tape2:
+            qp.PauliX(2)
+            qp.sample(wires=[0, 1, 2])
 
         results = dev.batch_execute([tape1, tape2])
 
