@@ -2,10 +2,25 @@
 
 ### New features since last release
 
+* Added a ``memory`` device keyword argument. When set to ``True``, the shotwise
+  measurement outcomes returned by the API are used as the device samples, instead
+  of generating samples locally from the returned probabilities. Available for QPU
+  and noisy-simulator jobs. Probabilities requested with ``qml.probs`` are then
+  estimated from the shotwise results.
+  [(#195)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/195)
+
+* The IonQ API hostname can now be overridden with the ``IONQ_API_HOSTNAME``
+  environment variable, making it possible to target a different API host.
+  [(#195)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/195)
+
 ### Improvements 🛠
 
 * Updated tests to stop using deprecated shots kwarg on the device.
   [(#184)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/184)
+
+* Added the ``ResultsTypes`` enum to ``api_client``, used to select whether
+  probabilities or shotwise results are fetched for a job.
+  [(#195)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/195)
 
 ### Internal changes ⚙️
 
