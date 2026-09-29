@@ -815,7 +815,7 @@ class TestExpansion:
             qp.Hadamard(2),
             qp.GroverOperator(wires=wires),
         ]
-        tape = qp.tape.QuantumScript(ops, [qml.probs(wires=wires)], shots=1024)
+        tape = qp.tape.QuantumScript(ops, [qp.probs(wires=wires)], shots=1024)
 
         with qp.decomposition.toggle_graph_ctx(graph_enabled):
             expanded = dev.expand_fn(tape)
@@ -948,9 +948,9 @@ class TestJobAttribute:
     @pytest.mark.parametrize(
         "op, expected_ionq_gate",
         [
-            (qp.adjoint(qml.S(0)), "si"),
-            (qp.adjoint(qml.T(0)), "ti"),
-            (qp.adjoint(qml.SX(0)), "vi"),
+            (qp.adjoint(qp.S(0)), "si"),
+            (qp.adjoint(qp.T(0)), "ti"),
+            (qp.adjoint(qp.SX(0)), "vi"),
         ],
     )
     def test_adjoint_gates(self, mocker, op, expected_ionq_gate):
