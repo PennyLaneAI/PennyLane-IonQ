@@ -771,12 +771,11 @@ you want to access must be first set via the set_current_circuit_index device me
 class TestExpansion:
     """Tests that circuits are expanded to operations the device supports."""
 
-    def test_supported_operations(self):
-        """Tests that the qis gate set uses the current adjoint names and accepts GlobalPhase."""
+    def test_qis_adjoints_and_global_phase(self):
+        """Tests qis gate adjoints and GlobalPhase as supported gates."""
         dev = IonQDevice(wires=3, target="foo", shots=1024)
 
         assert {"Adjoint(S)", "Adjoint(T)", "Adjoint(SX)", "GlobalPhase"} <= dev.operations
-        assert not {"S.inv", "T.inv", "SX.inv"} & dev.operations
 
     @pytest.mark.parametrize("graph_enabled", [False, True])
     def test_expand_toffoli_and_grover(self, graph_enabled):

@@ -34,9 +34,7 @@
 ### Bug fixes 🐛
 
 * ``GlobalPhase`` is now accepted by the IonQ devices and skipped when building the job
-  payload, since a global phase is unobservable. Decompositions that produce a global
-  phase, such as those of ``Toffoli`` and ``GroverOperator`` in recent PennyLane
-  versions, no longer fail on the device or in the graph-based decomposition system.
+  payload, since a global phase is unobservable.
   [(#XXX)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/XXX)
 
 ### Contributors ✍️
