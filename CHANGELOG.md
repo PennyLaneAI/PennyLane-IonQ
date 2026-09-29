@@ -8,6 +8,11 @@
 
 ### Improvements 🛠
 
+* ``Toffoli`` is now a natively supported operation of the ``qis`` gate set. It is
+  submitted as an ``x`` gate with two ``controls``, matching the IonQ API, instead of
+  being decomposed into single- and two-qubit gates before submission.
+  [(#XXX)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/XXX)
+
 * Updated tests to stop using deprecated shots kwarg on the device.
   [(#184)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/184)
 
