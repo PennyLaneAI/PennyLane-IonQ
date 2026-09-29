@@ -808,16 +808,16 @@ class TestExpansion:
         dev = IonQDevice(wires=3, target="foo", shots=1024)
         wires = [0, 1, 2]
 
-        ops = [qml.Hadamard(w) for w in wires]
+        ops = [qp.Hadamard(w) for w in wires]
         ops += [
-            qml.Hadamard(2),
-            qml.Toffoli(wires=wires),
-            qml.Hadamard(2),
-            qml.GroverOperator(wires=wires),
+            qp.Hadamard(2),
+            qp.Toffoli(wires=wires),
+            qp.Hadamard(2),
+            qp.GroverOperator(wires=wires),
         ]
-        tape = qml.tape.QuantumScript(ops, [qml.probs(wires=wires)], shots=1024)
+        tape = qp.tape.QuantumScript(ops, [qml.probs(wires=wires)], shots=1024)
 
-        with qml.decomposition.toggle_graph_ctx(graph_enabled):
+        with qp.decomposition.toggle_graph_ctx(graph_enabled):
             expanded = dev.expand_fn(tape)
 
         assert all(op.name in dev.operations for op in expanded.operations)
@@ -916,10 +916,10 @@ class TestJobAttribute:
         mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
         dev = IonQDevice(wires=(0,), target="foo", shots=1024)
 
-        with qml.tape.QuantumTape() as tape:
-            qml.GlobalPhase(0.3)
-            qml.PauliX(0)
-            qml.GlobalPhase(1.2)
+        with qp.tape.QuantumTape() as tape:
+            qp.GlobalPhase(0.3)
+            qp.PauliX(0)
+            qp.GlobalPhase(1.2)
 
         dev.apply(tape.operations)
 
@@ -934,9 +934,9 @@ class TestJobAttribute:
         mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
         dev = IonQDevice(wires=(0,), target="foo", shots=1024)
 
-        with qml.tape.QuantumTape() as tape:
-            qml.GlobalPhase(0.3)
-            qml.PauliX(0)
+        with qp.tape.QuantumTape() as tape:
+            qp.GlobalPhase(0.3)
+            qp.PauliX(0)
 
         dev.reset(circuits_array_length=2)
         dev.batch_apply(tape.operations, circuit_index=0)
@@ -948,9 +948,9 @@ class TestJobAttribute:
     @pytest.mark.parametrize(
         "op, expected_ionq_gate",
         [
-            (qml.adjoint(qml.S(0)), "si"),
-            (qml.adjoint(qml.T(0)), "ti"),
-            (qml.adjoint(qml.SX(0)), "vi"),
+            (qp.adjoint(qml.S(0)), "si"),
+            (qp.adjoint(qml.T(0)), "ti"),
+            (qp.adjoint(qml.SX(0)), "vi"),
         ],
     )
     def test_adjoint_gates(self, mocker, op, expected_ionq_gate):
