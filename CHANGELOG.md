@@ -2,6 +2,10 @@
 
 ### New features since last release
 
+* Added support for mid-circuit measurements and qubit reset via `qp.measure`.
+  Such circuits are converted to OpenQASM 3.0 and submitted as `ionq.qasm3.v1` jobs.
+  [(#193)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/193)
+
 ### Improvements 🛠
 
 * The ``qis`` gate set now lists the adjoint gates under their current PennyLane names,

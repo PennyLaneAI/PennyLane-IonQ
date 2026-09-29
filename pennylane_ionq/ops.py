@@ -17,6 +17,7 @@ Custom operations
 
 import numpy as np
 from pennylane.operation import Operation
+from pennylane.ops import IsingXX, IsingYY, IsingZZ
 
 
 # Custom operations for the native gateset below.
@@ -145,6 +146,10 @@ class XX(Operation):
     num_wires = 2
     grad_method = "A"
 
+    @staticmethod
+    def compute_decomposition(phi, wires):  # pylint: disable=arguments-differ
+        return [IsingXX(phi, wires=wires)]
+
 
 class YY(Operation):
     r"""YY(phi, wires)
@@ -168,6 +173,10 @@ class YY(Operation):
     num_wires = 2
     grad_method = "A"
 
+    @staticmethod
+    def compute_decomposition(phi, wires):  # pylint: disable=arguments-differ
+        return [IsingYY(phi, wires=wires)]
+
 
 class ZZ(Operation):
     r"""ZZ(phi, wires)
@@ -190,3 +199,7 @@ class ZZ(Operation):
     num_params = 1
     num_wires = 2
     grad_method = "A"
+
+    @staticmethod
+    def compute_decomposition(phi, wires):  # pylint: disable=arguments-differ
+        return [IsingZZ(phi, wires=wires)]
