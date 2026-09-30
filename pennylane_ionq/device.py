@@ -59,11 +59,11 @@ _qis_operation_map = {
     "RY": "ry",
     "RZ": "rz",
     "S": "s",
-    "S.inv": "si",
+    "Adjoint(S)": "si",
     "T": "t",
-    "T.inv": "ti",
+    "Adjoint(T)": "ti",
     "SX": "v",
-    "SX.inv": "vi",
+    "Adjoint(SX)": "vi",
     # Ising gates defined in this plugin for IonQ hardware
     "XX": "xx",
     "YY": "yy",
@@ -72,12 +72,16 @@ _qis_operation_map = {
     "IsingXX": "xx",
     "IsingYY": "yy",
     "IsingZZ": "zz",
+    # A global phase is unobservable, so it is accepted and skipped
+    "GlobalPhase": None,
 }
 
 _native_operation_map = {
     "GPI": "gpi",
     "GPI2": "gpi2",
     "MS": "ms",
+    # A global phase is unobservable, so it is accepted and skipped
+    "GlobalPhase": None,
 }
 
 _GATESET_OPS = {
@@ -525,6 +529,10 @@ class IonQDevice(QubitDevice):
             operation (.Operation): operation to apply on the device
             circuit_index: index of the circuit to apply operation to
         """
+        if operation.name == "GlobalPhase":
+            # A global phase has no observable effect, so no gate is submitted
+            return
+
         wires = self.map_wires(operation.wires).tolist()
         if operation.name == "Evolution":
             self._apply_evolution_operation(operation, circuit_index, wires)

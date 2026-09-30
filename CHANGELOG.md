@@ -8,6 +8,12 @@
 
 ### Improvements 🛠
 
+* The ``qis`` gate set now lists the adjoint gates under their current PennyLane names,
+  ``Adjoint(S)``, ``Adjoint(T)`` and ``Adjoint(SX)``, instead of the outdated ``S.inv``,
+  ``T.inv`` and ``SX.inv`` names. They are mapped to IonQ's ``si``, ``ti`` and ``vi`` gates,
+  so adjoint gates no longer need to be decomposed further before submission.
+  [(#XXX)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/XXX)
+
 * Updated tests to stop using deprecated shots kwarg on the device.
   [(#184)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/184)
 
@@ -30,6 +36,10 @@
 ### Documentation 📝
 
 ### Bug fixes 🐛
+
+* ``GlobalPhase`` is now accepted by the IonQ devices and skipped when building the job
+  payload, since a global phase is unobservable.
+  [(#XXX)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/XXX)
 
 ### Contributors ✍️
 

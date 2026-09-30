@@ -792,6 +792,38 @@ you want to access must be first set via the set_current_circuit_index device me
         assert results[1] == pytest.approx(512, abs=100)
 
 
+class TestExpansion:
+    """Tests that circuits are expanded to operations the device supports."""
+
+    def test_qis_adjoints_and_global_phase(self):
+        """Tests qis gate adjoints and GlobalPhase as supported gates."""
+        dev = IonQDevice(wires=3, target="foo", shots=1024)
+
+        assert {"Adjoint(S)", "Adjoint(T)", "Adjoint(SX)", "GlobalPhase"} <= dev.operations
+
+    @pytest.mark.parametrize("graph_enabled", [False, True])
+    def test_expand_toffoli_and_grover(self, graph_enabled):
+        """Tests that a circuit with Toffoli and GroverOperator expands to supported
+        operations with the graph-based decomposition system both disabled and enabled."""
+        dev = IonQDevice(wires=3, target="foo", shots=1024)
+        wires = [0, 1, 2]
+
+        ops = [qp.Hadamard(w) for w in wires]
+        ops += [
+            qp.Hadamard(2),
+            qp.Toffoli(wires=wires),
+            qp.Hadamard(2),
+            qp.GroverOperator(wires=wires),
+        ]
+        tape = qp.tape.QuantumScript(ops, [qp.probs(wires=wires)], shots=1024)
+
+        with qp.decomposition.toggle_graph_ctx(graph_enabled):
+            expanded = dev.expand_fn(tape)
+
+        assert all(op.name in dev.operations for op in expanded.operations)
+        dev.check_validity(expanded.operations, expanded.observables)
+
+
 class TestJobAttribute:
     """Tests job creation with mocked submission."""
 
@@ -874,6 +906,65 @@ class TestJobAttribute:
             "gate": "x",
             "target": 0,
         }
+
+    def test_global_phase_is_skipped(self, mocker):
+        """Tests that a GlobalPhase operation is accepted but adds no gate to the job."""
+
+        def mock_submit_job(*args):
+            pass
+
+        mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
+        dev = IonQDevice(wires=(0,), target="foo", shots=1024)
+
+        with qp.tape.QuantumTape() as tape:
+            qp.GlobalPhase(0.3)
+            qp.PauliX(0)
+            qp.GlobalPhase(1.2)
+
+        dev.apply(tape.operations)
+
+        assert dev.job["input"]["circuit"] == [{"gate": "x", "target": 0}]
+
+    def test_global_phase_is_skipped_batch_submit(self, mocker):
+        """Tests that a GlobalPhase operation adds no gate to the job on batch submit."""
+
+        def mock_submit_job(*args):
+            pass
+
+        mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
+        dev = IonQDevice(wires=(0,), target="foo", shots=1024)
+
+        with qp.tape.QuantumTape() as tape:
+            qp.GlobalPhase(0.3)
+            qp.PauliX(0)
+
+        dev.reset(circuits_array_length=2)
+        dev.batch_apply(tape.operations, circuit_index=0)
+        dev.batch_apply(tape.operations, circuit_index=1)
+
+        assert dev.job["input"]["circuits"][0]["circuit"] == [{"gate": "x", "target": 0}]
+        assert dev.job["input"]["circuits"][1]["circuit"] == [{"gate": "x", "target": 0}]
+
+    @pytest.mark.parametrize(
+        "op, expected_ionq_gate",
+        [
+            (qp.adjoint(qp.S(0)), "si"),
+            (qp.adjoint(qp.T(0)), "ti"),
+            (qp.adjoint(qp.SX(0)), "vi"),
+        ],
+    )
+    def test_adjoint_gates(self, mocker, op, expected_ionq_gate):
+        """Tests that adjoint S, T and SX gates map to the IonQ inverse gates."""
+
+        def mock_submit_job(*args):
+            pass
+
+        mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
+        dev = IonQDevice(wires=(0,), target="foo", shots=1024)
+
+        dev.apply([op])
+
+        assert dev.job["input"]["circuit"] == [{"gate": expected_ionq_gate, "target": 0}]
 
     def test_parameterized_op(self, mocker):
         """Tests job attribute several parameterized operations."""
