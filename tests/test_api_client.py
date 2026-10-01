@@ -25,6 +25,7 @@ from pennylane_ionq.api_client import (
     Resource,
     Field,
     ResourceManager,
+    ResultsTypes,
     ObjectAlreadyCreatedException,
     MethodNotSupportedException,
 )
@@ -106,10 +107,11 @@ class MockGETResponse(MockResponse):
 
 
 class TestAPIClient:
-    def test_init_default_client(self):
+    def test_init_default_client(self, monkeypatch):
         """
         Test that initializing a default client generates an APIClient with the expected params.
         """
+        monkeypatch.delenv("IONQ_API_HOSTNAME", raising=False)
         client = api_client.APIClient(api_key="test")
         assert client.USER_AGENT == "pennylane-ionq-api-client/0.4"
         assert client.HOSTNAME == "api.ionq.co/v0.4"
@@ -117,6 +119,17 @@ class TestAPIClient:
         assert client.BASE_URL.endswith(client.HOSTNAME)
         assert client.HEADERS["User-Agent"] == client.USER_AGENT
         assert client.TIMEOUT_SECONDS == 600
+
+    def test_hostname_env_override(self, monkeypatch):
+        """
+        Test that the IONQ_API_HOSTNAME environment variable overrides the default hostname.
+        """
+        other_api_url = "some_other_url.co"
+        monkeypatch.setenv("IONQ_API_HOSTNAME", other_api_url)
+        client = api_client.APIClient(api_key="test")
+        assert client.HOSTNAME == other_api_url
+        assert client.BASE_URL == "https://" + other_api_url
+        assert client.DEFAULT_HOSTNAME == "api.ionq.co/v0.4"
 
     def test_set_authorization_header(self):
         """
@@ -194,7 +207,9 @@ class TestResourceManager:
 
         # TODO test that this is called with correct path
         mock_client.get.assert_called_once()
-        manager.handle_response.assert_called_once_with(mock_response, params)
+        manager.handle_response.assert_called_once_with(
+            mock_response, params, results_type=ResultsTypes.PROBS
+        )
 
     def test_create_unsupported(self):
         """
@@ -269,7 +284,9 @@ class TestResourceManager:
 
         mock_response.status_code = 200
         manager.handle_response(mock_response)
-        mock_handle_success_response.assert_called_once_with(mock_response, params=None)
+        mock_handle_success_response.assert_called_once_with(
+            mock_response, params=None, results_type=ResultsTypes.PROBS
+        )
 
     def test_handle_response_non_json_error(self):
         """
