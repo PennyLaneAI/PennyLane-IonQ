@@ -53,6 +53,8 @@ _qis_operation_map = {
     "PauliZ": "z",
     "Hadamard": "h",
     "CNOT": "cnot",
+    # IonQ expresses multi-controlled gates with a list of controls
+    "Toffoli": "x",
     "Evolution": "pauliexp",
     "SWAP": "swap",
     "RX": "rx",
@@ -570,7 +572,10 @@ class IonQDevice(QubitDevice):
         name = operation.name
         params = operation.parameters
         gate = {"gate": self._operation_map[name]}
-        if len(wires) == 2:
+        if name == "Toffoli":
+            gate["controls"] = wires[:2]
+            gate["target"] = wires[2]
+        elif len(wires) == 2:
             if name in {
                 "SWAP",
                 "XX",

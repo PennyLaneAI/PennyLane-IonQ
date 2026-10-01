@@ -875,6 +875,58 @@ class TestJobAttribute:
             "target": 0,
         }
 
+    def test_toffoli_gate(self, mocker):
+        """Tests that a Toffoli gate is submitted as a multi-controlled x gate."""
+
+        def mock_submit_job(*args):
+            pass
+
+        mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
+        dev = IonQDevice(wires=(0, 1, 2), target="foo", shots=1024)
+
+        with qp.tape.QuantumTape() as tape:
+            qp.Toffoli(wires=[2, 0, 1])
+
+        dev.apply(tape.operations)
+
+        assert dev.job["input"]["circuit"] == [{"gate": "x", "controls": [2, 0], "target": 1}]
+
+    def test_toffoli_gate_batch_submit(self, mocker):
+        """Tests that a Toffoli gate is submitted as a multi-controlled x gate on batch submit."""
+
+        def mock_submit_job(*args):
+            pass
+
+        mocker.patch("pennylane_ionq.device.IonQDevice._submit_job", mock_submit_job)
+        dev = IonQDevice(wires=(0, 1, 2), target="foo", shots=1024)
+
+        with qp.tape.QuantumTape() as tape:
+            qp.Toffoli(wires=[0, 1, 2])
+
+        dev.reset(circuits_array_length=2)
+        dev.batch_apply(tape.operations, circuit_index=0)
+        dev.batch_apply(tape.operations, circuit_index=1)
+
+        expected = [{"gate": "x", "controls": [0, 1], "target": 2}]
+        assert dev.job["input"]["circuits"][0]["circuit"] == expected
+        assert dev.job["input"]["circuits"][1]["circuit"] == expected
+
+    @pytest.mark.parametrize("graph_enabled", [False, True])
+    def test_toffoli_not_decomposed(self, graph_enabled):
+        """Tests that Toffoli is a supported operation and survives circuit expansion
+        with the graph-based decomposition system both disabled and enabled."""
+        dev = IonQDevice(wires=3, target="foo", shots=1024)
+
+        assert "Toffoli" in dev.operations
+
+        ops = [qp.Hadamard(0), qp.Hadamard(1), qp.Toffoli(wires=[0, 1, 2])]
+        tape = qp.tape.QuantumScript(ops, [qp.probs(wires=[0, 1, 2])], shots=1024)
+
+        with qp.decomposition.toggle_graph_ctx(graph_enabled):
+            expanded = dev.expand_fn(tape)
+
+        assert [op.name for op in expanded.operations] == ["Hadamard", "Hadamard", "Toffoli"]
+
     def test_parameterized_op(self, mocker):
         """Tests job attribute several parameterized operations."""
 
