@@ -32,6 +32,7 @@ from pennylane.ops import Identity, PauliX, PauliY, PauliZ
 from pennylane.ops.op_math.prod import Prod
 
 from pennylane.ops.op_math.linear_combination import LinearCombination
+from pennylane.resource import resources_from_tape
 
 from .api_client import Job, JobExecutionError, ResultsTypes
 from .qasm3 import operations_to_qasm3
@@ -439,7 +440,7 @@ class IonQDevice(QubitDevice):
 
         if self.tracker.active:
             for circuit in circuits:
-                tape_resources = circuit.specs["resources"]
+                tape_resources = resources_from_tape(circuit)
 
                 self.tracker.update(
                     executions=1,

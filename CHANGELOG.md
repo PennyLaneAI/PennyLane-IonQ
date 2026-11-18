@@ -51,10 +51,15 @@
 
 ### Bug fixes 🐛
 
+* Device tracking now uses `qp.resource.resources_from_tape`, since `QuantumScript.specs`
+  has been removed from PennyLane.
+  [(#202)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/202)
+
 ### Contributors ✍️
 
 This release contains contributions from (in alphabetical order):
 
+Yushao Chen,
 Marcus Edwards,
 Antal Száva
 
