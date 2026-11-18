@@ -551,8 +551,8 @@ class TestDeviceIntegration:
         assert dev.tracker.history["batches"] == [1]
         assert dev.tracker.history["batch_len"] == [2]
         assert len(dev.tracker.history["resources"]) == 2
-        assert dev.tracker.history["resources"][0] == tape1.specs["resources"]
-        assert dev.tracker.history["resources"][1] == tape1.specs["resources"]
+        assert dev.tracker.history["resources"][0] == qp.resource.resources_from_tape(tape1)
+        assert dev.tracker.history["resources"][1] == qp.resource.resources_from_tape(tape1)
 
     def test_not_recording_when_pennylane_tracker_not_active(self, requires_api):
         """Test recording device not executed when tracker is inactive."""
