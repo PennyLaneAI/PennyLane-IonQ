@@ -35,7 +35,7 @@
 
 * Device stopping conditions now use an ordinary callable instead of `pennylane.BooleanFn`,
   which is being removed from PennyLane.
-  [(#XXXX)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/XXXX)
+  [(#203)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/203)
 
 * Upgraded Sphinx to version 9.0.
   [(#188)](https://github.com/PennyLaneAI/PennyLane-IonQ/pull/188)
