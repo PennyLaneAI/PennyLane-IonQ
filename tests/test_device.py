@@ -912,10 +912,9 @@ class TestJobAttribute:
         assert dev.job["input"]["circuits"][0]["circuit"] == expected
         assert dev.job["input"]["circuits"][1]["circuit"] == expected
 
-    @pytest.mark.parametrize("graph_enabled", [False, True])
-    def test_toffoli_not_decomposed(self, graph_enabled):
+    def test_toffoli_not_decomposed(self):
         """Tests that Toffoli is a supported operation and survives circuit expansion
-        with the graph-based decomposition system both disabled and enabled."""
+        with graph-based decomposition."""
         dev = IonQDevice(wires=3, target="foo", shots=1024)
 
         assert "Toffoli" in dev.operations
@@ -923,8 +922,7 @@ class TestJobAttribute:
         ops = [qp.Hadamard(0), qp.Hadamard(1), qp.Toffoli(wires=[0, 1, 2])]
         tape = qp.tape.QuantumScript(ops, [qp.probs(wires=[0, 1, 2])], shots=1024)
 
-        with qp.decomposition.toggle_graph_ctx(graph_enabled):
-            expanded = dev.expand_fn(tape)
+        expanded = dev.expand_fn(tape)
 
         assert [op.name for op in expanded.operations] == ["Hadamard", "Hadamard", "Toffoli"]
 

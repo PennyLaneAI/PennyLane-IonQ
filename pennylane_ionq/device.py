@@ -24,7 +24,7 @@ from time import sleep
 
 import numpy as np
 
-from pennylane import BooleanFn, pauli_decompose, SparseHamiltonian
+from pennylane import pauli_decompose, SparseHamiltonian
 from pennylane.devices import QubitDevice
 from pennylane.measurements import MidMeasureMP
 from pennylane.ops.op_math import Conditional, Exp, Sum, SProd
@@ -480,7 +480,7 @@ class IonQDevice(QubitDevice):
 
     @property
     def stopping_condition(self):
-        """.BooleanFn: Returns the stopping condition for the device.
+        """Callable: Returns the stopping condition for the device.
 
         Extends the default to accept mid-circuit measurements, which are
         submitted via the qasm3 path. Classically controlled operations
@@ -496,7 +496,7 @@ class IonQDevice(QubitDevice):
                 return accepts_obj(obj.base)
             return self.supports_operation(obj.name)
 
-        return BooleanFn(accepts_obj)
+        return accepts_obj
 
     def apply(self, operations, **kwargs):
         """Implementation of QubitDevice abstract method apply."""
